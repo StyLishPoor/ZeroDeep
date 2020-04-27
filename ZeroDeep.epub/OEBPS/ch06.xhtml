@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>学習に関するテクニック</title>
+</head>
+<body>
+<h1 id='h6'><span class='chapno'>6章</span><br/>学習に関するテクニック</h1>
+<p>本章では、ニューラルネットワークの学習においてキーとなる重要なアイデアを説明します。本章で取り上げるテーマは、最適な重みパラメータを探索する最適化手法、重みパラメータの初期値、ハイパーパラメータの設定方法など、どれもがニューラルネットワークの学習において重要なテーマです。また、過学習の対応策として、Weight decayやDropoutなどの正則化手法について概要を説明し、その実装を行います。最後に、近年多くの研究で使用されるBatch Normalizationという手法についても簡単な説明を行います。本章で述べる手法を用いることで、ニューラルネットワーク（ディープラーニング）の学習を効率的に進めることができ、認識精度を高めることができます。それでは、先に進みましょう。</p>
+
+<h2 id='h6-1'><span class='secno'>6.1　</span>パラメータの更新</h2>
+<p>ニューラルネットワークの学習の目的は、損失関数の値をできるだけ小さくするパラメータを見つけることです。これは最適なパラメータを見つける問題であり、そのような問題を解くことを<!-- IDX:最適化 --><b>最適化</b>（optimization）と言います。残念なことに、ニューラルネットワークの最適化はとても難しい問題です。というのは、パラメータ空間は非常に複雑であり、最適な解は簡単に見つけられないからです（数式を解いて、一瞬で最小値を求めるといったような方法はとれません）。さらに、ディープなネットワークでは、パラメータの数が膨大になり、事態はより深刻になってきます。</p>
+<p>私たちはこれまで、最適なパラメータを見つけるために、パラメータの勾配（微分）を手がかりにしました。パラメータの勾配を使って、勾配方向にパラメータを更新するというステップを何度も繰り返して、徐々に最適なパラメータへと近づけていったのです。それは、<!-- IDX:確率的勾配降下法 --><b>確率的勾配降下法</b>（stochastic gradient descent）——略して<!-- IDX:SGD --><b>SGD</b>——と言って、単純な方法ですが、パラメータ空間をやみくもに探すよりも“賢い”方法でした。しかし、SGDは単純な方法であり、（問題によっては）SGDよりもさらにスマートな手法が存在します。ここでは、SGDの欠点を指摘し、SGDとは別の最適化手法を紹介します。</p>
+
+<h3 id='h6-1-1'><span class='secno'>6.1.1　</span>冒険家の話</h3>
+<p>話の本筋に進む前に、最適化について私たちの置かれている状況を、「たとえ話」になぞらえて話すことから始めます。</p>
+<blockquote><p>ここに風変わりな冒険家がいます。彼は、広大な乾燥地帯を旅しながら、日々深い谷底を求めて旅を続けています。彼の目標は、最も深く低い谷底——彼はその場所を「深き場所」と呼ぶ——へたどり着くこと。それが彼の旅する目的です。しかも、彼は、厳しい“制約”を2つ自分に課しています。ひとつは地図を見ないこと、もうひとつは目隠しをすることです。そのため、彼には、広大な土地のどこに一番低い谷底が存在するのか分かりません。しかも、外は何も見えないのです。そのような厳しい条件の中、この冒険家は、どのように「深き場所」を目指せばよいでしょうか？ どのように歩を進めれば、効率良く「深き場所」を見つけることができるでしょうか？</p></blockquote>
+<p>最適なパラメータを探索するとき、私たちの置かれている状況は、この冒険家と同じ暗闇の世界です。広大で複雑な地形を、地図もなく、目隠しをして「深き場所」を探さなければなりません。これは、とても難しい問題だと想像していただけると思います。</p>
+<p>この困難な状況で重要になってくるのが、地面の「傾斜」です。冒険家には、周りの景色は見えませんが、今いる場所の地面の傾斜は分かります（地面の傾きは足の裏から伝わってきます）。そこで、今いる場所で一番傾斜がきつい方向に進もうというのが、SGDの戦略です。これを繰り返せば、いつの日か「深き場所」にたどり着くことができるかもしれない——勇敢な冒険家はそう考えるかもしれません。</p>
+
+<h3 id='h6-1-2'><span class='secno'>6.1.2　</span>SGD</h3>
+<p>最適化問題の難しさを実感してもらったところで、ここではもう一度SGDの復習から始めます。早速ですが、SGDは、数式で式(6.1)のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\mathbf{W} \leftarrow \mathbf{W} - \eta \frac{\partial L}{\partial \mathbf{W}}  %\qquad(6.1)' src='images/math/9807fef2adedd4e26237b86a52312685.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq1'>式(6.1)</p>
+</div>
+<p>ここで、更新する重みパラメータを<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>に関する損失関数の勾配を<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>とします。<span class='equation mathimage'><img alt='\eta' src='images/math/ae30ff863eb7eceedafb53297e4d8cd6.png' style='height: 0.76em'/></span>は学習係数を表し、実際には0.01や0.001といった値を、前もって決めて使用します。また、式中の<span class='equation mathimage'><img alt='\leftarrow' src='images/math/dd748dab17fd69ed59c6897639910de6.png' style='height: 0.66em'/></span>は、右辺の値で左辺の値を更新するということを表します。式(6.1)で表されるように、SGDは勾配方向へある一定の距離だけ進むという単純な方法です。それでは、このSGDを、Pythonのクラスとして実装したいと思います（後ほどの使いやすさを考えて、<code class='tt'>SGD</code>という名前のクラスで実装します）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>SGD</span>:<!-- IDX:SGD（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, lr<span style='color: #666666'>=0.01</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lr <span style='color: #666666'>=</span> lr
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>update</span>(<span style='color: #008000'>self</span>, params, grads):
+        <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> params<span style='color: #666666'>.</span>keys():
+            <b>params[key] -= self.lr * grads[key]</b>
+</pre>
+</div>
+<p>ここで、初期化の際の引数である<code class='tt'>lr</code>はlearning rate（学習係数）を表します。この学習係数は、インスタンス変数として保持されます。また、<code class='tt'>update(params, grads)</code>というメソッドを定義しますが、SGDでは、このメソッドが繰り返し呼ばれることになります。引数の<code class='tt'>params</code>と<code class='tt'>grads</code>は、（これまでのニューラルネットワークの実装と同じく）ディクショナリ変数です。<code class='tt'>params['W1']</code>、<code class='tt'>grads['W1']</code>などのように、それぞれに重みパラメータと勾配が格納されています。</p>
+<p>この<code class='tt'>SGD</code>というクラスを使えば、ニューラルネットワークのパラメータの更新は、次のように行うことができます（次に示すコードは、実際には動作しない擬似コードです）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>network <span style='color: #666666'>=</span> TwoLayerNet(<span style='color: #666666'>...</span>)
+<b>optimizer = SGD()</b>
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(<span style='color: #666666'>10000</span>):
+    <span style='color: #666666'>...</span>
+    x_batch, t_batch <span style='color: #666666'>=</span> get_mini_batch(<span style='color: #666666'>...</span>) <span style='color: #408080; font-style: italic'># ミニバッチ</span>
+    grads <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>gradient(x_batch, t_batch)
+    params <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>params
+    <b>optimizer.update(params, grads)</b>
+    <span style='color: #666666'>...</span>
+</pre>
+</div>
+<p>ここで登場する変数名の<!-- IDX:optimizer --><code class='tt'>optimizer</code>とは、「最適化を行う者」という意味の単語です。ここではSGDが、その役割を担います。パラメータの更新は、<code class='tt'>optimizer</code>が責任を持って遂行してくれます。私たちがここでやるべきなのは、<code class='tt'>optimizer</code>にパラメータと勾配の情報を渡すことだけです。</p>
+<p>このように、最適化を行うクラスを分離して実装することで、機能のモジュール化が容易になります。たとえば、この後すぐにMomentumという別の最適化手法を実装しますが、そのMomentumも同じく<code class='tt'>update(params, grads)</code>という共通のメソッドを持つように実装します。そうすれば、<code class='tt'>optimizer = SGD()</code>という一文を、<code class='tt'>optimizer = Momentum()</code>に変更するだけでSGDをMomentumに切り替えることができます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>多くのディープラーニングのフレームワークでは、さまざまな最適化手法が実装され、それらを簡単に切り替えることができるような仕組みが用意されています。たとえば、Lasagneというディープラーニングのフレームワークでは、<code class='tt'>updates.py</code>（下記リンク参照）というファイルに最適化手法が、関数としてまとめて実装されています。ユーザーは、その中から使いたい最適化手法を選ぶことができます。</p>
+<p><a class='link' href='http://github.com/Lasagne/Lasagne/blob/master/lasagne/updates.py'>http://github.com/Lasagne/Lasagne/blob/master/lasagne/updates.py</a></p>
+</td></tr></table></div>
+
+<h3 id='h6-1-3'><span class='secno'>6.1.3　</span>SGDの欠点</h3>
+<p>SGDは単純で実装も簡単ですが、問題によっては非効率な場合があります。ここでは、SGDの欠点を指摘するにあたって、次の関数の最小値を求める問題を考えたいと思います。</p>
+<div class='equation'>
+<div class='math'><img alt='f(x,y) = \frac{1}{20} x^2 + y^2  %\qquad(6.2)' src='images/math/97e015548aaf3e80af78a68861b1bc79.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq2'>式(6.2)</p>
+</div>
+<p>式(6.2)で表される関数は、<a href='./ch06.xhtml#fig06_1'>図6-1</a>に示すように、“お椀”を<span class='equation mathnoimage'><i>x</i></span>軸方向に伸ばしたような形状の関数です。実際、式(6.2)の等高線は<span class='equation mathnoimage'><i>x</i></span>軸方向に伸びた楕円になっています。</p>
+<div class='image' id='fig06_1'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/c0d7f8e66330cf67f926876cc241434c.png&quot; alt=&quot;f(x,y) = \frac{1}{20} x^2 + y^2&quot; /&gt;&lt;/span&gt;のグラフ（左図）とその等高線（右図）' src='images/ch06/fig06_1.png'/>
+<p class='caption'>
+図6-1　<span class='equation mathimage'><img alt='f(x,y) = \frac{1}{20} x^2 + y^2' src='images/math/c0d7f8e66330cf67f926876cc241434c.png' style='height: 1.42em'/></span>のグラフ（左図）とその等高線（右図）
+</p>
+</div>
+<p>それでは、式(6.2)で表される関数の勾配を見てみましょう。勾配を図で表すと<a href='./ch06.xhtml#fig06_2'>図6-2</a>のようになります。この勾配は、<span class='equation mathnoimage'><i>y</i></span>軸方向は大きく、<span class='equation mathnoimage'><i>x</i></span>軸方向は小さいというのが特徴です。言い換えれば、<span class='equation mathnoimage'><i>y</i></span>軸方向は急な傾斜ですが、<span class='equation mathnoimage'><i>x</i></span>軸方向は緩やかな傾斜ということです。また、ここでの注意点としては、式(6.2)の最小値の場所は<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>,</span> y<span class='math-normal'>)＝(0,</span> <span class='math-normal'>0)</span></i></span>ですが、<a href='./ch06.xhtml#fig06_2'>図6-2</a>で表される勾配は、多くの場所で(0, 0)の方向を指さないということです。</p>
+<div class='image' id='fig06_2'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/c0d7f8e66330cf67f926876cc241434c.png&quot; alt=&quot;f(x,y) = \frac{1}{20} x^2 + y^2&quot; /&gt;&lt;/span&gt;の勾配' src='images/ch06/fig06_2.png'/>
+<p class='caption'>
+図6-2　<span class='equation mathimage'><img alt='f(x,y) = \frac{1}{20} x^2 + y^2' src='images/math/c0d7f8e66330cf67f926876cc241434c.png' style='height: 1.42em'/></span>の勾配
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_1'>図6-1</a>の形状の関数に対して、SGDを適用してみましょう。探索の開始場所（初期値）は<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>,</span> y<span class='math-normal'>)</span><span class='math-normal'>＝</span><span class='math-normal'>(−7.0,</span> <span class='math-normal'>2.0)</span></i></span>からスタートします。結果は<a href='./ch06.xhtml#fig06_3'>図6-3</a>のようになります。</p>
+<div class='image' id='fig06_3'>
+<img alt='SGDによる最適化の更新経路：最小値の(0, 0)へジグザグに動くため非効率' src='images/ch06/fig06_3.png'/>
+<p class='caption'>
+図6-3　SGDによる最適化の更新経路：最小値の(0, 0)へジグザグに動くため非効率
+</p>
+</div>
+<p>SGDは、<a href='./ch06.xhtml#fig06_3'>図6-3</a>に示すようなジグザグな動きをします。これはかなり非効率な経路です。つまり、SGDの欠点は、関数の形状が等方的でないと——伸びた形の関数だと——、非効率な経路で探索することになる点にあるのです。そこで、SGDで行ったような、単に勾配方向へ進むよりも、もっとスマートな方法が求められるのです。なお、SGDの非効率な探索経路の根本的な原因は、勾配の方向が本来の最小値ではない方向を指していることに起因します。</p>
+<p>このSGDの欠点を改善するため、続いて、SGDに代わる手法として、Momentum、AdaGrad、Adamという3つ手法を紹介します。それぞれ簡単な説明を行い、数式とPythonによる実装を示します。</p>
+
+<h3 id='h6-1-4'><span class='secno'>6.1.4　</span>Momentum</h3>
+<p><!-- IDX:Momentum -->モーメンタム（Momentum）とは「運動量」という意味の言葉で、物理に関係があります。Momentumという手法は、数式で次のように表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\mathbf{v} \leftarrow \alpha \mathbf{v} - \eta \frac{\partial L}{\partial \mathbf{W}}  %\qquad(6.3)' src='images/math/9a2483e464c8c9147a2ea77662bba519.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq3'>式(6.3)</p>
+</div>
+<div class='equation'>
+<div class='math'><img alt='\mathbf{W} \leftarrow \mathbf{W} +\mathbf{v}  %\qquad(6.4)' src='images/math/fddb7355260edb1f360e3b9ddd145bcc.png' style='height: 0.92em'/></div>
+<p class='eqno' id='eq4'>式(6.4)</p>
+</div>
+<p>前のSGDと同じく、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>は更新する重みパラメータ、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>は<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>に関する損失関数の勾配、<span class='equation mathimage'><img alt='\eta' src='images/math/ae30ff863eb7eceedafb53297e4d8cd6.png' style='height: 0.76em'/></span>は学習係数を表します。ここでは、新たに<span class='equation mathimage'><img alt='\mathbf{v}' src='images/math/6e3fa4166b7f8f13f8c4eab5a61d221d.png' style='height: 0.5em'/></span>という変数が登場しますが、この<span class='equation mathimage'><img alt='\mathbf{v}' src='images/math/6e3fa4166b7f8f13f8c4eab5a61d221d.png' style='height: 0.5em'/></span>は物理で言うところの「速度」に対応します。式(6.3)では、物体が勾配方向に力を受け、その力によって物体の速度が加算されるという物理法則を表しています。Momentumのイメージは、<a href='./ch06.xhtml#fig06_4'>図6-4</a>で示すように、ボールが地面を転がるような動きです。</p>
+<div class='image' id='fig06_4'>
+<img alt='Momentumのイメージ：ボールが地面の傾斜を転がるように動く' src='images/ch06/fig06_4.png'/>
+<p class='caption'>
+図6-4　Momentumのイメージ：ボールが地面の傾斜を転がるように動く
+</p>
+</div>
+<p>また、式(6.3)では、<span class='equation mathimage'><img alt='\alpha \mathbf{v}' src='images/math/c89f4836b88d7a2bae772e9855452e12.png' style='height: 0.58em'/></span>という項がありますが、この項は、物体が何も力を受けないときに徐々に減速するための役割を担います（<span class='equation mathimage'><img alt='\alpha' src='images/math/fce8ba9e62b5adfddcf355878020db40.png' style='height: 0.58em'/></span>は0.9などの値を設定します）。物理では、地面の摩擦や空気抵抗に対応します。以下は、Momentumの実装です（ソースコードは<code class='tt'>common/optimizer.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Momentum</span>:<!-- IDX:Momentum（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, lr<span style='color: #666666'>=0.01</span>, momentum<span style='color: #666666'>=0.9</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lr <span style='color: #666666'>=</span> lr
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>momentum <span style='color: #666666'>=</span> momentum
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>v <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>update</span>(<span style='color: #008000'>self</span>, params, grads):
+        <span style='color: #008000; font-weight: bold'>if</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>v <span style='color: #AA22FF; font-weight: bold'>is</span> <span style='color: #008000'>None</span>:
+            <span style='color: #008000'>self</span><span style='color: #666666'>.</span>v <span style='color: #666666'>=</span> {}
+            <span style='color: #008000; font-weight: bold'>for</span> key, val <span style='color: #AA22FF; font-weight: bold'>in</span> params<span style='color: #666666'>.</span>items():
+                <span style='color: #008000'>self</span><span style='color: #666666'>.</span>v[key] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros_like(val)
+
+        <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> params<span style='color: #666666'>.</span>keys():
+            <b>self.v[key] = self.momentum*self.v[key] - self.lr*grads[key]</b>
+            <b>params[key] += self.v[key]</b>
+</pre>
+</div>
+<p>インスタンス変数の<code class='tt'>v</code>は物体の速度を保持します。<code class='tt'>v</code>は初期化時は何も保持しませんが、<code class='tt'>update()</code>が初めに呼ばれるときに、パラメータと同じ構造のデータをディクショナリ変数として保持します。残りの実装は、式(6.3)、(6.4)を書くだけのシンプルな実装です。</p>
+<p>それでは、Momentumを使って、式(6.2)の最適化問題を解いてみます。結果は<a href='./ch06.xhtml#fig06_5'>図6-5</a>のようになります。</p>
+<div class='image' id='fig06_5'>
+<img alt='Momentumによる最適化の更新経路' src='images/ch06/fig06_5.png'/>
+<p class='caption'>
+図6-5　Momentumによる最適化の更新経路
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_5'>図6-5</a>で示されるように、更新経路は、ボールがお椀を転がるような動きをします。SGDと比べると、“ジグザグ度合い”が軽減されているのが分かります。これは、<span class='equation mathnoimage'><i>x</i></span>軸方向に受ける力はとても小さいですが、常に同じ方向の力を受けるため、同じ方向へ一定して加速することになるからです。逆に、<span class='equation mathnoimage'><i>y</i></span>軸方向には受ける力は大きいですが、正と負の方向の力を交互に受けるため、それらが互いに打ち消し合い、<span class='equation mathnoimage'><i>y</i></span>軸方向の速度は安定しません。それによって、SGDのときと比べて<span class='equation mathnoimage'><i>x</i></span>軸方向へ速く近づくことができ、ジグザグの動きを軽減することができます。</p>
+
+<h3 id='h6-1-5'><span class='secno'>6.1.5　</span>AdaGrad</h3>
+<p><!-- IDX:AdaGrad -->ニューラルネットワークの学習では、学習係数——数式では<span class='equation mathimage'><img alt='\eta' src='images/math/ae30ff863eb7eceedafb53297e4d8cd6.png' style='height: 0.76em'/></span>で表記——の値が重要になります。学習係数が小さすぎると学習に時間がかかりすぎてしまい、逆に大きすぎると発散して正しい学習が行えません。</p>
+<p>この学習係数に関する有効なテクニックとして、<!-- IDX:学習係数の減衰 --><b>学習係数の減衰</b>（learning rate decay）という方法があります。これは、学習が進むにつれて学習係数を小さくするという方法です。最初は“大きく”学習し、次第に“小さく”学習するという手法で、ニューラルネットワークの学習では実際によく使われます。</p>
+<p>学習係数を徐々に下げていくというアイデアは、パラメータ「全体」の学習係数の値を一括して下げることに相当します。これをさらに発展させたのがAdaGrad<u>［6］</u>です。AdaGradは、「一つひとつ」のパラメータに対して、“オーダーメイド”の値をこしらえます。</p>
+<p>AdaGradは、パラメータの要素ごとに適応的に学習係数を調整しながら学習を行う手法です（AdaGradのAdaは「適応的」を意味するAdaptiveに由来します）。それでは、AdaGradの更新方法を数式で表します。</p>
+<div class='equation'>
+<div class='math'><img alt='\mathbf{h} \leftarrow \mathbf{h}  + \frac{\partial L}{\partial \mathbf{W}} \odot \frac{\partial L}{\partial \mathbf{W}}  %\qquad(6.5)' src='images/math/38aa24d84225ada30452d65673958a06.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq5'>式(6.5)</p>
+</div>
+<div class='equation'>
+<div class='math'><img alt='\mathbf{W} \leftarrow \mathbf{W} - \eta \frac{1}{\sqrt{\mathbf{h}}} \frac{\partial L}{\partial \mathbf{W}}  %\qquad(6.6)' src='images/math/6cc64f7666130b8ff96ccea644f4e6a3.png' style='height: 2.58em'/></div>
+<p class='eqno' id='eq6'>式(6.6)</p>
+</div>
+<p>前のSGDと同じく、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>は更新する重みパラメータ、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>は<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>に関する損失関数の勾配、<span class='equation mathimage'><img alt='\eta' src='images/math/ae30ff863eb7eceedafb53297e4d8cd6.png' style='height: 0.76em'/></span>は学習係数を表します。ここでは、新たに<span class='equation mathimage'><img alt='\mathbf{h}' src='images/math/471540de4bb19c2b89239f1a8d322789.png' style='height: 0.84em'/></span>という変数が登場します。この<span class='equation mathimage'><img alt='\mathbf{h}' src='images/math/471540de4bb19c2b89239f1a8d322789.png' style='height: 0.84em'/></span>は、式(6.5)で示されるように、これまで経験した勾配の値を2乗和として保持します（式(6.5)の<span class='equation mathimage'><img alt='\odot' src='images/math/12fb537bbb3468bfc60f6456c1feefc7.png' style='height: 0.76em'/></span>は行列の要素ごとの掛け算を意味します）。そして、パラメータの更新の際に、<span class='equation mathimage'><img alt='\frac{1}{\sqrt{\mathbf{h}}}' src='images/math/8b732e6037b1b14b24c3c3ef1ad0c0db.png' style='height: 1.58em'/></span>を乗算することで、学習のスケールを調整します。これは、パラメータの要素の中でよく動いた（大きく更新された）要素は、学習係数が小さくなることを意味します。つまり、よく動いたパラメータの学習係数は次第に小さくなるという学習係数の減衰を、パラメータの要素ごとに行うことができるのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>AdaGradは、過去の勾配を2乗和としてすべて記録します。そのため、学習を進めれば進めるほど、更新度合いは小さくなります。実際のところ、無限に学習を行ったとすると、更新量は0になり、まったく更新されません。この問題を改善した手法として、<!-- IDX:RMSProp -->RMSProp<u>［7］</u>という方法があります。RMSPropという手法は、過去のすべての勾配を均一に加算していくのではなく、過去の勾配を徐々に忘れて、新しい勾配の情報が大きく反映されるように加算します。専門的には「<!-- IDX:指数移動平均 -->指数移動平均」と言って、指数関数的に過去の勾配のスケールを減少させます。</p>
+</td></tr></table></div>
+<p>それでは、AdaGradの実装です。AdaGradは次のように実装できます（ソースコードは<code class='tt'>common/optimizer.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>AdaGrad</span>:<!-- IDX:AdaGrad（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, lr<span style='color: #666666'>=0.01</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lr <span style='color: #666666'>=</span> lr
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>h <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>update</span>(<span style='color: #008000'>self</span>, params, grads):
+        <span style='color: #008000; font-weight: bold'>if</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>h <span style='color: #AA22FF; font-weight: bold'>is</span> <span style='color: #008000'>None</span>:
+            <span style='color: #008000'>self</span><span style='color: #666666'>.</span>h <span style='color: #666666'>=</span> {}
+            <span style='color: #008000; font-weight: bold'>for</span> key, val <span style='color: #AA22FF; font-weight: bold'>in</span> params<span style='color: #666666'>.</span>items():
+                <span style='color: #008000'>self</span><span style='color: #666666'>.</span>h[key] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros_like(val)
+
+        <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> params<span style='color: #666666'>.</span>keys():
+            <b>self.h[key] += grads[key] * grads[key]</b>
+            <b>params[key] -= self.lr * grads[key] / (np.sqrt(self.h[key]) + 1e-7)</b>
+</pre>
+</div>
+<p>ここで注意してほしいのは、最後の行で<code class='tt'>1e-7</code>という小さい値を加算している点です。これは、<code class='tt'>self.h[key]</code>の中に0があった場合、0で除算してしまうことを防ぐためのものです。多くのディープラーニングのフレームワークでは、この小さな値もパラメータとして設定できますが、ここでは<code class='tt'>1e-7</code>として固定の値を使用しています。</p>
+<p>それでは、AdaGradを使って、式(6.2)の最適化問題を解いてみます。結果は<a href='./ch06.xhtml#fig06_6'>図6-6</a>のようになります。</p>
+<div class='image' id='fig06_6'>
+<img alt='AdaGradによる最適化の更新経路' src='images/ch06/fig06_6.png'/>
+<p class='caption'>
+図6-6　AdaGradによる最適化の更新経路
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_6'>図6-6</a>の結果を見ると、最小値に向かって効率的に動いているのが分かります。<span class='equation mathnoimage'><i>y</i></span>軸方向へは勾配が大きいため、最初は大きく動きますが、その大きな動きに比例して、更新のステップが小さくなるように調整が行われます。そのため、<span class='equation mathnoimage'><i>y</i></span>軸方向への更新度合いは弱められていき、ジグザグの動きが軽減されます。</p>
+
+<h3 id='h6-1-6'><span class='secno'>6.1.6　</span>Adam</h3>
+<p><!-- IDX:Adam -->Momentumは、ボールがお椀を転がるように物理法則に準じる動きをしました。AdaGradは、パラメータの要素ごとに、適応的に更新ステップを調整しました。それでは、その2つの手法——MomentumとAdaGrad——を融合するとどうなるでしょうか？ それがAdam<u>［8］</u>という手法のベースとなるアイデアです<a class='noteref' href='#fn-fn0601' id='fnb-fn0601' epub:type='noteref'>†1</a>。</p>
+<div class='footnote' id='fn-fn0601' epub:type='footnote'><p class='footnote'>[†1] ここでのAdamという手法の説明は、直感的な説明であり、完全に正しいものではありません。詳細は原著論文を参照してください。</p></div>
+<p>Adamは2015年に提案された新しい手法です。その理論はやや複雑ですが、直感的には、MomentumとAdaGradを融合したような手法です。先の2つの手法の利点を組み合わせることで、効率的にパラメータ空間を探索することが期待できます。また、ハイパーパラメータの「<!-- IDX:バイアス補正 -->バイアス補正（偏りの補正）」が行われていることもAdamの特徴です。ここでは、これ以上踏み込んで説明することは避けます。詳細は原著論文<u>［8］</u>を参照してください。また、Pythonの実装については、<code class='tt'>common/optimizer.py</code>に<code class='tt'>Adam</code>というクラスで実装してあるので、興味のある方は参照してください。</p>
+<p>それでは、Adamを使って、式(6.2)の最適化問題を解いてみます。結果は<a href='./ch06.xhtml#fig06_7'>図6-7</a>のようになります。</p>
+<div class='image' id='fig06_7'>
+<img alt='Adamによる最適化の更新経路' src='images/ch06/fig06_7.png'/>
+<p class='caption'>
+図6-7　Adamによる最適化の更新経路
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_7'>図6-7</a>で示すように、Adamによる更新の過程は、お椀上をボールが転がるような動きをします。Momentumも同様な動きをしましたが、Momentumのときよりもボールの左右への揺れが軽減されています。これは、学習の更新度合いが適応的に調整されることによってもたらされる恩恵です。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>Adamは3つのハイパーパラメータを設定します。ひとつは、これまでの学習係数（論文では<span class='equation mathimage'><img alt='\alpha' src='images/math/fce8ba9e62b5adfddcf355878020db40.png' style='height: 0.58em'/></span>として登場）。後の2つは、一次モーメント用の係数<span class='equation mathimage'><img alt='\beta_1' src='images/math/eee4398cb3ffba611a326bd7c3767df6.png' style='height: 1.08em'/></span>と二次モーメント用の係数<span class='equation mathimage'><img alt='\beta_2' src='images/math/253e24b41eb3d2a7169eae88cdd5bbda.png' style='height: 1.08em'/></span>です。論文によると、標準の設定値は、<span class='equation mathimage'><img alt='\beta_1' src='images/math/eee4398cb3ffba611a326bd7c3767df6.png' style='height: 1.08em'/></span>は0.9、<span class='equation mathimage'><img alt='\beta_2' src='images/math/253e24b41eb3d2a7169eae88cdd5bbda.png' style='height: 1.08em'/></span>は0.999であり、その設定値であれば、多くの場合うまくいくようです。</p>
+</td></tr></table></div>
+
+<h3 id='h6-1-7'><span class='secno'>6.1.7　</span>どの更新手法を用いるか？</h3>
+<p>これまでにパラメータの更新方法として4つの手法を見てきました。ここでは、それら4つの手法の結果を比較してみることにします（ソースコードは<code class='tt'>ch06/optimizer_compare_naive.py</code>にあります）。</p>
+<div class='image' id='fig06_8'>
+<img alt='最適化手法の比較：SGD、Momentum、AdaGrad、Adam' src='images/ch06/fig06_8.png'/>
+<p class='caption'>
+図6-8　最適化手法の比較：SGD、Momentum、AdaGrad、Adam
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_8'>図6-8</a>に示すように、用いる手法によって異なる経路で更新されることが分かります。この図だけを見るとAdaGradが一番良さそうですが、これは解くべき問題によって結果が変わるので注意が必要です。また、当たり前のことですが、ハイパーパラメータ（学習係数など）の設定値によっても結果が変わります。</p>
+<p>SGD、Momentum、AdaGrad、Adamと4つの手法を説明してきましが、どれを用いたらよいのでしょうか？ 残念ながら、すべての問題で優れた手法というのは（今のところ）ありません。それぞれに特徴があり、得意な問題、不得意な問題があります。</p>
+<p>多くの研究では今でもSGDが使われています。MomentumやAdaGradも試す価値のある手法です。最近では、多くの研究者や技術者がAdamを好んで使っているようです。本書では、主にSGDやAdamを使用しますが、読者の方においては、自分の好きなようにいろいろ試してみてください。</p>
+
+<h3 id='h6-1-8'><span class='secno'>6.1.8　</span>MNISTデータセットによる更新手法の比較</h3>
+<p>手書き数字認識を対象に、これまで説明した4つの手法——SGD、Momentum、AdaGrad、Adam——を比較してみます。それぞれの手法によって、学習の進み具合がどれだけ異なるかを確認してみましょう。早速、結果を示します。結果は<a href='./ch06.xhtml#fig06_9'>図6-9</a>のようになります（ソースコードは<code class='tt'>ch06/optimizer_compare_mnist.py</code>にあります）。</p>
+<div class='image' id='fig06_9'>
+<img alt='MNISTデータセットに対する4つの更新手法の比較：横軸は学習の繰り返し回数（iterations）、縦軸は損失関数の値（loss）' src='images/ch06/fig06_9.png'/>
+<p class='caption'>
+図6-9　MNISTデータセットに対する4つの更新手法の比較：横軸は学習の繰り返し回数（iterations）、縦軸は損失関数の値（loss）
+</p>
+</div>
+<p>この実験では、5層のニューラルネットワークで、各層100個のニューロンを持つネットワークを対象にしました。また、活性化関数としてReLUを使用しました。</p>
+<p><a href='./ch06.xhtml#fig06_9'>図6-9</a>の結果を見ると、SGDよりも他の手法が速く学習できていることが分かります。残り3つの手法は同じように学習が行われているようです。よく見るとAdaGradの学習が少しだけ速く行われているようです。この実験の注意点としては、学習係数のハイパーパラメータや、ニューラルネットワークの構造（何層の深さか、など）によって結果は変化するということです。ただし、一般にSGDよりも他の3つの手法のほうが速く学習でき、時には最終的な認識性能も高くなります。</p>
+
+<h2 id='weightinit'><a id='h6-2'/><span class='secno'>6.2　</span>重みの初期値</h2>
+<p><!-- IDX:重みの初期値 -->ニューラルネットワークの学習で特に重要になってくるのが、重みの初期値です。重みの初期値としてどのような値を設定するかで、ニューラルネットワークの学習の成否が分かれることが実際によくあります。本節では、推奨される重みの初期値について説明し、実験によって実際にニューラルネットワークの学習が速やかに行われることを確認します。</p>
+
+<h3 id='h6-2-1'><span class='secno'>6.2.1　</span>重みの初期値を0にする？</h3>
+<p>過学習を抑え、汎化性能を高めるテクニックとして、この後、Weight decay（荷重減衰）という手法を紹介します。Weight decayとは、簡単に言えば、重みパラメータの値が小さくなるように学習を行うことを目的とした手法です。重みの値を小さくすることで、過学習が起きにくくなります。</p>
+<p>重みを小さい値にしたければ、初期値もできるだけ小さい値からスタートするのが正攻法でしょう。実際、これまで、重みの初期値は、<!-- IDX:np.random.randn() --><code class='tt'>0.01 * np.random.randn(10, 100)</code>のように、ガウス分布から生成される値を0.01倍した小さな値——標準偏差が0.01のガウス分布——を用いました。</p>
+<p>重みの値を小さくしたいというのであれば、重みの初期値をすべて0に設定する、というのはどうでしょうか？ 答えを先に言ってしまうと、重みの初期値を0にするというのは悪いアイデアです。実際、重みの初期値を0にすると、正しい学習が行えません。</p>
+<p>なぜ重みの初期値を0にしてはいけない——正確には、重みを均一な値に設定してはいけない——のでしょうか？ それは誤差逆伝播法において、すべての重みの値が均一に（同じように）更新されてしまうからです。たとえば、2層のニューラルネットワークにおいて、1層目と2層目の重みが0だと仮定します。そうすると、順伝播時には、入力層の重みが0であるため、2層目のニューロンにはすべて同じ値が伝達されます。2層目のニューロンですべて同じ値が入力されるということは、逆伝播のときに2層目の重みはすべて同じように更新されるということになります（「乗算ノードの逆伝播」を思い出しましょう）。そのため、均一の値で更新され、重みは対称的な値（重複した値）を持つようになってしまうのです。これでは、たくさんの重みを持つ意味がなくなってしまいます。この「重みが均一になってしまうこと」を防ぐ——正確には、重みの対称的な構造を崩す——ために、ランダムな初期値が必要なのです。</p>
+
+<h3 id='h6-2-2'><span class='secno'>6.2.2　</span>隠れ層のアクティベーション分布</h3>
+<p>隠れ層の<!-- IDX:アクティベーション -->アクティベーション<a class='noteref' href='#fn-fn0602' id='fnb-fn0602' epub:type='noteref'>†2</a>（活性化関数の後の出力データ）の分布を観察することで多くの知見が得られます。ここでは、重みの初期値によって隠れ層のアクティベーションがどのように変化するか、簡単な実験を行ってみようと思います。ここで行う実験は、5層のニューラルネットワーク（活性化関数にシグモイド関数を使用）に、ランダムに生成した入力データを流し、各層のアクティベーションのデータ分布をヒストグラムで描画するというものです。なお、この実験は、スタンフォード大学の授業「CS231n」<u>［5］</u>を参考にしています。</p>
+<div class='footnote' id='fn-fn0602' epub:type='footnote'><p class='footnote'>[†2] ここでは、活性化関数の後の出力データを「アクティベーション」と呼んでいますが、文献によっては、レイヤ間を流れるデータを「アクティベーション」と呼ぶこともあります。</p></div>
+<p>ここで行う実験のためのソースコードは、<code class='tt'>ch06/weight_init_activation_</code><code class='tt'>histogram.py</code>にあります。ここでは、そのコードの一部を示します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pyplot</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>sigmoid</span>(x):
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span> <span style='color: #666666'>/</span> (<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> np<span style='color: #666666'>.</span>exp(<span style='color: #666666'>-</span>x))
+
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(<span style='color: #666666'>1000</span>, <span style='color: #666666'>100</span>) <span style='color: #408080; font-style: italic'># 1000個のデータ</span>
+node_num <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>        <span style='color: #408080; font-style: italic'># 各隠れ層のノード（ニューロン）の数</span>
+hidden_layer_size <span style='color: #666666'>=</span> <span style='color: #666666'>5</span> <span style='color: #408080; font-style: italic'># 隠れ層が5層</span>
+activations <span style='color: #666666'>=</span> {}      <span style='color: #408080; font-style: italic'># ここにアクティベーションの結果を格納する</span>
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(hidden_layer_size):
+    <span style='color: #008000; font-weight: bold'>if</span> i <span style='color: #666666'>!=</span> <span style='color: #666666'>0</span>:
+        x <span style='color: #666666'>=</span> activations[i<span style='color: #666666'>-1</span>]
+
+    <b>w = np.random.randn(node_num, node_num) * 1</b>
+
+    z <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(x, w)
+    a <span style='color: #666666'>=</span> sigmoid(z)  <span style='color: #408080; font-style: italic'># シグモイド関数！</span>
+    activations[i] <span style='color: #666666'>=</span> a
+</pre>
+</div>
+<p>ここでは、5つの層があり、それぞれの層は100個のニューロンを持つものとします。そして、入力データとして、1,000個のデータをガウス分布でランダムに生成し、それを5層ニューラルネットワークに流します。活性化関数にはシグモイド関数を利用し、各層のアクティベーションの結果を<code class='tt'>activations</code>という変数に格納します。このコードで注意すべき点は、重みのスケールについてです。今回は標準偏差が1のガウス分布を用いていますが、このスケール（標準偏差）を変えることで、アクティベーションの分布がどのように変化するかを観察することが、この実験の目的です。それでは、<code class='tt'>activations</code>に格納された各層のデータをヒストグラムとして描画してみます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #408080; font-style: italic'># ヒストグラムを描画</span>
+<span style='color: #008000; font-weight: bold'>for</span> i, a <span style='color: #AA22FF; font-weight: bold'>in</span> activations<span style='color: #666666'>.</span>items():
+    plt<span style='color: #666666'>.</span>subplot(<span style='color: #666666'>1</span>, <span style='color: #008000'>len</span>(activations), i<span style='color: #666666'>+1</span>)
+    plt<span style='color: #666666'>.</span>title(<span style='color: #008000'>str</span>(i<span style='color: #666666'>+1</span>) <span style='color: #666666'>+</span> <span style='color: #BA2121'>&quot;-layer&quot;</span>)
+    plt<span style='color: #666666'>.</span>hist(a<span style='color: #666666'>.</span>flatten(), <span style='color: #666666'>30</span>, <span style='color: #008000'>range</span><span style='color: #666666'>=</span>(<span style='color: #666666'>0</span>,<span style='color: #666666'>1</span>))
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p>このコードを実行すると、<a href='./ch06.xhtml#fig06_10'>図6-10</a>のヒストグラムが得られます。</p>
+<div class='image' id='fig06_10'>
+<img alt='重みの初期値として標準偏差1のガウス分布を用いたときの、各層のアクティベーションの分布' src='images/ch06/fig06_10.png'/>
+<p class='caption'>
+図6-10　重みの初期値として標準偏差1のガウス分布を用いたときの、各層のアクティベーションの分布
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_10'>図6-10</a>を見ると、各層のアクティベーションは0と1に偏った分布になっていることが分かります。ここで使用しているシグモイド関数は、S字カーブの関数ですが、シグモイド関数の出力が0に近づくにつれて（または1に近づくにつれて）、その微分の値は0に近づきます。そのため、0と1に偏ったデータ分布では、逆伝播での勾配の値がどんどん小さくなって消えてしまいます。これは<!-- IDX:勾配消失 --><b>勾配消失</b>（gradient vanishing）と呼ばれる問題です。層を深くするディープラーニングでは、勾配消失はさらに深刻な問題になりえます。</p>
+<p>それでは続いて、重みの標準偏差を0.01として同じ実験を行います。実験のコードでは、重みの初期値設定を行う場所を、次のコードに差し替えるだけです。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #408080; font-style: italic'># w = np.random.randn(node_num, node_num) * 1</span>
+w <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(node_num, node_num) <span style='color: #666666'>*</span> <span style='color: #666666'>0.01</span>
+</pre>
+</div>
+<p>それでは結果を見てみましょう。標準偏差を0.01としたガウス分布の場合、各層のアクティベーションの分布は<a href='./ch06.xhtml#fig06_11'>図6-11</a>のようになります。</p>
+<div class='image' id='fig06_11'>
+<img alt='重みの初期値として標準偏差0.01のガウス分布を用いたときの、各層のアクティベーションの分布' src='images/ch06/fig06_11.png'/>
+<p class='caption'>
+図6-11　重みの初期値として標準偏差0.01のガウス分布を用いたときの、各層のアクティベーションの分布
+</p>
+</div>
+<p>今度は、0.5付近に集中する分布になりました。先ほどの例のように0と1への偏りはないので、勾配消失の問題は起きません。しかし、アクティベーションに偏りがあるということは、表現力の点で大きな問題があります。なぜなら、複数のニューロンがほとんど同じ値を出力するとすれば、複数のニューロンが存在する意味がなくなってしまうからです。たとえば、100個のニューロンがほぼ同じ値を出力するとすれば、それは1個のニューロンでもほぼ同じことを表現することができます。そのため、アクティベーションの偏りは、「表現力の制限」の点で問題になります。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>各層のアクティベーションの分布は、適度な広がりを持つことが求められます。なぜなら、適度に多様性のあるデータが各層を流れることで、ニューラルネットワークの学習が効率的に行えるからです。逆に、偏ったデータが流れると、勾配消失や「表現力の制限」が問題になって、学習がうまくいかない場合があります。</p>
+</td></tr></table></div>
+<p>続いて、Xavier Glorotらの論文<u>［9］</u>で推奨される重みの初期値——通称、「<!-- IDX:Xavierの初期値 -->Xavierの初期値」——を使ってみたいと思います。現在、「Xavierの初期値」は一般的なディープラーニングのフレームワークで標準的に用いられています。たとえば、Caffeというフレームワークでは、重みの初期値設定にxavierという引数を与えることで、「Xavierの初期値」を用いることができます。</p>
+<p>さて、Xavierの論文では、各層のアクティベーションを同じ広がりのある分布にすることを目的として、適切な重みのスケールを導きました。その導き出した結論は、前層のノードの個数を<span class='equation mathnoimage'><i>n</i></span>とした場合、<span class='equation mathimage'><img alt='\frac{1}{\sqrt n}' src='images/math/184d938086ebef3d1fd3a512d5f77eeb.png' style='height: 1.58em'/></span>の標準偏差を持つ分布を使う<a class='noteref' href='#fn-fn0603' id='fnb-fn0603' epub:type='noteref'>†3</a>というものです（<a href='./ch06.xhtml#fig06_12'>図6-12</a>）。</p>
+<div class='footnote' id='fn-fn0603' epub:type='footnote'><p class='footnote'>[†3] Xavierの論文では、前層の入力ノードの個数に加えて、次層の出力ノードの個数も考慮した設定値が提案されています。ただし、Caffeなどのフレームワークの実装では、ここで説明するような、前層の入力ノードのみから計算する単純化が行われています。</p></div>
+<div class='image' id='fig06_12'>
+<img alt='Xavierの初期値：前層から&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;n&lt;/i&gt;&lt;/span&gt;個のノードの接続がある場合、&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/184d938086ebef3d1fd3a512d5f77eeb.png&quot; alt=&quot;\frac{1}{\sqrt n}&quot; /&gt;&lt;/span&gt;の標準偏差を持つ分布を初期値として使う' src='images/ch06/fig06_12.png'/>
+<p class='caption'>
+図6-12　Xavierの初期値：前層から<span class='equation mathnoimage'><i>n</i></span>個のノードの接続がある場合、<span class='equation mathimage'><img alt='\frac{1}{\sqrt n}' src='images/math/184d938086ebef3d1fd3a512d5f77eeb.png' style='height: 1.58em'/></span>の標準偏差を持つ分布を初期値として使う
+</p>
+</div>
+<p>「Xavierの初期値」を用いると、前層のノードの数が多ければ多いほど、対象ノードの初期値として設定する重みのスケールは小さくなります。それでは、「Xavierの初期値」を使って実験をしてみましょう。実験コードの実装は、重みの初期値設定を次のように書き換えるだけです（ここでの実装は、ノードの数がすべての層で100個であるため、単純化して実装しています）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>node_num <span style='color: #666666'>=</span> <span style='color: #666666'>100</span> <span style='color: #408080; font-style: italic'># 前層のノードの数</span>
+w <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(node_num, node_num) <span style='color: #666666'>/</span> <b>np.sqrt(node_num)</b>
+</pre>
+</div>
+<div class='image' id='fig06_13'>
+<img alt='重みの初期値として「Xavierの初期値」を用いたときの、各層のアクティベーションの分布' src='images/ch06/fig06_13.png'/>
+<p class='caption'>
+図6-13　重みの初期値として「Xavierの初期値」を用いたときの、各層のアクティベーションの分布
+</p>
+</div>
+<p>「Xavierの初期値」を使った結果は<a href='./ch06.xhtml#fig06_13'>図6-13</a>のようになります。この結果を見ると、上位の層に行くにつれて、ややいびつな形にはなりますが、これまでよりも広がりを持った分布になっていることが分かります。各層に流れるデータには適度な広がりがあるので、シグモイド関数の表現力も制限されることなく、効率的に学習が行えることが期待できます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><a href='./ch06.xhtml#fig06_13'>図6-13</a>の分布は、上位層の分布の形状がややいびつな形状になりました。このややいびつな形状は、<code class='tt'>sigmoid</code>関数の代わりに、<!-- IDX:tanh関数 --><code class='tt'>tanh</code>関数（<!-- IDX:双曲線関数 -->双曲線関数）を用いると改善されます。実際、<code class='tt'>tanh</code>関数を用いると、キレイな釣鐘型の分布になります。<code class='tt'>tanh</code>関数は、<code class='tt'>sigmoid</code>関数と同じS字カーブの関数ですが、<code class='tt'>tanh</code>関数が原点<span class='equation mathnoimage'><i><span class='math-normal'>(0,</span> <span class='math-normal'>0)</span></i></span>で対称なS字カーブであるのに対して、<code class='tt'>sigmoid</code>関数は<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>,</span> y<span class='math-normal'>)</span><span class='math-normal'>＝</span><span class='math-normal'>(0,</span> <span class='math-normal'>0.5)</span></i></span>において対称なS字カーブです。なお、活性化関数に用いる関数は、原点対称であることが望ましい性質として知られています。</p>
+</td></tr></table></div>
+
+<h3 id='h6-2-3'><span class='secno'>6.2.3　</span>ReLUの場合の重みの初期値</h3>
+<p>「Xavierの初期値」は、活性化関数が線形であることを前提に導いた結果です。<code class='tt'>sigmoid</code>関数や<code class='tt'>tanh</code>関数は左右対称で中央付近が線形関数として見なせるので、「Xavierの初期値」が適しています。一方、ReLUを用いる場合は、ReLUに特化した初期値を用いることが推奨されています。それは、Kaiming Heらが推奨する初期値——その名も「<!-- IDX:Heの初期値 -->Heの初期値」<u>［10］</u>です。「Heの初期値」は、前層のノードの数が<span class='equation mathnoimage'><i>n</i></span>個の場合、<span class='equation mathimage'><img alt='\sqrt{\frac{2}{n}}' src='images/math/99b812a1915734e967c90f14bff8ee76.png' style='height: 2.0em'/></span>を標準偏差とするガウス分布を用います。「Xavierの初期値」が<span class='equation mathimage'><img alt='\sqrt{\frac{1}{n}}' src='images/math/24e5895b57abe115afe4b3779cc5a9aa.png' style='height: 2.0em'/></span>であったことを考えると、ReLUの場合は負の領域が0になるため、より広がりを持たせるために倍の係数が必要になると（直感的には）解釈できます。</p>
+<p>それでは活性化関数にReLUを用いた場合のアクティベーションの分布を見てみましょう。まずは、標準偏差が0.01のガウス分布（以降、「std=0.01」と略記）、続いて「Xavierの初期値」、そしてReLU専用の「Heの初期値」の場合の3つの実験結果を示します（<a href='./ch06.xhtml#fig06_14'>図6-14</a>）。</p>
+<div class='image' id='fig06_14'>
+<img alt='活性化関数としてReLUを使用した場合の重みの初期値によるアクティベーション分布の変化' src='images/ch06/fig06_14.png'/>
+<p class='caption'>
+図6-14　活性化関数としてReLUを使用した場合の重みの初期値によるアクティベーション分布の変化
+</p>
+</div>
+<p>実験の結果を見ると、「std=0.01」の場合、各層のアクティベーションはとても小さな値<a class='noteref' href='#fn-fn0604' id='fnb-fn0604' epub:type='noteref'>†4</a>になります。ニューラルネットワーク上をとても小さなデータが流れるということは、逆伝播の際の重みの勾配も同様に小さくなるということです。これは重大な問題であり、実際には学習がほとんど進まないでしょう。</p>
+<div class='footnote' id='fn-fn0604' epub:type='footnote'><p class='footnote'>[†4] 各層のアクティベーションの分布の平均は、次のようになります。1層：0.0396、2層：0.00290、3層：0.000197、4層：1.32e-5、5層：9.46e-7</p></div>
+<p>続いて「Xavierの初期値」の結果ですが、こちらは、層が深くなるにつれて、偏りが少しずつ大きくなっていきます。実際、層をディープにしていくと、アクティベーションの偏りも大きくなり、学習の際に「勾配消失」が問題になります。一方、「Heの初期値」は、各層で分布の広がりが均一になっています。データの広がりが層を深くしても均一に保たれるので、逆伝播の際も適切な値が流れると期待できます。</p>
+<p>以上のまとめとしては、活性化関数にReLUを使う場合は「Heの初期値」、<code class='tt'>sigmoid</code>や<code class='tt'>tanh</code>などのS字カーブのときは「Xavierの初期値」を使う——これが現時点でのベストプラクティスということになります。</p>
+
+<h3 id='h6-2-4'><span class='secno'>6.2.4　</span>MNISTデータセットによる重み初期値の比較</h3>
+<p>実際のデータを対象に、重みの初期値の与え方の違いによって、ニューラルネットワークの学習にどれだけ影響を与えるか見てみましょう。ここでは、3つのケース——「std=0.01」、「Xavierの初期値」、「Heの初期値」——で実験を行います（ソースコードは<code class='tt'>ch06/weight_init_compare.py</code>にあります）。早速、結果を示します。結果は次の<a href='./ch06.xhtml#fig06_15'>図6-15</a>のようになります。</p>
+<div class='image' id='fig06_15'>
+<img alt='MNISTデータセットに対する「重みの初期値」による比較：横軸は学習の繰り返し回数（iterations）、縦軸は損失関数の値（loss）' src='images/ch06/fig06_15.png'/>
+<p class='caption'>
+図6-15　MNISTデータセットに対する「重みの初期値」による比較：横軸は学習の繰り返し回数（iterations）、縦軸は損失関数の値（loss）
+</p>
+</div>
+<p>この実験では、5層のニューラルネットワーク（各層100個のニューロン）で、活性化関数としてReLUを使用します。<a href='./ch06.xhtml#fig06_15'>図6-15</a>の結果を見て分かるとおり、「std=0.01」のときはまったく学習ができていません。これは、先ほどアクティベーションの分布を観察したときのとおり、順伝播では小さな値（0に集中したデータ）が流れるからです。それによって、逆伝播の際に求める勾配も小さくなり、重みの更新がほとんど行われなくなってしまいます。逆に、XavierとHeの初期値の場合は、順調に学習が行われています。そして、「Heの初期値」のほうが、学習の進みが速いことも分かります。</p>
+<p>以上見てきたように、ニューラルネットワークの学習において、重みの初期値はとても重要なポイントです。重みの初期値によって、ニューラルネットワークの学習の成否が分かれることが多くあります。重みの初期値の重要性は見落とされがちなポイントですが、何事もスタート（初期値）が肝心だということです。重みの初期値の重要性を再度強調して、本節を締めくくりたいと思います。</p>
+
+<h2 id='h6-3'><span class='secno'>6.3　</span>Batch Normalization</h2>
+<p><!-- IDX:Batch Normalization -->前節の<a href='ch06.xhtml#h6-2'>「6.2 重みの初期値」</a>では、各層のアクティベーションの分布を観察しました。そこで学んだことは、重みの初期値を適切に設定すれば、各層のアクティベーションの分布は適度な広がりを持ち、学習がスムーズに行えるということでした。それでは、各層で適度な広がりを持つように、“強制的”にアクティベーションの分布を調整してみてはどうでしょうか？ 実は、そのようなアイデアをベースとする手法がBatch Normalization<u>［11］</u>なのです。</p>
+
+<h3 id='h6-3-1'><span class='secno'>6.3.1　</span>Batch Normalizationのアルゴリズム</h3>
+<p>Batch Normalization（以降、Batch Normと略記）は、2015年に提案された手法です。Batch Normは、まだ世に出て間もない新しい手法にもかかわらず、多くの研究者や技術者に広く使われています。実際、機械学習のコンペティションの結果を見てみると、このBatch Normを使用して、優れた結果を達成している例が多く見られます。</p>
+<p>なぜこれほどBatch Normが注目されているかというと、Batch Normには次の利点があるからです。</p>
+<ul>
+<li>学習を速く進行させることができる（学習係数を大きくすることができる）</li>
+<li>初期値にそれほど依存しない（初期値に対してそこまで神経質にならなくてよい）</li>
+<li>過学習を抑制する（Dropoutなどの必要性を減らす）</li>
+</ul>
+<p>ひとつ目の利点は、ディープラーニングの学習に多くの時間がかかることを考えると、とても喜ばしいことです。また、初期値に対してそこまで気をつかう必要がなく、過学習の抑制効果もあるというのも、ディープラーニングの学習における頭痛の種を解消してくれます。</p>
+<p>さて、Batch Normのアイデアは、先ほど述べたとおり、各層でのアクティベーションの分布を、適度な広がりを持つように調整することです。そのために、<a href='./ch06.xhtml#fig06_16'>図6-16</a>に示すように、Batch Normalizationレイヤ（以降、「Batch Normレイヤ」と表記）として、データ分布の正規化を行うレイヤをニューラルネットワークに挿入します。</p>
+<div class='image' id='fig06_16'>
+<img alt='Batch Normalizationを使用したニューラルネットワークの例（Batch Normレイヤは背景をグレーで描画）' src='images/ch06/fig06_16.png'/>
+<p class='caption'>
+図6-16　Batch Normalizationを使用したニューラルネットワークの例（Batch Normレイヤは背景をグレーで描画）
+</p>
+</div>
+<p>Batch Normは、その名前が示すとおり、学習を行う際のミニバッチを単位として、ミニバッチごとに正規化を行います。具体的には、データの分布が平均が0で分散が1になるように正規化を行います。数式で表すと、次のようになります。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; \mu_B \leftarrow \frac{1}{m}\sum\limits_{i = 1}^m x_i \\
+  &amp; \sigma_B^2 \leftarrow \frac{1}{m}\sum\limits_{i = 1}^m (x_i - \mu_B)^2 \\
+  &amp; {\hat x_i} \leftarrow \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \varepsilon}}
+\end{aligned}
+%\qquad(6.7)' src='images/math/d340850f252d9d285ad9288577f800de.png' style='height: 9.76em'/></div>
+<p class='eqno' id='eq7'>式(6.7)</p>
+</div>
+<p>ここでは、ミニバッチとして<span class='equation mathnoimage'><i>B<span class='math-normal'>＝</span><span class='math-normal'>{</span>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> x<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> <span class='math-normal'>…</span><span class='math-normal'>,</span> x<sub>m</sub><span class='math-normal'>}</span></i></span>という<span class='equation mathnoimage'><i>m</i></span>個の入力データの集合に対して、平均<span class='equation mathimage'><img alt='\mu_B' src='images/math/3e3c84bca69f580972ac5fd0ed185241.png' style='height: 0.76em'/></span>、分散<span class='equation mathnoimage'><i>σ<sub>B</sub><sup><span class='math-normal'>2</span></sup></i></span>を求めます。そして、入力データを平均が0で分散が1になる——適切な分布になる——ように正規化します。なお、式(6.7)の<span class='equation mathimage'><img alt='\varepsilon' src='images/math/d24a36347c44ab1a769bdf56172bcabc.png' style='height: 0.58em'/></span>は、小さな値（たとえば、<code class='tt'>10e-7</code>など）です。これは0で除算されることを防止するためのものです。</p>
+<p>式(6.7)で行っていることは、ミニバッチの入力データ<span class='equation mathnoimage'><i><span class='math-normal'>{</span>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> x<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> <span class='math-normal'>…</span><span class='math-normal'>,</span> x<sub>m</sub><span class='math-normal'>}</span></i></span>を、平均0、分散1のデータ<span class='equation mathimage'><img alt='\{ {\hat x_1}, {\hat x_2}, \cdots , {\hat x_m} \}' src='images/math/51d28a1ae2bccf1fc51acddcb0ac7d2e.png' style='height: 1.16em'/></span>に変換するというシンプルなものです。この処理を、活性化関数の前（もしくは後）に挿入<a class='noteref' href='#fn-fn0605' id='fnb-fn0605' epub:type='noteref'>†5</a>することで、データの分布の偏りを減らすことができます。</p>
+<div class='footnote' id='fn-fn0605' epub:type='footnote'><p class='footnote'>[†5] Batch Normalizationを活性化関数の前と後のどちらに挿入すべきかの議論（および実験）は、文献<u>［11］</u>や<u>［12］</u>などで行われています。</p></div>
+<p>さらに、Batch Normレイヤは、この正規化されたデータに対して、固有のスケールとシフトで変換を行います。数式では次のように表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='{y_i} \leftarrow \gamma {\hat x_i} + \beta  %\qquad(6.8)' src='images/math/f97a3f069fd714c72e7f08b08d6b1c40.png' style='height: 1.08em'/></div>
+<p class='eqno' id='eq8'>式(6.8)</p>
+</div>
+<p>ここで、<span class='equation mathimage'><img alt='\gamma' src='images/math/58967cef4f8a23e646024a365a11098b.png' style='height: 0.76em'/></span>と<span class='equation mathimage'><img alt='\beta' src='images/math/d5ceb634e82ff4d75b48b9f1146151b6.png' style='height: 1.08em'/></span>はパラメータです。最初は<span class='equation mathimage'><img alt='\gamma  = 1,\beta  = 0' src='images/math/b39d3d51848c612995879fbacf43f408.png' style='height: 1.08em'/></span>からスタートして、学習によって適した値に調整されていきます。</p>
+<p>以上がBatch Normのアルゴリズムです。このアルゴリズムが、ニューラルネットワーク上での順伝播になります。なお、<a href='./ch05.xhtml'>5章</a>で説明した計算グラフを用いれば、Batch Normは<a href='./ch06.xhtml#fig06_17'>図6-17</a>のように表すことができます。</p>
+<div class='image' id='fig06_17'>
+<img alt='Batch Normalizationの計算グラフ（文献&lt;u&gt;［13］&lt;/u&gt;より引用）' src='images/ch06/fig06_17.png'/>
+<p class='caption'>
+図6-17　Batch Normalizationの計算グラフ（文献<u>［13］</u>より引用）
+</p>
+</div>
+<p>Batch Normの逆伝播の導出はやや複雑になるため、ここでは説明を省略しますが、<a href='./ch06.xhtml#fig06_17'>図6-17</a>のような計算グラフを使って考えれば、Batch Normの逆伝播も比較的簡単に導出できるでしょう。Frederik Kratzertのブログ「Understanding the backward pass through Batch Normalization Layer」<u>［13］</u>に詳しい解説があります。興味のある方は、参照してください。</p>
+
+<h3 id='h6-3-2'><span class='secno'>6.3.2　</span>Batch Normalizationの評価</h3>
+<p>それではBatch Normレイヤを使って、実験をしてみましょう。まずは、MNISTデータセットを使って、Batch Normレイヤを用いるときと用いないときで、学習の進みがどう変わるかを見てみます（ソースコードは、<code class='tt'>ch06/batch_norm_test.py</code>）。結果は、<a href='./ch06.xhtml#fig06_18'>図6-18</a>のようになります。</p>
+<div class='image' id='fig06_18'>
+<img alt='Batch Normによる効果：Batch Normによって、学習の進み具合が速くなる' src='images/ch06/fig06_18.png'/>
+<p class='caption'>
+図6-18　Batch Normによる効果：Batch Normによって、学習の進み具合が速くなる
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_18'>図6-18</a>の結果が示すとおり、Batch Normによって、学習が速く進んでいることが分かります。続いて、さまざまな初期値のスケールを与え、学習の進行がどのように変化するか見てみましょう。<a href='./ch06.xhtml#fig06_19'>図6-19</a>は、重みの初期値の標準偏差をさまざまな値に変えたときの学習経過のグラフです。</p>
+<div class='image' id='fig06_19'>
+<img alt='グラフの実線がBatch Normを使用した場合の結果、点線がBatch Normを使用しなかった場合の結果：図のタイトルに重みの初期値の標準偏差を表記する' src='images/ch06/fig06_19.png'/>
+<p class='caption'>
+図6-19　グラフの実線がBatch Normを使用した場合の結果、点線がBatch Normを使用しなかった場合の結果：図のタイトルに重みの初期値の標準偏差を表記する
+</p>
+</div>
+<p>ほとんどすべてのケースで、Batch Norm を使用したほうが学習の進みが速いことが分かります。実際、Batch Normを用いない場合は、良い初期値のスケールを与えないと、まったく学習が進まないことも分かります。</p>
+<p>以上見てきたように、Batch Normを使用することで、学習の進行を促進させることができ、また、重みの初期値にロバストになります（「初期値にロバスト」とは、初期値にそれほど依存しない、ということを表します）。Batch Normは、このように素晴らしい性質を備えているので、多くの場面で活躍してくれることでしょう。</p>
+
+<h2 id='h6-4'><span class='secno'>6.4　</span>正則化</h2>
+<p><!-- IDX:正則化 -->機械学習の問題では、<b>過学習</b>（overfitting）が問題になることが多くあります。過学習とは、訓練データだけに適応しすぎてしまい、訓練データに含まれない他のデータにはうまく対応できない状態を言います。機械学習で目指すことは、汎化性能です。訓練データには含まれないまだ見ぬデータであっても、正しく識別できるモデルが望まれます。複雑で表現力の高いモデルを作ることは可能ですが、その分、過学習を抑制するテクニックが重要になってくるのです。</p>
+
+<h3 id='h6-4-1'><span class='secno'>6.4.1　</span>過学習</h3>
+<p><!-- IDX:過学習 -->過学習が起きる原因として、主に次の2つが挙げられます。</p>
+<ul>
+<li>パラメータを大量に持ち、表現力の高いモデルであること</li>
+<li>訓練データが少ないこと</li>
+</ul>
+<p>ここでは、この2つの要件をわざと満たして、過学習を発生させたいと思います。そのために、MNISTデータセットの訓練データを本来の60,000個から300個だけに限定し、また、ネットワークの複雑性を高めるために7層のネットワーク——各層のニューロンの個数は100個、活性化関数はReLU——を使います。</p>
+<p>実験のためのコードを抜粋して示します（該当ファイルは<code class='tt'>ch06/overfit_weight_</code><code class='tt'>decay.py</code>）。まずは、データ読み込みのコードです。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+<span style='color: #408080; font-style: italic'># 過学習を再現するために、学習データを削減</span>
+x_train <span style='color: #666666'>=</span> x_train[:<span style='color: #666666'>300</span>]
+t_train <span style='color: #666666'>=</span> t_train[:<span style='color: #666666'>300</span>]
+</pre>
+</div>
+<p>続いて、訓練を行うコードです。これまでのコードと同じですが、エポックごとに、すべての訓練データとすべてのテストデータでそれぞれ認識精度を算出します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>network <span style='color: #666666'>=</span> MultiLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size_list<span style='color: #666666'>=</span>[<span style='color: #666666'>100</span>, <span style='color: #666666'>100</span>, <span style='color: #666666'>100</span>, <span style='color: #666666'>100</span>, <span style='color: #666666'>100</span>, <span style='color: #666666'>100</span>], output_size<span style='color: #666666'>=10</span>)
+optimizer <span style='color: #666666'>=</span> SGD(lr<span style='color: #666666'>=0.01</span>) <span style='color: #408080; font-style: italic'># 学習係数0.01のSGDでパラメータ更新</span>
+
+max_epochs <span style='color: #666666'>=</span> <span style='color: #666666'>201</span>
+train_size <span style='color: #666666'>=</span> x_train<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+batch_size <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+
+train_loss_list <span style='color: #666666'>=</span> []
+train_acc_list <span style='color: #666666'>=</span> []
+test_acc_list <span style='color: #666666'>=</span> []
+
+iter_per_epoch <span style='color: #666666'>=</span> <span style='color: #008000'>max</span>(train_size <span style='color: #666666'>/</span> batch_size, <span style='color: #666666'>1</span>)
+epoch_cnt <span style='color: #666666'>=</span> <span style='color: #666666'>0</span>
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(<span style='color: #666666'>1000000000</span>):
+    batch_mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>choice(train_size, batch_size)
+    x_batch <span style='color: #666666'>=</span> x_train[batch_mask]
+    t_batch <span style='color: #666666'>=</span> t_train[batch_mask]
+
+    grads <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>gradient(x_batch, t_batch)
+    optimizer<span style='color: #666666'>.</span>update(network<span style='color: #666666'>.</span>params, grads)
+
+    <span style='color: #008000; font-weight: bold'>if</span> i <span style='color: #666666'>%</span> iter_per_epoch <span style='color: #666666'>==</span> <span style='color: #666666'>0</span>:
+        train_acc <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>accuracy(x_train, t_train)
+        test_acc <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>accuracy(x_test, t_test)
+        train_acc_list<span style='color: #666666'>.</span>append(train_acc)
+        test_acc_list<span style='color: #666666'>.</span>append(test_acc)
+
+        epoch_cnt <span style='color: #666666'>+=</span> <span style='color: #666666'>1</span>
+        <span style='color: #008000; font-weight: bold'>if</span> epoch_cnt <span style='color: #666666'>&gt;=</span> max_epochs:
+            <span style='color: #008000; font-weight: bold'>break</span>
+</pre>
+</div>
+<p><code class='tt'>train_acc_list</code>、<code class='tt'>test_acc_list</code>には、エポック単位——すべての訓練データを見終わった単位——の認識精度が格納されます。それでは、それらのリスト（<code class='tt'>train_acc_list</code>、<code class='tt'>test_acc_list</code>）をグラフとして描画してみます。結果は次の<a href='./ch06.xhtml#fig06_20'>図6-20</a>のようになります。</p>
+<div class='image' id='fig06_20'>
+<img alt='訓練データ（train）とテストデータ（test）の認識精度の推移' src='images/ch06/fig06_20.png'/>
+<p class='caption'>
+図6-20　訓練データ（train）とテストデータ（test）の認識精度の推移
+</p>
+</div>
+<p>訓練データを用いて計測した認識精度は、100エポックを過ぎたあたりから、ほとんど100%です。しかし、テストデータに対しては、100%の認識精度からは大きな隔たりがあります。このような認識精度の大きな隔たりは、訓練データだけに適応しすぎてしまった結果です。訓練の際に使用しなかった汎用的なデータ（テストデータ）への対応がうまくできていないことが、このグラフから分かります。</p>
+
+<h3 id='h6-4-2'><span class='secno'>6.4.2　</span>Weight decay</h3>
+<p>過学習抑制のために昔からよく用いられる手法に、<!-- IDX:Weight decay --><b>Weight decay</b>（<!-- IDX:荷重減衰 -->荷重減衰）という手法があります。これは、学習の過程において、大きな重みを持つことに対してペナルティを課すことで、過学習を抑制しようというものです。そもそも過学習は、重みパラメータが大きな値を取ることによって発生することが多くあるのです。</p>
+<p>さて、復習になりますが、ニューラルネットワークの学習は、損失関数の値を小さくすることを目的として行われます。このとき、たとえば、重みの2乗ノルム（L2ノルム）を損失関数に加算します。そうすれば、重みが大きくなることを抑えることができそうです。記号で表すと、重みを<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>とすれば、L2ノルムのWeight decayは、<span class='equation mathimage'><img alt='\frac{1}{2}\lambda \mathbf{W}^2' src='images/math/03b23b4fae8e2aaa46d82918d1b27da5.png' style='height: 1.42em'/></span>になり、この<span class='equation mathimage'><img alt='\frac{1}{2}\lambda \mathbf{W}^2' src='images/math/03b23b4fae8e2aaa46d82918d1b27da5.png' style='height: 1.42em'/></span>を損失関数に加算します。ここで、<span class='equation mathnoimage'><i><span class='math-normal'>λ</span></i></span>は正則化の強さをコントロールするハイパーパラメータです。<span class='equation mathnoimage'><i><span class='math-normal'>λ</span></i></span>を大きく設定すればするほど、大きな重みを取ることに対して強いペナルティを課すことになります。また、<span class='equation mathimage'><img alt='\frac{1}{2}\lambda \mathbf{W}^2' src='images/math/03b23b4fae8e2aaa46d82918d1b27da5.png' style='height: 1.42em'/></span>の先頭の<span class='equation mathimage'><img alt='\frac{1}{2}' src='images/math/bdea34dcd00701ee5f0c72f36437c08a.png' style='height: 1.42em'/></span>は、<span class='equation mathimage'><img alt='\frac{1}{2}\lambda \mathbf{W}^2' src='images/math/03b23b4fae8e2aaa46d82918d1b27da5.png' style='height: 1.42em'/></span>の微分の結果を<span class='equation mathimage'><img alt='\lambda \mathbf{W}' src='images/math/cc28f4e72216843a0d41ebed38692412.png' style='height: 0.92em'/></span>にするための調整用の定数です。</p>
+<p>Weight decayは、すべての重みに対して、損失関数に<span class='equation mathimage'><img alt='\frac{1}{2}\lambda \mathbf{W}^2' src='images/math/03b23b4fae8e2aaa46d82918d1b27da5.png' style='height: 1.42em'/></span>を加算します。そのため、重みの勾配を求める計算では、これまでの誤差逆伝播法による結果に、正則化項の微分<span class='equation mathimage'><img alt='\lambda \mathbf{W}' src='images/math/cc28f4e72216843a0d41ebed38692412.png' style='height: 0.92em'/></span>を加算します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><!-- IDX:L2ノルム -->L2ノルムは、各要素の2乗和に対応します。数式で表すと、<span class='equation mathimage'><img alt='\mathbf{W} = (w_1, w_2, \cdots ,w_n)' src='images/math/d2e3b07f1da305e5872af6b7ff6cab4e.png' style='height: 1.16em'/></span>の重みがあるとすれば、L2ノルムは<span class='equation mathimage'><img alt='\sqrt{w_1^2 + w_2^2 + \cdots + w_n^2}' src='images/math/316627bea6336ebf0b4fe90fa2182f45.png' style='height: 1.42em'/></span>で計算できます。また、L2ノルムの他に、L1ノルムやL∞ノルムもあります。<!-- IDX:L1ノルム -->L1ノルムは絶対値の和、つまり、<span class='equation mathimage'><img alt='\left| w_1^{} \right| + \left| w_2^{} \right| + \cdots + \left| w_n^{} \right|' src='images/math/b80f4f2ef4e9ac55f6ff8f601222fff2.png' style='height: 1.16em'/></span>に相当します。L∞ノルムは、<!-- IDX:Maxノルム -->Maxノルムとも呼ばれ、各要素の絶対値の中で最大のものに相当します。正則化項として、L2ノルム、L1ノルム、L∞ノルムのどれでも用いることができます。それぞれに特徴がありますが、ここでは一般的によく用いられるL2ノルムだけを実装します。</p>
+</td></tr></table></div>
+<p>それでは、実験を行いましょう。先ほど行った実験に対して、<span class='equation mathnoimage'><i><span class='math-normal'>λ</span><span class='math-normal'>＝</span><span class='math-normal'>0.1</span></i></span>としてWeight decayを適用します。結果は次の<a href='./ch06.xhtml#fig06_21'>図6-21</a>のようになります（Weight decayに対応したネットワークは<code class='tt'>common/multi_layer_net.py</code>に、実験用のコードは<code class='tt'>ch06/overfit_weight_decay.py</code>にあります）。</p>
+<div class='image' id='fig06_21'>
+<img alt='Weight decayを用いた訓練データ（train）とテストデータ（test）の認識精度の推移' src='images/ch06/fig06_21.png'/>
+<p class='caption'>
+図6-21　Weight decayを用いた訓練データ（train）とテストデータ（test）の認識精度の推移
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_21'>図6-21</a>のとおり、訓練データの認識精度とテストデータの認識精度には“隔たり”がありますが、Weight decayを用いなかった<a href='./ch06.xhtml#fig06_20'>図6-20</a>の結果と比較すると、その隔たりは小さくなっています。これは過学習が抑制されたということです。また、訓練データの認識精度が100%（1.0）に到達していない点も注目すべき点です。</p>
+
+<h3 id='dropout'><a id='h6-4-3'/><span class='secno'>6.4.3　</span>Dropout</h3>
+<p><!-- IDX:Dropout -->過学習を抑制する手法として、損失関数に対して重みのL2ノルムを加算するWeight decayという手法を説明しました。Weight decayは簡単に実装でき、ある程度過学習を抑制することができます。しかし、ニューラルネットワークのモデルが複雑になってくると、Weight decayだけでは対応が困難になってきます。そこで、Dropout<u>［14］</u>という手法がよく用いられます。</p>
+<p>Dropoutは、ニューロンをランダムに消去しながら学習する手法です。訓練時に隠れ層のニューロンをランダムに選び出し、その選び出したニューロンを消去します。消去されたニューロンは、<a href='./ch06.xhtml#fig06_22'>図6-22</a>に示すように、信号の伝達が行われなくなります。なお、訓練時には、データが流れるたびに、消去するニューロンをランダムに選択します。そして、テスト時には、すべてのニューロンの信号を伝達しますが、各ニューロンの出力に対して、訓練時に消去した割合を乗算して出力します。</p>
+<div class='image' id='fig06_22'>
+<img alt='Dropoutの概念図（文献&lt;u&gt;［14］&lt;/u&gt;より引用）：左が通常のニューラルネットワーク、右がDropoutを適用したネットワーク。Dropoutはランダムにニューロンを選び、そのニューロンを消去することで、その先の信号の伝達をストップする' src='images/ch06/fig06_22.png'/>
+<p class='caption'>
+図6-22　Dropoutの概念図（文献<u>［14］</u>より引用）：左が通常のニューラルネットワーク、右がDropoutを適用したネットワーク。Dropoutはランダムにニューロンを選び、そのニューロンを消去することで、その先の信号の伝達をストップする
+</p>
+</div>
+<p>続いてDropoutを実装します。ここで行う実装は、分かりやすさを重視しています。しかし、訓練の際に適切な計算を行えば、順伝搬には、単にデータを流すだけでよい（消去した割合を乗算しなくてもよい）ので、ディープラーニングのフレームワークでは、そのような実装が行われています。効率的な実装については、たとえば、Chainerで実装されるDropoutが参考になるでしょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Dropout</span>:
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, dropout_ratio<span style='color: #666666'>=0.5</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>dropout_ratio <span style='color: #666666'>=</span> dropout_ratio
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x, train_flg<span style='color: #666666'>=</span><span style='color: #008000'>True</span>):
+        <span style='color: #008000; font-weight: bold'>if</span> train_flg:
+            <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>*</span>x<span style='color: #666666'>.</span>shape) <span style='color: #666666'>&gt;</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>dropout_ratio
+            <span style='color: #008000; font-weight: bold'>return</span> x <span style='color: #666666'>*</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask
+        <span style='color: #008000; font-weight: bold'>else</span>:
+            <span style='color: #008000; font-weight: bold'>return</span> x <span style='color: #666666'>*</span> (<span style='color: #666666'>1.0</span> <span style='color: #666666'>-</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>dropout_ratio)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        <span style='color: #008000; font-weight: bold'>return</span> dout <span style='color: #666666'>*</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask
+</pre>
+</div>
+<p>ここでのポイントは、順伝播のたびに、<code class='tt'>self.mask</code>に消去するニューロンを<code class='tt'>False</code>として格納するということです。<code class='tt'>self.mask</code>は、<code class='tt'>x</code>と同じ形状の配列をランダムに生成し、その値が<code class='tt'>dropout_ratio</code>よりも大きい要素だけを<code class='tt'>True</code>とします。逆伝播の際の挙動はReLUと同じです。つまり、順伝播で信号を通したニューロンは、逆伝播の際に伝わる信号をそのまま通し、順伝播で信号を通さなかったニューロンは、逆伝播では信号がそこでストップします。</p>
+<p>それでは、Dropoutの効果を確かめるために、MNISTデータセットで検証してみることにします。ソースコードは<code class='tt'>ch06/overfit_dropout.py</code>です。なお、ソースコードでは、<code class='tt'>Trainer</code>というクラスを利用して、実装の簡略化を行っています。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><code class='tt'>common/trainer.py</code>では<code class='tt'>Trainer</code>クラスを実装しています。このクラスを用いることで、これまで行ってきたようなネットワークの学習を、<code class='tt'>Trainer</code>クラスが代わりに行ってくれます。詳しくは、<code class='tt'>common/trainer.py</code>と<code class='tt'>ch06/overfit_dropout.py</code>を参照してください。</p>
+</td></tr></table></div>
+<p>さて、Dropoutの実験ですが、前の実験と同じく、7層のネットワーク（各層のニューロンの個数は100個、活性化関数はReLU）を使い、片方にはDropoutを適用し、もう片方にはDropoutを使用しないものとします。結果は次の<a href='./ch06.xhtml#fig06_23'>図6-23</a>のようになります。</p>
+<div class='image' id='fig06_23'>
+<img alt='左はDropoutなし、右はDropoutあり（dropout_rate=0.15）' src='images/ch06/fig06_23.png'/>
+<p class='caption'>
+図6-23　左はDropoutなし、右はDropoutあり（dropout_rate=0.15）
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_23'>図6-23</a>のとおり、Dropoutを用いることで、訓練データとテストデータの認識精度の隔たりが小さくなりました。また、訓練データが100%の認識精度に到達することもなくなりました。このように、Dropoutを用いれば、表現力の高いネットワークであっても、過学習を抑制することができるようになります。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>機械学習では、<!-- IDX:アンサンブル学習 -->アンサンブル学習というものをよく使います。アンサンブル学習とは、複数のモデルを個別に学習させ、推論時には、その複数の出力を平均するというものです。ニューラルネットワークの文脈で話をすると、たとえば、5つの同じ構造（もしくは似た構造）のネットワークを用意して、それぞれに学習させ、テストのときには、その5つの出力の平均を答えとします。アンサンブル学習を行うことで、ニューラルネットワークの認識精度が数%向上することが実験的に分かっています。</p>
+<p>このアンサンブル学習はDropoutと近い関係があります。というのは、Dropoutは、学習時にニューロンをランダムに消去することで、毎回、異なるモデルを学習させていると解釈できるからです。そして、推論時には、ニューロンの出力に対して消去した割合（たとえば、0.5など）を乗算することで、モデルの平均を取っているのです。つまり、Dropoutは、アンサンブル学習と同じ効果を（擬似的に）ひとつのネットワークで実現していると考えることができるのです。</p>
+</td></tr></table></div>
+
+<h2 id='h6-5'><span class='secno'>6.5　</span>ハイパーパラメータの検証</h2>
+<p>ニューラルネットワークでは、重みやバイアスといったパラメータとは別に、<!-- IDX:ハイパーパラメータ --><b>ハイパーパラメータ</b>（hyper-parameter）が多く登場します。ここで言うハイパーパラメータとは、たとえば、各層のニューロンの数やバッチサイズ、パラメータの更新の際の学習係数やWeight decayなどです。そのようなハイパーパラメータは、適切な値に設定しなければ、性能の悪いモデルになってしまいます。ハイパーパラメータの値はとても重要ですが、ハイパーパラメータの決定には一般に多くの試行錯誤が伴います。ここでは、できるだけ効率的にハイパーパラメータの値を探索する方法について説明します。</p>
+
+<h3 id='h6-5-1'><span class='secno'>6.5.1　</span>検証データ</h3>
+<p><!-- IDX:検証データ -->これまで使用したデータセットは、訓練データとテストデータの2つに分離して利用してきました。訓練データで学習を行い、テストデータを使って汎化性能を評価する——そうすることで、訓練データだけに過度に適応しすぎていないか（過学習を起こしていないか）、そして、汎化性能はどれくらいか、ということを評価することができたのです。</p>
+<p>これからハイパーパラメータをさまざまな値に設定して検証していきますが、ここで注意すべき点は、テストデータを使ってハイパーパラメータの性能を評価してはいけない、ということです。これは非常に大切ですが、見落としがちなポイントです。</p>
+<p>なぜ、テストデータを使ってハイパーパラメータの性能を評価してはいけないのでしょうか？ それは、テストデータを使ってハイパーパラメータを調整するとすれば、ハイパーパラメータの値はテストデータに対して過学習を起こすことになるからです。言い換えると、ハイパーパラメータの値の「良さ」をテストデータを使って確認することになるので、テストデータだけに適合するようにハイパーパラメータの値が調整されてしまいます。そうなると、他のデータには適応できない汎化性能の低いモデルになってしまうかもしれません。</p>
+<p>そのため、ハイパーパラメータを調整する際には、ハイパーパラメータ専用の確認データが必要になります。ハイパーパラメータの調整用のデータは、一般に<b>検証データ</b>（validation data）と呼びます。この検証データを使って、ハイパーパラメータの良さを評価します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>訓練データは、パラメータ（重みやバイアス）の学習に利用します。検証データは、ハイパーパラメータの性能を評価するために利用します。テストデータは汎化性能をチェックするために、最後に（理想的には一度だけ）利用します。</p>
+</td></tr></table></div>
+<p>データセットによっては、あらかじめ訓練データ・検証データ・テストデータの3つに分離されているものがあります。また、データセットによっては、訓練データとテストデータの2つだけに分離されて提供されているものや、そのような分離は行われていないものもあります。その場合、データの分離は、ユーザーの手によって行う必要があります。MNISTデータセットの場合、検証データを得るための最も簡単な方法は、訓練データの中から20%程度を検証データとして先に分離することです。コードで書くと次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist()
+
+<span style='color: #408080; font-style: italic'># 訓練データをシャッフル</span>
+x_train, t_train <span style='color: #666666'>=</span> shuffle_dataset(x_train, t_train)
+
+<span style='color: #408080; font-style: italic'># 検証データの分割</span>
+validation_rate <span style='color: #666666'>=</span> <span style='color: #666666'>0.20</span>
+validation_num <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(x_train<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>] <span style='color: #666666'>*</span> validation_rate)
+
+x_val <span style='color: #666666'>=</span> x_train[:validation_num]
+t_val <span style='color: #666666'>=</span> t_train[:validation_num]
+x_train <span style='color: #666666'>=</span> x_train[validation_num:]
+t_train <span style='color: #666666'>=</span> t_train[validation_num:]
+</pre>
+</div>
+<p>ここでは、訓練データの分離の前に、入力データと教師ラベルをシャッフルしています。これは、データセットによってはデータに偏りがあるかもしれないからです（たとえば、数字の「0」から「10」まで順番に並べられている、など）。なお、ここで使用した<code class='tt'>shuffle_dataset</code>という関数は、<code class='tt'>np.random.shuffle</code>を利用したもので、<code class='tt'>common/util.py</code>に、その実装があります。</p>
+<p>それでは続いて、検証データを使ってハイパーパラメータの最適化手法を見ていきましょう。</p>
+
+<h3 id='h6-5-2'><span class='secno'>6.5.2　</span>ハイパーパラメータの最適化</h3>
+<p>ハイパーパラメータの最適化を行う上で重要なポイントは、ハイパーパラメータの「良い値」が存在する範囲を徐々に絞り込んでいく、ということです。範囲を徐々に絞り込んでいくとは、最初はおおまかに範囲を設定し、その範囲の中からランダムにハイパーパラメータを選び出し（サンプリングし）、そのサンプリングした値で認識精度の評価を行います。そして、それを複数回繰り返し行い、認識精度の結果を観察し、その結果からハイパーパラメータの「良い値」の範囲を狭めていくのです。この作業を繰り返し行うことで、適切なハイパーパラメータの範囲を徐々に限定していくことができます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ニューラルネットワークのハイパーパラメータの最適化では、<!-- IDX:グリッドサーチ -->グリッドサーチなどの規則的な探索よりも、<!-- IDX:ランダムサンプリング -->ランダムにサンプリングして探索するほうが良い結果になることが報告されています<u>［15］</u>。これは、複数あるハイパーパラメータのうち、最終的な認識精度に与える影響度合いがハイパーパラメータごとに異なるからです。</p>
+</td></tr></table></div>
+<p>ハイパーパラメータの範囲は、おおまかに“ざっくりと”指定するのが有効です。“ざっくりと”指定するとは、0.001（<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−3</span></sup></i></span>）から1,000（<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>3</span></sup></i></span>）ぐらいといったように、「10の階乗」のスケールで範囲を指定します（これは、「対数スケール（log scale）で指定する」とも表現します）。</p>
+<p>ハイパーパラメータの最適化で注意すべき点は、ディープラーニングの学習には多くの時間（たとえば、数日や数週間など）が必要になるということです。そのため、ハイパーパラメータの探索では、筋の悪そうなハイパーパラメータは早い段階で見切りをつける必要があります。そこで、ハイパーパラメータの最適化においては、学習のためのエポックを小さくして、1回の評価に要する時間を短縮するのが有効です。</p>
+<p>以上がハイパーパラメータの最適化です。これまでの話をまとめると、次のようになります。</p>
+<dl>
+<dt><strong>ステップ0</strong></dt>
+<dd>ハイパーパラメータの範囲を設定する。</dd>
+<dt><strong>ステップ1</strong></dt>
+<dd>設定されたハイパーパラメータの範囲から、ランダムにサンプリングする。</dd>
+<dt><strong>ステップ2</strong></dt>
+<dd>ステップ1でサンプリングされたハイパーパラメータの値を使用して学習を行い、検証データで認識精度を評価する（ただし、エポックは小さく設定）。</dd>
+<dt><strong>ステップ3</strong></dt>
+<dd>ステップ1とステップ2をある回数（100回など）繰り返し、それらの認識精度の結果から、ハイパーパラメータの範囲を狭める。</dd>
+</dl>
+<p>上記を繰り返し行い、ハイパーパラメータの範囲を絞り込んでいき、ある程度絞り込んだ段階で、その絞り込んだ範囲からハイパーパラメータの値をひとつ選び出します。これがハイパーパラメータの最適化のための、ひとつのアプローチです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ここで説明したハイパーパラメータの最適化のアプローチは、実践的な方法です。ただし、このアプローチは、科学というよりは、どちらかというと、実践者の“知恵”のような趣が感じられるかもしれません。ハイパーパラメータの最適化において、より洗練された手法を求めるとすれば、<!-- IDX:ベイズ最適化 --><b>ベイズ最適化</b>（Bayesian optimization）が挙げられるでしょう。ベイズ最適化は、ベイズの定理を中心とした数学（理論）を駆使して、より厳密に効率良く最適化を行います。詳しくは、論文「Practical Bayesian Optimization of Machine Learning Algorithms」<u>［16］</u>などを参照してください。</p>
+</td></tr></table></div>
+
+<h3 id='h6-5-3'><span class='secno'>6.5.3　</span>ハイパーパラメータ最適化の実装</h3>
+<p>それでは、MNISTデータセットを使って、ハイパーパラメータの最適化を行いたいと思います。ここでは、学習係数（learning rate）とWeight decayの強さをコントロールする係数（以降、「Weight decay係数」と呼ぶ）の2つを探索する問題を対象とします。なお、この問題設定と問題解決のアプローチは、スタンフォード大学の授業「CS231n」<u>［5］</u>を参考にしています。</p>
+<p>先ほど述べたとおり、ハイパーパラメータの検証は、0.001（<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−3</span></sup></i></span>）から1,000（<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>3</span></sup></i></span>）のような対数スケールの範囲からランダムにサンプリングして検証を行います。これは、Pythonでは、<!-- IDX:np.random.uniform() --><code class='tt'>10 ** np.random.uniform(-3, 3)</code>と書くことができます。ここで行う実験では、Weight decay係数を<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−8</span></sup></i></span>から<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−4</span></sup></i></span>、学習係数を<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−6</span></sup></i></span>から<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−2</span></sup></i></span>の範囲としてスタートします。その場合、ハイパーパラメータのランダムサンプリングは、次のように書くことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>weight_decay <span style='color: #666666'>=</span> <span style='color: #666666'>10</span> <span style='color: #666666'>**</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>uniform(<span style='color: #666666'>-8</span>, <span style='color: #666666'>-4</span>)
+lr <span style='color: #666666'>=</span> <span style='color: #666666'>10</span> <span style='color: #666666'>**</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>uniform(<span style='color: #666666'>-6</span>, <span style='color: #666666'>-2</span>)
+</pre>
+</div>
+<p>このようにランダムにサンプリングし、それらの値を使って学習を行います。後は、複数回さまざまなハイパーパラメータの値で繰り返し学習を行い、筋の良さそうなハイパーパラメータはどこに存在するのか観察します。ここでは、実装の詳細は省略し、結果だけを示します。ハイパーパラメータの最適化を行うソースコードは<code class='tt'>ch06/hyperparameter_optimization.py</code>にあるので、適宜参照してください。</p>
+<p>さて、Weight decay係数を<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−8</span></sup></i></span>から<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−4</span></sup></i></span>、学習係数を<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−6</span></sup></i></span>から<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−2</span></sup></i></span>の範囲で実験を行うと、結果は次の<a href='./ch06.xhtml#fig06_24'>図6-24</a>のようになります。</p>
+<div class='image' id='fig06_24'>
+<img alt='実線は検証データの認識精度、点線は訓練データの認識精度' src='images/ch06/fig06_24.png'/>
+<p class='caption'>
+図6-24　実線は検証データの認識精度、点線は訓練データの認識精度
+</p>
+</div>
+<p><a href='./ch06.xhtml#fig06_24'>図6-24</a>では、検証データの学習の推移を認識精度が高かった順に並べています。これを見ると、「Best-5」ぐらいまでは順調に学習が進んでいることが分かります。そこで、「Best-5」までのハイパーパラメータの値（学習係数とWeight decay係数）を見てみることにします。結果は、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>Best-1 (val acc:0.83) | lr:0.0092, weight decay:3.86e-07
+Best-2 (val acc:0.78) | lr:0.00956, weight decay:6.04e-07
+Best-3 (val acc:0.77) | lr:0.00571, weight decay:1.27e-06
+Best-4 (val acc:0.74) | lr:0.00626, weight decay:1.43e-05
+Best-5 (val acc:0.73) | lr:0.0052, weight decay:8.97e-06
+</pre>
+</div>
+<p>この結果を見ると、うまく学習が進んでいるのは、学習係数が0.001から0.01、Weight decay係数が<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−8</span></sup></i></span>から<span class='equation mathnoimage'><i><span class='math-normal'>10</span><sup><span class='math-normal'>−6</span></sup></i></span>ぐらいということが分かります。このように、うまくいきそうなハイパーパラメータの範囲を観察し、値の範囲を小さくしていきます。そして、その縮小した範囲で同じ作業を繰り返していくのです。そのようにして、適切なハイパーパラメータの存在範囲を狭め、ある段階で、最終的なハイパラメータの値をひとつピックアップします。</p>
+
+<h2 id='h6-6'><span class='secno'>6.6　</span>まとめ</h2>
+<p>本章では、ニューラルネットワークの学習を行う上で重要なテクニックをいくつか紹介しました。パラメータの更新方法や、重みの初期値の与え方、また、Batch NormalizationやDropoutなど、どれも現代のニューラルネットワークにとっては欠くことのできない技術です。また、ここで学んだ技術は、最先端のディープラーニングにおいても頻繁に利用されています。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>パラメータの更新方法には、SGDの他に、有名なものとして、MomentumやAdaGrad、Adamなどの手法がある。</li>
+<li>重みの初期値の与え方は、正しい学習を行う上で非常に重要である。</li>
+<li>重みの初期値として、「Xavierの初期値」や「Heの初期値」などが有効である。</li>
+<li>Batch Normalizationを用いることで、学習を速く進めることができ、また、初期値に対してロバストになる。</li>
+<li>過学習を抑制するための正則化の技術として、Weight decayやDropoutがある。</li>
+<li>ハイパーパラメータの探索は、良い値が存在する範囲を徐々に絞りながら進めるのが効率の良い方法である。</li>
+</ul>
+</div>
+</body>
+</html>

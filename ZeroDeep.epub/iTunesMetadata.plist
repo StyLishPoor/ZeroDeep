@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>artistName</key>
+	<string>斎藤 康毅</string>
+	<key>book-info</key>
+	<dict>
+		<key>cover-image-hash</key>
+		<string>FCA0AE85F64A4FA3E70C5D0C901BAE04</string>
+		<key>cover-image-path</key>
+		<string>OEBPS/images/1758_Deep_Learning_cvr.jpg</string>
+		<key>mime-type</key>
+		<string>application/epub+zip</string>
+		<key>package-file-hash</key>
+		<string>917DAA11AD0EB1134312137A8F9B3B98</string>
+		<key>page-progression-direction</key>
+		<string>ltr</string>
+		<key>publisher-unique-id</key>
+		<string>9784873117584</string>
+		<key>unique-id</key>
+		<integer>6362148603874110320</integer>
+		<key>update-level</key>
+		<integer>2</integer>
+	</dict>
+	<key>itemName</key>
+	<string>ゼロから作るDeep Learning</string>
+	<key>playlistName</key>
+	<string>ゼロから作るDeep Learning</string>
+	<key>releaseDate</key>
+	<string>2016-10-25</string>
+</dict>
+</plist>

@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>パーセプトロン</title>
+</head>
+<body>
+<h1 id='h2'><span class='chapno'>2章</span><br/>パーセプトロン</h1>
+<p>本章では、<!-- IDX:パーセプトロン --><b>パーセプトロン</b>（perceptron）というアルゴリズムについて説明します。パーセプトロンは、ローゼンブラットというアメリカの研究者によって1957年に考案されたアルゴリズムです。この昔からあるアルゴリズムをなぜ今さら学ぶのかというと、パーセプトロンはニューラルネットワーク（ディープラーニング）の起源となるアルゴリズムでもあるからです。そのため、パーセプトロンの仕組みを学ぶことは、ニューラルネットワークやディープラーニングへと進む上で重要な考え方を学ぶことにもなります。</p>
+<p>本章ではパーセプトロンについて説明し、パーセプトロンを使って簡単な問題を解いていきます。その過程を通して、パーセプトロンに親しんでもらいます。</p>
+
+<h2 id='h2-1'><span class='secno'>2.1　</span>パーセプトロンとは</h2>
+<p>パーセプトロン<a class='noteref' href='#fn-fn0201' id='fnb-fn0201' epub:type='noteref'>†1</a>は、複数の信号を入力として受け取り、ひとつの信号を出力します。ここで言う「信号」とは、電流や川のような「流れ」をもつものをイメージするとよいでしょう。電流が導線を流れ、電子を先に送り出すように、パーセプトロンの信号も流れを作り、情報を先へと伝達していきます。ただし、実際の電流とは違い、パーセプトロンの信号は「流す／流さない（1か0）」の二値の値です。本書では、0を「信号を流さない」、1を「信号を流す」に対応させて記述します。</p>
+<div class='footnote' id='fn-fn0201' epub:type='footnote'><p class='footnote'>[†1] 本章で述べるパーセプトロンは正確には「人工ニューロン」や「単純パーセプトロン」と呼ばれるものです。ただし、基本的な処理内容は共通することが多いため、ここでは単に「パーセプトロン」と呼ぶことにします。</p></div>
+<div class='image' id='fig02_1'>
+<img alt='2入力のパーセプトロン' src='images/ch02/fig02_1.png'/>
+<p class='caption'>
+図2-1　2入力のパーセプトロン
+</p>
+</div>
+<p>さて、<a href='./ch02.xhtml#fig02_1'>図2-1</a>には、2つの信号を入力として受け取るパーセプトロンの例を示しています。<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>は入力信号、<span class='equation mathnoimage'><i>y</i></span>は出力信号、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>は重みを表します（<span class='equation mathnoimage'><i>w</i></span>はweightの頭文字）。図の○は<!-- IDX:ニューロン -->「ニューロン」や<!-- IDX:ノード -->「ノード」と呼ばれます。入力信号は、ニューロンに送られる際に、それぞれに固有の重みが乗算されます（<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub>x<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub>x<sub><span class='math-normal'>2</span></sub></i></span>）。ニューロンでは、送られてきた信号の総和が計算され、その総和がある限界値を超えた場合にのみ1を出力します——これを「ニューロンが発火する」と表現することもあります。ここでは、その限界値を<!-- IDX:閾値 --><b>閾値</b>と呼び、<span class='equation mathimage'><img alt='\theta' src='images/math/3581aed49ef666a0ad466acea438b59a.png' style='height: 0.92em'/></span>という記号で表すことにします。</p>
+<p>パーセプトロンの動作原理は、たったこれだけです！ 以上のことを数式で表すと次の式(2.1)のようになります。</p>
+<div class='equation'>
+<div class='math'><img alt='y = \begin{cases}
+  0 &amp; ( {w_1}{x_1} + {w_2}{x_2} \le \,\theta )\\[-3pt]
+  1 &amp; ( {w_1}{x_1} + {w_2}{x_2} &gt;     \theta ) %\raisebox{.5\Cvs}{\qquad(2.1)}
+ \end{cases}' src='images/math/7091688b38e8845a8c0f0e1c06d9aa2d.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq1'>式(2.1)</p>
+</div>
+<p>パーセプトロンは、複数ある入力信号のそれぞれに固有の重みを持ちます。そして、その重みは、各信号の重要性をコントロールする要素として働きます。つまり、重みが大きければ大きいほど、その重みに対応する信号の重要性が高くなるのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>重みは、電流で言うところの「抵抗」に相当します。抵抗は電流の流れにくさを決めるパラメータであり、抵抗が低ければ低いほど大きな電流が流れます。一方、パーセプトロンの重みは、その値が大きければ大きいほど、大きな信号が流れることを意味します。抵抗も重みも信号の流れにくさ（流れやすさ）をコントロールするという点では同じ働きをします。</p>
+</td></tr></table></div>
+
+<h2 id='h2-2'><span class='secno'>2.2　</span>単純な論理回路</h2>
+
+<h3 id='h2-2-1'><span class='secno'>2.2.1　</span>ANDゲート</h3>
+<p><!-- IDX:ANDゲート -->それでは、パーセプトロンを使って簡単な問題を考えてみることにします。ここでは、論理回路を題材とし、最初にANDゲートについて考えたいと思います。ANDゲートとは、2入力1出力のゲートです。<a href='./ch02.xhtml#fig02_2'>図2-2</a>のような入力信号と出力信号の対応表を「<!-- IDX:真理値表 -->真理値表」と呼びますが、ANDゲートは、<a href='./ch02.xhtml#fig02_2'>図2-2</a>に示すように、2つの入力が1のときだけ1を出力し、それ以外は0を出力します。</p>
+<div class='image' id='fig02_2'>
+<img alt='ANDゲートの真理値表' src='images/ch02/fig02_2.png'/>
+<p class='caption'>
+図2-2　ANDゲートの真理値表
+</p>
+</div>
+<p>さて、このANDゲートをパーセプトロンで表現したいと思います。ここで行う作業は、<a href='./ch02.xhtml#fig02_2'>図2-2</a>の真理値表を満たすように<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>、<span class='equation mathimage'><img alt='\theta' src='images/math/3581aed49ef666a0ad466acea438b59a.png' style='height: 0.92em'/></span>の値を決めることです。それでは、どのような値に設定すれば、<a href='./ch02.xhtml#fig02_2'>図2-2</a>の条件を満たすパーセプトロンを作ることができるでしょうか？</p>
+<p>実は、<a href='./ch02.xhtml#fig02_2'>図2-2</a>を満たすようなパラメータの選び方は無限にあります。たとえば、<span class='equation mathimage'><img alt='\left( w_1, w_2, \theta \right)=(0.5, 0.5, 0.7)' src='images/math/ca8adf55790a5f55351fe8333a9ae161.png' style='height: 1.16em'/></span>のときに、<a href='./ch02.xhtml#fig02_2'>図2-2</a>のように動作します。また、<span class='equation mathnoimage'><i><span class='math-normal'>(0.5,</span> <span class='math-normal'>0.5,</span> <span class='math-normal'>0.8)</span></i></span>や<span class='equation mathnoimage'><i><span class='math-normal'>(1.0,</span> <span class='math-normal'>1.0,</span> <span class='math-normal'>1.0)</span></i></span>のときも同様にANDゲートの条件を満たします。そのようなパラメータを設定すれば、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>の両方が1のときだけ、重み付き信号の総和が、与えられた閾値<span class='equation mathimage'><img alt='\theta' src='images/math/3581aed49ef666a0ad466acea438b59a.png' style='height: 0.92em'/></span>を上回ります。</p>
+
+<h3 id='h2-2-2'><span class='secno'>2.2.2　</span>NANDゲートとORゲート</h3>
+<p><!-- IDX:NANDゲート --><!-- IDX:ORゲート -->続いてNANDゲートを考えましょう。NANDとは、Not ANDを意味し、その振る舞いは、ANDゲートの出力を逆にしたものになります。真理値表で表すと、次に示す<a href='./ch02.xhtml#fig02_3'>図2-3</a>のように、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>の両方が1のときだけ0を出力し、それ以外は1を出力します。それでは、NANDゲートのパラメータは、どのような組み合わせが考えられるでしょうか？</p>
+<div class='image' id='fig02_3'>
+<img alt='NANDゲートの真理値表' src='images/ch02/fig02_3.png'/>
+<p class='caption'>
+図2-3　NANDゲートの真理値表
+</p>
+</div>
+<p>NANDゲートを表現するには、たとえば、<span class='equation mathimage'><img alt='\left( w_1, w_2, \theta \right)=(-0.5, -0.5, -0.7)' src='images/math/d09e5a2bee416b8c145898a3d63eb7a5.png' style='height: 1.16em'/></span>の組み合わせが考えられます（他の組み合わせも無限に考えられるでしょう）。実は、ANDゲートを実現するパラメータの値に対して、それらの符号をすべて反転するだけで、NANDゲートを実現することもできます。</p>
+<div class='image' id='fig02_4'>
+<img alt='ORゲートの真理値表' src='images/ch02/fig02_4.png'/>
+<p class='caption'>
+図2-4　ORゲートの真理値表
+</p>
+</div>
+<p>同じ流れで、<a href='./ch02.xhtml#fig02_4'>図2-4</a>のORゲートについて考えます。ORゲートは入力信号の少なくともひとつが1であれば、出力が1になる論理回路です。このORゲートは、どのようなパラメータを設定すればよいでしょうか？ 考えてみてください。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ここでパーセプトロンのパラメータを決めているのは、コンピュータではなく私たち人間です。真理値表という「学習データ」を見ながら、人の手によってパラメータの値を考えました（思いつきました）。機械学習の問題では、このパラメータの値を決める作業をコンピュータに自動で行わせます。<!-- IDX:学習 --><b>学習</b>とは、適切なパラメータを決める作業であり、人が行う仕事は、パーセプトロンの構造（モデル）を考え、コンピュータに学習データを与えることになります。</p>
+</td></tr></table></div>
+<p>以上のように、パーセプトロンを使えば、AND、NAND、ORという論理回路を表現できることが分かりました。ここで重要な点は、パーセプトロンの構造は、AND、NAND、ORゲートのすべてで同じであるということです。実際、その3つのゲートで異なるものは、パラメータ（重みと閾値）の値だけでした。つまり、同じ構造のパーセプトロンが、パラメータの値を適切に調整するだけで、カメレオン俳優がさまざまな人物を演じるように、ANDやNANDやORに変身したのです。</p>
+
+<h2 id='h2-3'><span class='secno'>2.3　</span>パーセプトロンの実装</h2>
+
+<h3 id='h2-3-1'><span class='secno'>2.3.1　</span>簡単な実装</h3>
+<p>それでは、先の論理回路をPythonで実装しましょう。ここでは、引数として<code class='tt'>x1</code>と<code class='tt'>x2</code>を受け取る<code class='tt'>AND</code>という関数を定義します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>AND</span>(x1, x2):
+    w1, w2, theta <span style='color: #666666'>=</span> <span style='color: #666666'>0.5</span>, <span style='color: #666666'>0.5</span>, <span style='color: #666666'>0.7</span>
+    tmp <span style='color: #666666'>=</span> x1<span style='color: #666666'>*</span>w1 <span style='color: #666666'>+</span> x2<span style='color: #666666'>*</span>w2
+    <span style='color: #008000; font-weight: bold'>if</span> tmp <span style='color: #666666'>&lt;=</span> theta:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0</span>
+    <span style='color: #008000; font-weight: bold'>elif</span> tmp <span style='color: #666666'>&gt;</span> theta:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span>
+</pre>
+</div>
+<p>パラメータの<code class='tt'>w1</code>、<code class='tt'>w2</code>、<code class='tt'>theta</code>は関数内で初期化し、重み付き入力の総和が閾値を超えると<code class='tt'>1</code>を返し、それ以外は<code class='tt'>0</code>を返します。それでは、<a href='./ch02.xhtml#fig02_2'>図2-2</a>のとおり出力されるか確認しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>AND(0, 0) # 0を出力
+AND(1, 0) # 0を出力
+AND(0, 1) # 0を出力
+AND(1, 1) # 1を出力
+</pre>
+</div>
+<p>期待したとおりの出力になっていますね！ これで、ANDゲートは実現することができました。同様の手順で、NANDゲートやORゲートも実装することができますが、ここでは、この実装に少しだけ手を加えたいと思います。</p>
+
+<h3 id='h2-3-2'><span class='secno'>2.3.2　</span>重みとバイアスの導入</h3>
+<p>先のANDゲートの実装は素直で分かりやすいのですが、これ以降のことを考えて、別の実装方式へと修正したいと思います。それに先立ち、式(2.1)の<span class='equation mathimage'><img alt='\theta' src='images/math/3581aed49ef666a0ad466acea438b59a.png' style='height: 0.92em'/></span>を<span class='equation mathnoimage'><i><span class='math-normal'>−</span>b</i></span>として、パーセプトロンの動作を次の式(2.2)で表します。</p>
+<div class='equation'>
+<div class='math'><img alt='y = \begin{cases}
+  0 &amp; ( b + {w_1}{x_1} + {w_2}{x_2} \le 0 ) \\[-3pt]
+  1 &amp; ( b + {w_1}{x_1} + {w_2}{x_2} &gt;   0 ) %\raisebox{.5\Cvs}{\qquad(2.2)}
+ \end{cases}' src='images/math/c15f5636a46f93f8f8880713320accbf.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq2'>式(2.2)</p>
+</div>
+<p>式(2.1)と式(2.2)は記号の表記を変えただけで、まったく同じことを表しています。ここで、<span class='equation mathnoimage'><i>b</i></span>を<!-- IDX:バイアス --><b>バイアス</b>と呼び、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>や<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>を<!-- IDX:重み --><b>重み</b>と呼びます。式(2.2)で表されるように、パーセプトロンでは、入力信号に重みが乗算された値とバイアスの和が計算され、その値が0を上回れば1を出力し、そうでなければ0を出力します。それでは、NumPyを使って、式(2.2)の方式で実装してみましょう。ここでは、Pythonのインタプリタで逐次結果を確認しながら進むことにします。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>import numpy as np</b>
+&gt;&gt;&gt; <b>x = np.array([0, 1])</b>     # 入力
+&gt;&gt;&gt; <b>w = np.array([0.5, 0.5])</b> # 重み
+&gt;&gt;&gt; <b>b = -0.7</b>                 # バイアス
+&gt;&gt;&gt; <b>w*x</b>
+array([ 0. ,  0.5])
+&gt;&gt;&gt; <b>np.sum(w*x)</b>
+0.5
+&gt;&gt;&gt; <b>np.sum(w*x) + b</b>
+-0.19999999999999996  # およそ-0.2（浮動小数点数による演算誤差）
+</pre>
+</div>
+<p>この例で示すように、NumPy配列の乗算では、2つの配列の要素数が同じ場合、その要素どうしが乗算されます。そのため、<code class='tt'>w*x</code>の計算では、各要素の乗算が計算されることになります（ <code class='tt'>[0, 1] * [0.5, 0.5] =&gt; [0, 0.5]</code> ）。また、<!-- IDX:np.sum() --><code class='tt'>np.sum(w*x)</code>では各要素の総和が計算されます。この重み付き和にバイアスを加算すれば、式(2.2)の計算は終了です。</p>
+
+<h3 id='h2-3-3'><span class='secno'>2.3.3　</span>重みとバイアスによる実装</h3>
+<p>「重みとバイアスによる方式」を用いれば、ANDゲートは次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>AND</span>(x1, x2):
+    x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([x1, x2])
+    w <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.5</span>, <span style='color: #666666'>0.5</span>])
+    b <span style='color: #666666'>=</span> <span style='color: #666666'>-0.7</span>
+    tmp <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(w<span style='color: #666666'>*</span>x) <span style='color: #666666'>+</span> b
+    <span style='color: #008000; font-weight: bold'>if</span> tmp <span style='color: #666666'>&lt;=</span> <span style='color: #666666'>0</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0</span>
+    <span style='color: #008000; font-weight: bold'>else</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span>
+</pre>
+</div>
+<p>ここで<span class='equation mathimage'><img alt='-\theta' src='images/math/2a3a2a243072e21edab07f7b28abf07c.png' style='height: 0.92em'/></span>をバイアス<span class='equation mathnoimage'><i>b</i></span>と命名しましたが、バイアスは、重みの<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>や<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>とは別の働きをすることに注意しましょう。具体的に言うと、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>や<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>は入力信号への重要度をコントロールするパラメータとして機能しますが、バイアスは発火のしやすさ——出力信号が1を出力する度合い——を調整するパラメータとして機能します。たとえば、<span class='equation mathnoimage'><i>b</i></span>が<span class='equation mathnoimage'><i><span class='math-normal'>−0.1</span></i></span>であれば、入力信号の重み付き和が0.1を上回るだけでニューロンが発火します。しかし、もし<span class='equation mathnoimage'><i>b</i></span>が<span class='equation mathnoimage'><i><span class='math-normal'>−20.0</span></i></span>であれば、入力信号の重み付き和が20.0を上回らなければニューロンは発火しません。このように、バイアスの値によって、ニューロンの発火のしやすさが決まります。なお、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>や<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>は「重み」と呼び、<span class='equation mathnoimage'><i>b</i></span>は「バイアス」と区別して呼びますが、文脈によっては、<span class='equation mathnoimage'><i>b</i></span>、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>のすべてのパラメータを指して「重み」と呼ぶこともあります。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>バイアスという用語には、「ゲタはき」という意味があります。これは、入力が何もないときに（入力が0のときに）、出力にどれだけゲタをはかせるか（値を上乗せするか）ということを意味します。実際、式(2.2)の<span class='equation mathimage'><img alt='b + {w_1}{x_1} + {w_2}{x_2}' src='images/math/a98738f1a010d9fd8e054205af439280.png' style='height: 1.0em'/></span>の計算では、入力の<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>が0の場合、バイアスの値だけが出力されます。</p>
+</td></tr></table></div>
+<p>それでは、続いてNANDゲートとORゲートを実装しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>NAND</span>(x1, x2):
+    x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([x1, x2])
+    <b>w = np.array([-0.5, -0.5])</b> <span style='color: #408080; font-style: italic'># 重みとバイアスだけがANDと違う！</span>
+    <b>b = 0.7</b>
+    tmp <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(w<span style='color: #666666'>*</span>x) <span style='color: #666666'>+</span> b
+    <span style='color: #008000; font-weight: bold'>if</span> tmp <span style='color: #666666'>&lt;=</span> <span style='color: #666666'>0</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0</span>
+    <span style='color: #008000; font-weight: bold'>else</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span>
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>OR</span>(x1, x2):
+    x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([x1, x2])
+    <b>w = np.array([0.5, 0.5])</b> <span style='color: #408080; font-style: italic'># 重みとバイアスだけがANDと違う！</span>
+    <b>b = -0.2</b>
+    tmp <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(w<span style='color: #666666'>*</span>x) <span style='color: #666666'>+</span> b
+    <span style='color: #008000; font-weight: bold'>if</span> tmp <span style='color: #666666'>&lt;=</span> <span style='color: #666666'>0</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0</span>
+    <span style='color: #008000; font-weight: bold'>else</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span>
+</pre>
+</div>
+<p>前節で説明したとおり、AND、NAND、ORは同じ構造のパーセプトロンであり、違いは重みパラメータの値だけでした。NANDとORゲートの実装においても、ANDと異なる箇所は重みとバイアスの値を設定する箇所だけになります。</p>
+
+<h2 id='h2-4'><span class='secno'>2.4　</span>パーセプトロンの限界</h2>
+<p>これまで見てきたように、パーセプトロンを用いれば、AND、NAND、ORの3つの論理回路を実装することができました。それでは続いてXORゲートについて考えてみたいと思います。</p>
+
+<h3 id='h2-4-1'><span class='secno'>2.4.1　</span>XORゲート</h3>
+<p><!-- IDX:XORゲート -->XORゲートは<!-- IDX:排他的論理和 --><b>排他的論理和</b>とも呼ばれる論理回路です。<a href='./ch02.xhtml#fig02_5'>図2-5</a>に示すように、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>のどちらかが1のときだけ出力が1になります（「排他的」とは自分以外は拒否することを意味します）。さて、このXORゲートをパーセプトロンで実装するには、どのような重みパラメータを設定すればよいでしょうか？</p>
+<div class='image' id='fig02_5'>
+<img alt='XORゲートの真理値表' src='images/ch02/fig02_5.png'/>
+<p class='caption'>
+図2-5　XORゲートの真理値表
+</p>
+</div>
+<p>実は、これまで見てきたパーセプトロンでは、このXORゲートを実現することができません。なぜANDやORは実現できて、XORは実現できないのでしょうか？ それを説明するために、ここでは図を描いて視覚的に考えてみたいと思います。</p>
+<p>まずORゲートの挙動を視覚的に考えてみます。ORゲートは、たとえば、重みパラメータが<span class='equation mathnoimage'><i><span class='math-normal'>(</span>b<span class='math-normal'>,</span> w<span class='math-normal'>1,</span> w<span class='math-normal'>2)</span><span class='math-normal'>＝</span><span class='math-normal'>(−0.5,</span> <span class='math-normal'>1.0,</span> <span class='math-normal'>1.0)</span></i></span>のとき、<a href='./ch02.xhtml#fig02_5'>図2-5</a>の真理値表を満たします。このとき、パーセプトロンは次の式(2.3)で表現されます。</p>
+<div class='equation'>
+<div class='math'><img alt='y = \begin{cases}
+  0 &amp; ( - 0.5 + {x_1} + {x_2} \le 0 ) \\[-3pt]
+  1 &amp; ( - 0.5 + {x_1} + {x_2} &gt;   0) %\raisebox{.5\Cvs}{\qquad(2.3)}
+ \end{cases}' src='images/math/57e06c5cf42ae31c481cf1dea3cd7b55.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq3'>式(2.3)</p>
+</div>
+<p>式(2.3)で表されるパーセプトロンは、<span class='equation mathimage'><img alt='-0.5 + {x_1} + {x_2} = 0' src='images/math/0dfff98f7d4a8855e557bcc25238f9f9.png' style='height: 0.92em'/></span>の直線で分断された2つの領域を作ります。直線で分けられた片方の領域は1を出力し、もう片方は0を出力します。これを図で表すと、<a href='./ch02.xhtml#fig02_6'>図2-6</a>のようになります。</p>
+<div class='image' id='fig02_6'>
+<img alt='パーセプトロンの可視化：グレーの領域はパーセプトロンが0を出力する領域であり、この領域はORゲートの性質を満たす' src='images/ch02/fig02_6.png'/>
+<p class='caption'>
+図2-6　パーセプトロンの可視化：グレーの領域はパーセプトロンが0を出力する領域であり、この領域はORゲートの性質を満たす
+</p>
+</div>
+<p>ORゲートは<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> x<sub><span class='math-normal'>2</span></sub><span class='math-normal'>)</span><span class='math-normal'>＝</span><span class='math-normal'>(0,</span> <span class='math-normal'>0)</span></i></span>のとき0を出力し、<span class='equation mathnoimage'><i><span class='math-normal'>(0,</span> <span class='math-normal'>1)</span></i></span>、<span class='equation mathnoimage'><i><span class='math-normal'>(1,</span> <span class='math-normal'>0)</span></i></span>、<span class='equation mathnoimage'><i><span class='math-normal'>(1,</span> <span class='math-normal'>1)</span></i></span>のとき1を出力します。図では、0を○、1を△で表しています。ORゲートを作ろうと思えば、<a href='./ch02.xhtml#fig02_6'>図2-6</a>の○と△を直線によって分ける必要があります。実際、先の直線は、4つの点を正しく分けることができています。</p>
+<p>それでは、XORゲートの場合はどうでしょうか。ORゲートのときのように、1本の直線によって○と△を分ける領域を作り出すことができるでしょうか？</p>
+<div class='image' id='fig02_7'>
+<img alt='○と△はXORゲートの出力を表す。直線によって○と△を分ける領域を作ることはできるだろうか？' src='images/ch02/fig02_7.png'/>
+<p class='caption'>
+図2-7　○と△はXORゲートの出力を表す。直線によって○と△を分ける領域を作ることはできるだろうか？
+</p>
+</div>
+<p><a href='./ch02.xhtml#fig02_7'>図2-7</a>の○と△を直線によって分けることは、いくら考えてもできないでしょう。実は、1本の直線では、○と△を分けることができないのです。</p>
+
+<h3 id='h2-4-2'><span class='secno'>2.4.2　</span>線形と非線形</h3>
+<p><!-- IDX:線形 --><!-- IDX:非線形 --><a href='./ch02.xhtml#fig02_7'>図2-7</a>の○と△は、1本の直線では分けることができません。しかし、もし“直線”という制約を外すことができたら、○と△を分けることができます。たとえば、<a href='./ch02.xhtml#fig02_8'>図2-8</a>のように○と△を分ける領域を作ることができます。</p>
+<div class='image' id='fig02_8'>
+<img alt='曲線であれば、○と△を分けることができる' src='images/ch02/fig02_8.png'/>
+<p class='caption'>
+図2-8　曲線であれば、○と△を分けることができる
+</p>
+</div>
+<p>パーセプトロンの限界は、このように1本の直線で分けた領域だけしか表現できない点にあります。<a href='./ch02.xhtml#fig02_8'>図2-8</a>のようなクネッとした曲線をパーセプトロンでは表現できないのです。ちなみに、<a href='./ch02.xhtml#fig02_8'>図2-8</a>のような曲線による領域を<b>非線形</b>な領域と言い、直線による領域を<b>線形</b>な領域と言います。線形・非線形という言葉は機械学習の分野でよく耳にしますが、イメージとしては<a href='./ch02.xhtml#fig02_6'>図2-6</a>や<a href='./ch02.xhtml#fig02_8'>図2-8</a>のようなものを頭に浮かべることができます。</p>
+
+<h2 id='h2-5'><span class='secno'>2.5　</span>多層パーセプトロン</h2>
+<p>残念ながら、パーセプトロンはXORゲートを表現できませんでした。しかし、それは悲しいニュースではありません。実はパーセプトロンの素晴らしさは、“層を重ねる”ことができる点にあります（層を重ねることでXORを表現できるようになるというのが、本節の筋書きです）。ここでは「層を重ねる」とはどういうことかという説明は後回しにして、XORゲートの問題を別の視点から考えたいと思います。</p>
+
+<h3 id='h2-5-1'><span class='secno'>2.5.1　</span>既存ゲートの組み合わせ</h3>
+<p>さて、XORゲートを作るにはいくつか方法があります。ひとつの方法は、これまで作ってきたAND、NAND、ORゲートを組み合わせて配線することです。ここでは、AND、NAND、ORゲートを<a href='./ch02.xhtml#fig02_9'>図2-9</a>の記号で表記します。ちなみに、<a href='./ch02.xhtml#fig02_9'>図2-9</a>のNANDゲートの先端にある○は出力が反転することを意味します。</p>
+<div class='image' id='fig02_9'>
+<img alt='AND、NAND、ORゲートの記号' src='images/ch02/fig02_9.png'/>
+<p class='caption'>
+図2-9　AND、NAND、ORゲートの記号
+</p>
+</div>
+<p>それでは、XORゲートを作るにはANDとNANDとORをどのように配線すればよいでしょうか？ 少し考えてみましょう。ヒント：<a href='./ch02.xhtml#fig02_10'>図2-10</a>の「？」のそれぞれにAND、NAND、ORのいずれかを代入してXORを完成させることができます。</p>
+<div class='image' id='fig02_10'>
+<img alt='AND、NAND、ORゲートのいずれかを「？」に挿入してXORを完成させよう！' src='images/ch02/fig02_10.png'/>
+<p class='caption'>
+図2-10　AND、NAND、ORゲートのいずれかを「？」に挿入してXORを完成させよう！
+</p>
+</div>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>前節で述べたパーセプトロンの限界は、正確に言うと、「単層のパーセプトロンではXORゲートを表現できない」または「単層のパーセプトロンでは非線形領域は分離できない」ということになります。これから、パーセプトロンを組み合わせることで（層を重ねることで）、XORゲートを実現できることを見ていきます。</p>
+</td></tr></table></div>
+<p>XORゲートは<a href='./ch02.xhtml#fig02_11'>図2-11</a>の配線で実現できます。ここでは、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>が入力信号、<span class='equation mathnoimage'><i>y</i></span>が出力信号を表します。<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>はNANDとORゲートへの入力であり、NANDとORの出力がANDゲートの入力になります。</p>
+<div class='image' id='fig02_11'>
+<img alt='AND、NAND、ORゲートの組み合わせによってXORゲートを実現する' src='images/ch02/fig02_11.png'/>
+<p class='caption'>
+図2-11　AND、NAND、ORゲートの組み合わせによってXORゲートを実現する
+</p>
+</div>
+<p>それでは、<a href='./ch02.xhtml#fig02_11'>図2-11</a>の配線が本当にXORを実現できているのか確かめてみましょう。ここではNANDの出力を<span class='equation mathnoimage'><i>s<sub><span class='math-normal'>1</span></sub></i></span>、ORの出力を<span class='equation mathnoimage'><i>s<sub><span class='math-normal'>2</span></sub></i></span>として、真理値表を埋めてみます。結果は<a href='./ch02.xhtml#fig02_12'>図2-12</a>のようになります。<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>、<span class='equation mathnoimage'><i>y</i></span>に着目すると、確かにXORの出力になっていますね。</p>
+<div class='image' id='fig02_12'>
+<img alt='XORゲートの真理値表' src='images/ch02/fig02_12.png'/>
+<p class='caption'>
+図2-12　XORゲートの真理値表
+</p>
+</div>
+
+<h3 id='h2-5-2'><span class='secno'>2.5.2　</span>XORゲートの実装</h3>
+<p>続いて<a href='./ch02.xhtml#fig02_11'>図2-11</a>の配線で表されるXORゲートをPythonで実装してみます。これまで定義した関数AND、NAND、ORを使えば、次のように（簡単に！）実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>XOR</span>(x1, x2):
+    s1 <span style='color: #666666'>=</span> NAND(x1, x2)
+    s2 <span style='color: #666666'>=</span> OR(x1, x2)
+    y <span style='color: #666666'>=</span> AND(s1, s2)
+    <span style='color: #008000; font-weight: bold'>return</span> y
+</pre>
+</div>
+<p>この<code class='tt'>XOR</code>関数は、期待したとおりの結果を出力します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>XOR(0, 0) # 0を出力
+XOR(1, 0) # 1を出力
+XOR(0, 1) # 1を出力
+XOR(1, 1) # 0を出力
+</pre>
+</div>
+<p>これでXORゲートを完成させることができました。それでは今実装した<code class='tt'>XOR</code>を、パーセプトロンの表現で（ニューロンを明示的に示して）表してみます。すると<a href='./ch02.xhtml#fig02_13'>図2-13</a>のようになります。</p>
+<div class='image' id='fig02_13'>
+<img alt='XORのパーセプトロンによる表記' src='images/ch02/fig02_13.png'/>
+<p class='caption'>
+図2-13　XORのパーセプトロンによる表記
+</p>
+</div>
+<p>XORは、<a href='./ch02.xhtml#fig02_12'>図2-12</a>に示すような多層構造のネットワークです。ここでは、一番左の段を第0層、その右の段を第1層、一番右の段を第2層と呼ぶことにします。</p>
+<p>さて、<a href='./ch02.xhtml#fig02_13'>図2-13</a>のパーセプトロンは、これまで見てきたANDやORのパーセプトロン（<a href='./ch02.xhtml#fig02_1'>図2-1</a>）とは異なる形をしています。実際、ANDやORが単層のパーセプトロンであったのに対して、XORは2層のパーセプトロンです。ちなみに、層を複数重ねたパーセプトロンを<!-- IDX:多層パーセプトロン --><b>多層パーセプトロン</b>（multi-layered perceptron）と言うことがあります。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p><a href='./ch02.xhtml#fig02_13'>図2-13</a>のパーセプトロンは合計で3層から構成されますが、重みを持つ層は実質2層（第0層と第1層の間、第1層と第2層の間）であるため「2層のパーセプトロン」と呼ぶことにします。文献によっては、<a href='./ch02.xhtml#fig02_13'>図2-13</a>のパーセプトロンは3層から構成されるため、「3層のパーセプトロン」と呼ぶ場合があります。</p>
+</td></tr></table></div>
+<p><a href='./ch02.xhtml#fig02_13'>図2-13</a>に示すような2層のパーセプトロンでは、第0層と第1層のニューロンの間で信号の送受信が行われ、続いて第1層と第2層の間で信号の送受信が行われます。この動作をより詳しく述べると、次のようになります。</p>
+<ol>
+<li>第0層の2つのニューロンが入力信号を受け取り、第1層のニューロンへ信号を送る</li>
+<li>第1層のニューロンが第2層のニューロンへ信号を送り、第2層目の入力は<span class='equation mathnoimage'><i>y</i></span>を出力する</li>
+</ol>
+<p>ちなみに、この2層構造のパーセプトロンの動作は、パイプラインによる組み立て作業にたとえることができます。1段目（1層目）の作業者は流れてくる“部品”に手を加え、仕事が完了したら2段目（2層目）の作業者に部品を渡します。2層目の作業者は、1層目の作業者から渡された“部品”に手を加え、その部品を完成させて出荷（出力）します。</p>
+<p>このように、XORゲートのパーセプトロンでは、作業者の間で“部品の手渡し”が行われます。そのような構造（2層構造）にすることで、パーセプトロンはXORゲートを実現することが可能になりました。これは、「単層のパーセプトロンでは表現できなかったことが、層をひとつ増やすことによって実現できるようになった」と解釈できます。つまり、パーセプトロンは、層を重ねることで（層を深くすることで）、より柔軟な表現が可能になったと言えるのです。</p>
+
+<h2 id='h2-6'><span class='secno'>2.6　</span>NANDからコンピュータへ</h2>
+<p>多層のパーセプトロンは、これまで見てきた回路よりも複雑な回路を作ることができます。たとえば、足し算を行うための加算器もパーセプトロンで作ることができます。また、2進数を10進数に変換するエンコーダや、ある条件を満たすときに出力が1になるような回路（パリティチェック用の回路）も、パーセプトロンで表現できます。そして、実のところ、パーセプトロンを用いれば、“コンピュータ”も表現することができるのです！</p>
+<p>ところで、コンピュータとは情報を処理する機械です。コンピュータに何らかの入力を与えれば、ある決まった方法で処理して結果を出力します。ある決まった方法で処理をするということは、コンピュータもパーセプトロンと同じように入力と出力を持ち、ある決まったルールに従って計算をするということになります。</p>
+<p>コンピュータの内部ではとても複雑な処理を行っているように思えますが、実は（驚くかもしれませんが）NANDゲートの組み合わせだけで、コンピュータが行う処理を再現することができるのです。NANDゲートだけからコンピュータを作れるという驚くべき事実は何を意味するのか——それは、パーセプトロンでもコンピュータを表現できるということです。なぜなら、これまで見てきたように、NANDゲートはパーセプトロンで作ることができたからです。つまり、NANDゲートの組み合わせでコンピュータを作ることができるのならば、パーセプトロンの組み合わせだけからでもコンピュータを表現することが可能であるということになります（パーセプトロンの組み合わせは幾層にも重なった単一のパーセプトロンとして表現できます）。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>「NANDゲートの組み合わせだけからコンピュータが作れる」と言うと、にわかに信じられないかもしれません。この点に興味のある方は『コンピュータシステムの理論と実装——モダンなコンピュータの作り方』（オライリー・ジャパン）という本をおすすめします。この本では、コンピュータを深く理解することをテーマに掲げ、「NANDからテトリスへ」という標語のもと、実際にNANDからテトリスが動くコンピュータを作ります。この本を読めば、NANDという単純な素子だけから、コンピュータという複雑なシステムが作られることを実感できるでしょう。</p>
+</td></tr></table></div>
+<p>このように、多層のパーセプトロンはコンピュータも作れるほどに複雑な表現も可能です。それでは、どのような構造のパーセプトロンであれば、コンピュータを表現できるのでしょうか？ どれだけ層を深くすれば、コンピュータを作ることができるのでしょうか？</p>
+<p>この問いに対する答えは、理論上2層のパーセプトロンであればコンピュータを作ることができる、と言えます。というのも、2層のパーセプトロン（正確には活性化関数に非線形なシグモイド関数を用いたもの：詳細は次章を参照）を用いれば、任意の関数を表現可能であることが証明されています。しかし、2層のパーセプトロンの構造で、適切な重みを設定してコンピュータを作るとなると、それはとても骨の折れる作業になるでしょう。実際にNANDなどの低レベルな素子からスタートしてコンピュータを作る場合は、必要な部品（モジュール）を段階的に作り上げていくというのが自然な作り方です——最初にANDやORゲート、次に<!-- IDX:半加算器 -->半加算器と<!-- IDX:全加算器 -->全加算器、次に<!-- IDX:算術論理演算装置 -->算術論理演算装置（<!-- IDX:ALU -->ALU）、次に<!-- IDX:CPU -->CPUといった具合に。そのため、パーセプトロンによるコンピュータの表現も、層が幾重にも重なった構造として作られるのが自然な流れです。</p>
+<p>本書ではコンピュータを実際に作ることはしませんが、パーセプトロンは層を重ねることで非線形な表現も可能になり、原理的には（理論上）コンピュータが行う処理も表現できるということを覚えておきましょう。</p>
+
+<h2 id='h2-7'><span class='secno'>2.7　</span>まとめ</h2>
+<p>本章ではパーセプトロンについて学びました。パーセプトロンはとてもシンプルなアルゴリズムなので、その仕組みはすぐに理解できたでしょう。このパーセプトロンは、次章で学ぶニューラルネットワークの基礎になります。そのため、本章で学んだことはとても重要です。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>パーセプトロンは入出力を備えたアルゴリズムである。ある入力を与えたら、決まった値が出力される。</li>
+<li>パーセプトロンでは、「重み」と「バイアス」をパラメータとして設定する。</li>
+<li>パーセプトロンを用いれば、ANDやORゲートなどの論理回路を表現できる。</li>
+<li>XORゲートは単層のパーセプトロンでは表現できない。</li>
+<li>2層のパーセプトロンを用いれば、XORゲートを表現することができる。</li>
+<li>単層のパーセプトロンは線形領域だけしか表現できないのに対して、多層のパーセプトロンは非線形領域を表現することができる。</li>
+<li>多層のパーセプトロンは、（理論上）コンピュータを表現できる。</li>
+</ul>
+</div>
+</body>
+</html>

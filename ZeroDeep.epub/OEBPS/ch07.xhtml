@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>畳み込みニューラルネットワーク</title>
+</head>
+<body>
+<h1 id='h7'><span class='chapno'>7章</span><br/>畳み込みニューラルネットワーク</h1>
+<p>本章のテーマは、<!-- IDX:畳み込みニューラルネットワーク -->畳み込みニューラルネットワーク（convolutional neural network：<!-- IDX:CNN --><b>CNN</b>）です。CNNは、画像認識や音声認識など、至るところで使われています。また、画像認識のコンペティションでは、ディープラーニングによる手法のほとんどすべてがCNNをベースとしています。本章では、CNNのメカニズムについて詳しく説明し、その処理内容をPythonで実装していきます。</p>
+
+<h2 id='h7-1'><span class='secno'>7.1　</span>全体の構造</h2>
+<p>まずはCNNの大枠を理解するために、CNNのネットワーク構造から見ていくことにします。CNNも、これまで見てきたニューラルネットワークと同じで、レゴブロックのようにレイヤを組み合わせて作ることができます。ただしCNNの場合、新たに「Convolutionレイヤ（畳み込み層）」と「Poolingレイヤ（プーリング層）」が登場します。畳み込み層とプーリング層の詳細は次節以降で説明するとして、ここでは、どのようにレイヤを組み合わせてCNNが構築されるかを先に見ていきます。</p>
+<p>さて、これまで見てきたニューラルネットワークは、隣接する層のすべてのニューロン間で結合がありました。これを<!-- IDX:全結合 --><b>全結合</b>（<!-- IDX:fully&#45;connected -->fully-connected）と呼び、私たちは全結合層をAffineレイヤという名前で実装しました。このAffineレイヤを使えば、たとえば、5層の全結合のニューラルネットワークは、<a href='./ch07.xhtml#fig07_1'>図7-1</a>のような構成のネットワークで実現することができます。</p>
+<div class='image' id='fig07_1'>
+<img alt='全結合層（Affineレイヤ）によるネットワークの例' src='images/ch07/fig07_1.png'/>
+<p class='caption'>
+図7-1　全結合層（Affineレイヤ）によるネットワークの例
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_1'>図7-1</a>で示すように、全結合のニューラルネットワークは、Affineレイヤの後に活性化関数のReLUレイヤ（もしくはSigmoidレイヤ）が続きます。ここでは、「Affine - ReLU」の組み合わせを4層重ね、5層目のAffineレイヤと続き、最後にSoftmaxレイヤで最終的な結果（確率）を出力します。</p>
+<p>それでは、CNNはどのような構成になるのでしょうか？ <a href='./ch07.xhtml#fig07_2'>図7-2</a>にCNNの例を示します。</p>
+<div class='image' id='fig07_2'>
+<img alt='CNNによるネットワークの例：ConvolutionレイヤとPoolingレイヤが新たに加わる（それぞれ背景が灰色の矩形で描画）' src='images/ch07/fig07_2.png'/>
+<p class='caption'>
+図7-2　CNNによるネットワークの例：ConvolutionレイヤとPoolingレイヤが新たに加わる（それぞれ背景が灰色の矩形で描画）
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_2'>図7-2</a>に示すように、CNNでは、新しく「Convolutionレイヤ」と「Poolingレイヤ」が加わります。CNNのレイヤのつながり順は、「Convolution - ReLU - (Pooling)」という流れです（Poolingレイヤは省略されることもあります）。これは、今までの「Affine - ReLU」というつながりが、「Convolution - ReLU - (Pooling)」に置き換わったと考えることができます。</p>
+<p><a href='./ch07.xhtml#fig07_2'>図7-2</a>のCNNで他に注目する点は、出力に近い層では、これまでの「Affine - ReLU」という組み合わせが用いられるということです。また、最後の出力層においては、これまでの「Affine - Softmax」の組み合わせが用いられます。これらは一般的なCNNでよく見られる構成です。</p>
+
+<h2 id='convolution'><a id='h7-2'/><span class='secno'>7.2　</span>畳み込み層</h2>
+<p><!-- IDX:畳み込み層 -->CNNでは、パディング、ストライドなどのCNN特有の用語が登場します。また、各層を流れるデータは形状のあるデータ（たとえば、3次元のデータ）になり、これまでの全結合のネットワークとは異なります。そのため、初めてCNNを学ぶときは、分かりにくく感じるかもしれません。ここでは、CNNで使われる畳み込み層の仕組みを、じっくりと時間をかけて見ていきたいと思います。</p>
+
+<h3 id='h7-2-1'><span class='secno'>7.2.1　</span>全結合層の問題点</h3>
+<p>これまで見てきた全結合のニューラルネットワークでは、全結合層（Affineレイヤ）を用いました。全結合層では、隣接する層のニューロンがすべて連結されており、出力の数は任意に決めることができます。</p>
+<p>全結合層の問題点は何でしょうか。それは、データの形状が“無視”されてしまうことです。たとえば入力データが画像の場合、画像は通常、縦・横・チャンネル方向の3次元の形状です。しかし、全結合層に入力するときには、3次元のデータを平ら——1次元のデータ——にする必要があります。実際、これまでのMNISTデータセットを使った例では、入力画像は<span class='equation mathnoimage'><i><span class='math-normal'>(1,</span> <span class='math-normal'>28,</span> <span class='math-normal'>28)</span></i></span>——1チャンネル、縦28ピクセル、横28ピクセル——の形状でしたが、それを1列に並べた784個のデータを最初のAffineレイヤへ入力しました。</p>
+<p>画像は3次元の形状であり、この形状には大切な空間的情報が含まれているでしょう。たとえば、空間的に近いピクセルは似たような値であったり、RBGの各チャンネル間にはそれぞれに密接な関連性があったり、距離の離れたピクセルどうしはあまり関わりがなかったりなど、3次元の形状の中には汲み取るべき本質的なパターンが潜んでいるはずです。しかし、全結合層は、形状を無視して、すべての入力データを同等のニューロン（同じ次元のニューロン）として扱うので、形状に関する情報を生かすことができません。</p>
+<p>一方、畳み込み層（Convolutionレイヤ）は、形状を維持します。画像の場合、入力データを3次元のデータとして受け取り、同じく3次元のデータとして、次の層にデータを出力します。そのため、CNNでは、画像などの形状を有したデータを正しく理解できる（可能性がある）のです。</p>
+<p>なお、CNNでは、畳み込み層の入出力データを、<!-- IDX:特徴マップ --><b>特徴マップ</b>（feature map）と言う場合があります。さらに、畳み込み層の入力データを<!-- IDX:入力特徴マップ --><b>入力特徴マップ</b>（input feature map）、出力データを<!-- IDX:出力特徴マップ --><b>出力特徴マップ</b>（output feature map）と言います。本書では、「入出力データ」と「特徴マップ」を同じ意味の言葉として用います。</p>
+
+<h3 id='h7-2-2'><span class='secno'>7.2.2　</span>畳み込み演算</h3>
+<p><!-- IDX:畳み込み演算 -->畳み込み層で行う処理は「畳み込み演算」です。畳み込み演算は、画像処理で言うところの「<!-- IDX:フィルター演算 -->フィルター演算」に相当します。畳み込み演算の説明をするにあたって、ここでは具体的な例（<a href='./ch07.xhtml#fig07_3'>図7-3</a>）を見ていくことにします。</p>
+<div class='image' id='fig07_3'>
+<img alt='畳み込み演算の例：畳み込み演算を「&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/878b4a69db929933bd087b8a95e4229d.png&quot; alt=&quot;\circledast&quot; /&gt;&lt;/span&gt;」記号で表記' src='images/ch07/fig07_3.png'/>
+<p class='caption'>
+図7-3　畳み込み演算の例：畳み込み演算を「<span class='equation mathimage'><img alt='\circledast' src='images/math/878b4a69db929933bd087b8a95e4229d.png' style='height: 0.76em'/></span>」記号で表記
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_3'>図7-3</a>で示すように、畳み込み演算は、入力データに対して、フィルターを適用します。この例では、入力データは縦・横方向の形状を持つデータで、フィルターも同様に、縦・横方向の次元を持ちます。データとフィルターの形状を、(height, width)で表記するとして、この例では、入力サイズは<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>、フィルターサイズは<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span>、出力サイズは<span class='equation mathnoimage'><i><span class='math-normal'>(2,</span> <span class='math-normal'>2)</span></i></span>になります。なお、文献によっては、ここで述べたような「<!-- IDX:フィルター -->フィルター」という用語は、「<!-- IDX:カーネル -->カーネル」という言葉で表現されることもあります。</p>
+<p>それでは、<a href='./ch07.xhtml#fig07_3'>図7-3</a>の畳み込み演算の例において、どのような計算が行われているかを説明しましょう。<a href='./ch07.xhtml#fig07_4'>図7-4</a>に、畳み込み演算の計算手順を図示します。</p>
+<div class='image' id='fig07_4'>
+<img alt='畳み込み演算の計算手順' src='images/ch07/fig07_4.png'/>
+<p class='caption'>
+図7-4　畳み込み演算の計算手順
+</p>
+</div>
+<p>畳み込み演算は、入力データに対して、フィルターのウィンドウを一定の間隔でスライドさせながら適用していきます。ここで言うウィンドウとは、<a href='./ch07.xhtml#fig07_4'>図7-4</a>における灰色の3×3の部分を指します。<a href='./ch07.xhtml#fig07_4'>図7-4</a>に示すように、それぞれの場所で、フィルターの要素と入力の対応する要素を乗算し、その和を求めます（この計算を<!-- IDX:積和演算 --><b>積和演算</b>と呼ぶこともあります）。そして、その結果を出力の対応する場所へ格納していきます。このプロセスをすべての場所で行うことで、畳み込み演算の出力を得ることができます。</p>
+<p>さて、全結合のニューラルネットワークでは、重みパラメータの他にバイアスが存在しました。CNNの場合、フィルターのパラメータが、これまでの「重み」に対応します。そして、CNNの場合もバイアスが存在します。<a href='./ch07.xhtml#fig07_3'>図7-3</a>の畳み込み演算の例は、フィルターを適用した段階までを示していました。バイアスも含めた畳み込み演算の処理フローは、<a href='./ch07.xhtml#fig07_5'>図7-5</a>のようになります。</p>
+<div class='image' id='fig07_5'>
+<img alt='畳み込み演算のバイアス：フィルターの適用後の要素に固定の値（バイアス）を加算する' src='images/ch07/fig07_5.png'/>
+<p class='caption'>
+図7-5　畳み込み演算のバイアス：フィルターの適用後の要素に固定の値（バイアス）を加算する
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_5'>図7-5</a>に示すように、バイアス項の加算は、フィルター適用後のデータに対して行われます。ここで示すように、つねにバイアスはひとつ（1×1）だけ存在します（この例では、フィルター適用後のデータ4つに対してバイアスはひとつです）。そのひとつの値がフィルター適用後のすべての要素に加算されます。</p>
+
+<h3 id='h7-2-3'><span class='secno'>7.2.3　</span>パディング</h3>
+<p>畳み込み層の処理を行う前に、入力データの周囲に固定のデータ（たとえば0など）を埋めることがあります。これを<!-- IDX:パディング --><b>パディング</b>（<!-- IDX:padding -->padding）と言って、畳み込み演算ではよく用いられる処理です。たとえば、<a href='./ch07.xhtml#fig07_6'>図7-6</a>の例では、<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>のサイズの入力データに対して、幅1のパディングを適用しています。幅1のパディングとは、周囲を幅1ピクセルの0で埋めることを言います。</p>
+<div class='image' id='fig07_6'>
+<img alt='畳み込み演算のパディング処理：入力データの周囲に0を埋める（図ではパディングを破線で表し、中身の「0」の記載は省略する）' src='images/ch07/fig07_6.png'/>
+<p class='caption'>
+図7-6　畳み込み演算のパディング処理：入力データの周囲に0を埋める（図ではパディングを破線で表し、中身の「0」の記載は省略する）
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_6'>図7-6</a>に示すように、<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>のサイズの入力データはパディングによって、<span class='equation mathnoimage'><i><span class='math-normal'>(6,</span> <span class='math-normal'>6)</span></i></span>の形状になります。そして、<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span>のサイズのフィルターをかけると、<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>のサイズの出力データが生成されます。この例では、パディングを1に設定しましたが、パディングの値は2や3など任意の整数に設定することができます。もし<a href='./ch07.xhtml#fig07_5'>図7-5</a>の例でパディングを2に設定すれば、入力データのサイズは<span class='equation mathnoimage'><i><span class='math-normal'>(8,</span> <span class='math-normal'>8)</span></i></span>になり、パディングが3であれば、サイズは(10, 10)になります。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>パディングを使う主な理由は、出力サイズを調整するためにあります。たとえば、<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>のサイズの入力データに<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span>のフィルターを適用する場合、出力サイズは<span class='equation mathnoimage'><i><span class='math-normal'>(2,</span> <span class='math-normal'>2)</span></i></span>になり、出力サイズは入力サイズから2要素分だけ縮小されることになります。これは、畳み込み演算を何度も繰り返して行うようなディープなネットワークでは問題になります。なぜなら、畳み込み演算を行うたびに空間的に縮小されるのであれば、ある時点で出力サイズが1になってしまい、それ以上畳み込み演算を適用できなくなるかもしれません。そのような事態を回避するには、パディングを使用します。先の例では、パディングの幅を1に設定すれば、入力サイズの<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>に対して、出力サイズも<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>のままサイズは保たれます。そのため、畳み込み演算によって、空間的なサイズを一定にしたまま次の層へデータを渡すことができるのです。</p>
+</td></tr></table></div>
+
+<h3 id='h7-2-4'><span class='secno'>7.2.4　</span>ストライド</h3>
+<p>フィルターを適用する位置の間隔を<!-- IDX:ストライド --><b>ストライド</b>（<!-- IDX:stride -->stride）と言います。これまで見てきた例はすべてストライドが1でしたが、たとえば、ストライドを2にすると、<a href='./ch07.xhtml#fig07_7'>図7-7</a>のように、フィルターを適用する窓の間隔が2要素ごとになります。</p>
+<div class='image' id='fig07_7'>
+<img alt='ストライドが2の畳み込み演算の例' src='images/ch07/fig07_7.png'/>
+<p class='caption'>
+図7-7　ストライドが2の畳み込み演算の例
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_7'>図7-7</a>の例では、入力サイズが<span class='equation mathnoimage'><i><span class='math-normal'>(7,</span> <span class='math-normal'>7)</span></i></span>のデータに対して、ストライドが2でフィルターを適用します。ストライドを2に設定することで、出力サイズは<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span>になります。このように、ストライドは、フィルターを適用する間隔を指定します。</p>
+<p>ここまで見てきたように、ストライドを大きくすると、出力サイズは小さくなります。一方、パディングを大きくすれば、出力サイズは大きくなります。このような関係性を定式化すると、どうなるでしょうか。続いて、パディングとストライドに対して、出力サイズはどのように計算されるのかを見ていきましょう。</p>
+<p>ここでは、入力サイズを<span class='equation mathnoimage'><i><span class='math-normal'>(</span>H<span class='math-normal'>,</span> W<span class='math-normal'>)</span></i></span>、フィルターサイズを<span class='equation mathnoimage'><i><span class='math-normal'>(</span>FH<span class='math-normal'>,</span> FW<span class='math-normal'>)</span></i></span>、出力サイズを<span class='equation mathnoimage'><i><span class='math-normal'>(</span>OH<span class='math-normal'>,</span> OW<span class='math-normal'>)</span></i></span>、パディングを<span class='equation mathnoimage'><i>P</i></span>、ストライドを<span class='equation mathnoimage'><i>S</i></span>とします。その場合、出力サイズは次の式(7.1)で計算できます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; OH = \frac{H + 2P - FH}{S} + 1 \\[4pt]
+  &amp; OW = \frac{W + 2P - FW}{S} + 1
+\end{aligned}
+%\qquad(7.1)' src='images/math/a8eb9faff0bb3afdca043ddaa729bb17.png' style='height: 5.34em'/></div>
+<p class='eqno' id='eq1'>式(7.1)</p>
+</div>
+<p>それでは、この計算式を使って、いくつか計算してみましょう。</p>
+<dl>
+<dt><strong>例1：図 7-6の例</strong></dt>
+<dd>入力サイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(4,</span> <span class='math-normal'>4)</span></i></span>、パディング：1、ストライド：1、フィルターサイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span></dd>
+</dl>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; OH = \frac{4 + 2 \cdot 1 - 3}{1} + 1 = 4 \\[4pt]
+  &amp; OW = \frac{4 + 2 \cdot 1 - 3}{1} + 1 = 4
+\end{aligned}' src='images/math/b2c7602fa6f9cd5ba0a72725a37e0680.png' style='height: 5.34em'/></div>
+</div>
+<dl>
+<dt><strong>例2：図 7-7の例</strong></dt>
+<dd>入力サイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(7,</span> <span class='math-normal'>7)</span></i></span>、パディング：0、ストライド：2、フィルターサイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span></dd>
+</dl>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; OH = \frac{7 + 2 \cdot 0 - 3}{2} + 1 = 3 \\[4pt]
+  &amp; OW = \frac{7 + 2 \cdot 0 - 3}{2} + 1 = 3
+\end{aligned}' src='images/math/2495a467514dc21f48ada6e8ebf6d4d2.png' style='height: 5.34em'/></div>
+</div>
+<dl>
+<dt><strong>例3</strong></dt>
+<dd>入力サイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(28,</span> <span class='math-normal'>31)</span></i></span>、パディング：2、ストライド：3、フィルターサイズ：<span class='equation mathnoimage'><i><span class='math-normal'>(5,</span> <span class='math-normal'>5)</span></i></span></dd>
+</dl>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; OH = \frac{28 + 2 \cdot 2 - 5}{3} + 1 = 10 \\[4pt]
+  &amp; OW = \frac{31 + 2 \cdot 2 - 5}{3} + 1 = 11
+\end{aligned}' src='images/math/60373a22abe81c70c24989c2dce670b6.png' style='height: 5.34em'/></div>
+</div>
+<p>これらの例で示したように、式(7.1)に値を代入することで出力サイズを計算することができます。単に代入するだけで出力サイズを求めることはできますが、ここで注意すべき点は、式(7.1)の<span class='equation mathimage'><img alt='\frac{W + 2P - FW}{S}' src='images/math/476c9e5e1463eafaa638317f011ed65e.png' style='height: 1.42em'/></span>と<span class='equation mathimage'><img alt='\frac{H + 2P - FH}{S}' src='images/math/0e143a2032cb03e99e673af15317971f.png' style='height: 1.42em'/></span>が割り切れるように、それぞれの値を設定しなければならないということです。出力サイズが割り切れない場合（結果が小数の場合）は、エラーを出力するなどして対応する必要があります。ちなみに、ディープラーニングのフレームワークによっては、値が割り切れないときは最も近い整数に丸めるなどして、特にエラーを出さないで先に進むような実装をする場合もあります。</p>
+
+<h3 id='h7-2-5'><span class='secno'>7.2.5　</span>3次元データの畳み込み演算</h3>
+<p>これまで見てきた畳み込み演算の例は、縦方向と横方向の2次元の形状を対象としたものでした。しかし、画像の場合、縦・横方向に加えてチャンネル方向も合わせた3次元のデータを扱う必要があります。ここでは、先ほどと同じ手順で、チャンネル方向も合わせた3次元データに対して畳み込み演算を行う例を見ていきます。</p>
+<p><a href='./ch07.xhtml#fig07_8'>図7-8</a>は畳み込み演算の例です。<a href='./ch07.xhtml#fig07_9'>図7-9</a>は計算手順です。ここでは、3チャンネルのデータを例に、畳み込み演算の結果を示します。2次元の場合（<a href='./ch07.xhtml#fig07_3'>図7-3</a>の例）と比較すると、奥行き方向（<!-- IDX:チャンネル -->チャンネル方向）に特徴マップが増えていることが分かります。チャンネル方向に複数の特徴マップがある場合、チャンネルごとに入力データとフィルターの畳み込み演算を行い、それらの結果を加算してひとつの出力を得ます。</p>
+<div class='image' id='fig07_8'>
+<img alt='3次元データに対する畳み込み演算の例' src='images/ch07/fig07_8.png'/>
+<p class='caption'>
+図7-8　3次元データに対する畳み込み演算の例
+</p>
+</div>
+<div class='image' id='fig07_9'>
+<img alt='3次元データに対する畳み込み演算の計算手順' src='images/ch07/fig07_9.png'/>
+<p class='caption'>
+図7-9　3次元データに対する畳み込み演算の計算手順
+</p>
+</div>
+<p>この例で示すような3次元の畳み込み演算で注意する点は、入力データとフィルターのチャンネル数は同じ値にするということです。この例の場合、入力データとフィルターのチャンネル数はどちらも3で一致しています。一方、フィルターのサイズは好きな値に設定することができます（ただし、チャンネルごとのフィルターのサイズはすべて同じです）。この例ではフィルターのサイズは<span class='equation mathnoimage'><i><span class='math-normal'>(3,</span> <span class='math-normal'>3)</span></i></span>ですが、それは<span class='equation mathnoimage'><i><span class='math-normal'>(2,</span> <span class='math-normal'>2)</span></i></span>や<span class='equation mathnoimage'><i><span class='math-normal'>(1,</span> <span class='math-normal'>1)</span></i></span>または<span class='equation mathnoimage'><i><span class='math-normal'>(5,</span> <span class='math-normal'>5)</span></i></span>などといったように、好きな値に設定することができます。しかし、繰り返しになりますが、チャンネル数は入力データのチャンネル数と同じ値——この例では3——にしか設定できません。</p>
+
+<h3 id='h7-2-6'><span class='secno'>7.2.6　</span>ブロックで考える</h3>
+<p>3次元の畳み込み演算は、データやフィルターを直方体のブロックで考えると分かりやすいでしょう。ブロックとは、<a href='./ch07.xhtml#fig07_10'>図7-10</a>に示すような、3次元の直方体です。また、3次元データを多次元配列として表すときは、(channel, height, width)の順に並べて書くものとします。たとえば、チャンネル数C、高さH、横幅Wのデータの形状は、(C, H, W)と書きます。また、フィルターの場合も同様に、(channel, height, width)という順に書くことにします。たとえば、チャンネル数C、フィルターの高さFH（Filter Height）、横幅FW（Filter Width）の場合、(C, FH, FW)と書きます。</p>
+<div class='image' id='fig07_10'>
+<img alt='畳み込み演算をブロックで考える。ブロックの形状に注意' src='images/ch07/fig07_10.png'/>
+<p class='caption'>
+図7-10　畳み込み演算をブロックで考える。ブロックの形状に注意
+</p>
+</div>
+<p>さて、この例ではデータ出力は1枚の特徴マップです。1枚の特徴マップとは、言い換えれば、チャンネル数が1の特徴マップということです。それでは、畳み込み演算の出力を、チャンネル方向にも複数持たせるにはどうすればよいでしょうか？ そのためには、複数のフィルター（重み）を用います。図で表すと、次の<a href='./ch07.xhtml#fig07_11'>図7-11</a>のようになります。</p>
+<div class='image' id='fig07_11'>
+<img alt='複数のフィルターによる畳み込み演算の例' src='images/ch07/fig07_11.png'/>
+<p class='caption'>
+図7-11　複数のフィルターによる畳み込み演算の例
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_11'>図7-11</a>に示すように、FN個のフィルターを適用することで、出力のマップもFN個生成されます。そして、そのFN個のマップをまとめると、形状が(FN, OH, OW)のブロックが完成します。この完成したブロックを、次の層に渡していくというのが、CNNでの処理フローです。</p>
+<p><a href='./ch07.xhtml#fig07_11'>図7-11</a>で示したように、畳み込み演算のフィルターに関しては、フィルターの個数も考慮する必要があります。そのため、フィルターの重みデータは4次元のデータとして、(output_channel, input_channel, height, width)という順に書くことにします。たとえば、チャンネル数3、サイズ5×5のフィルターが20個ある場合は、<span class='equation mathnoimage'><i><span class='math-normal'>(20,</span> <span class='math-normal'>3,</span> <span class='math-normal'>5,</span> <span class='math-normal'>5)</span></i></span>と書きます。</p>
+<p>さて、畳み込み演算では（全結合層と同じく）バイアスが存在します。<a href='./ch07.xhtml#fig07_11'>図7-11</a>の例に、さらにバイアスの加算処理も追加すると、次の<a href='./ch07.xhtml#fig07_12'>図7-12</a>のようになります。</p>
+<div class='image' id='fig07_12'>
+<img alt='畳み込み演算の処理フロー（バイアス項も追加）' src='images/ch07/fig07_12.png'/>
+<p class='caption'>
+図7-12　畳み込み演算の処理フロー（バイアス項も追加）
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_12'>図7-12</a>に示すとおり、バイアスは、1チャンネルごとにひとつだけデータを持ちます。ここでは、バイアスの形状は(FN, 1, 1)であり、フィルターの出力結果の形状は(FN, OH, OW)です。それら2つのブロックの足し算では、フィルターの出力結果の(FN, OH, OW)に対して、チャンネルごとに、同じバイアスの値が加算されます。なお、異なる形状のブロックの足し算は、NumPyのブロードキャストによって簡単に実現できます（<a href='ch01.xhtml#h1-5-5'>「1.5.5 ブロードキャスト」</a>を参照）。</p>
+
+<h3 id='h7-2-7'><span class='secno'>7.2.7　</span>バッチ処理</h3>
+<p>ニューラルネットワークの処理では、入力データを一束にまとめたバッチ処理を行いました。これまでの全結合のニューラルネットワークの実装も、バッチ処理に対応したものであり、これによって、処理の効率化や、学習時のミニバッチへの対応が可能になりました。</p>
+<p>畳み込み演算でも同じように、バッチ処理に対応したいと思います。そのために、各層を流れるデータは4次元のデータとして格納します。具体的には、(batch_num, channel, height, width)という順にデータを格納するものとします。たとえば、<a href='./ch07.xhtml#fig07_12'>図7-12</a>の処理を、N個のデータに対してバッチ処理を行う場合、データの形状は、次の<a href='./ch07.xhtml#fig07_13'>図7-13</a>のようになります。</p>
+<div class='image' id='fig07_13'>
+<img alt='畳み込み演算の処理フロー（バッチ処理）' src='images/ch07/fig07_13.png'/>
+<p class='caption'>
+図7-13　畳み込み演算の処理フロー（バッチ処理）
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_13'>図7-13</a>のバッチ処理版のデータフローでは、各データの先頭にバッチ用の次元が追加されています。このように、データは4次元の形状として各層を伝わっていきます。ここでの注意点としては、ネットワークには4次元のデータが流れますが、これは、N個のデータに対して畳み込み演算が行われている、ということです。つまり、N回分の処理を1回にまとめて行っているのです。</p>
+
+<h2 id='h7-3'><span class='secno'>7.3　</span>プーリング層</h2>
+<p><!-- IDX:プーリング層 -->プーリングは、縦・横方向の空間を小さくする演算です。<a href='./ch07.xhtml#fig07_14'>図7-14</a>に示すように、たとえば、2×2の領域をひとつの要素に集約するような処理を行い、空間サイズを小さくします。</p>
+<div class='image' id='fig07_14'>
+<img alt='Maxプーリングの処理手順' src='images/ch07/fig07_14.png'/>
+<p class='caption'>
+図7-14　Maxプーリングの処理手順
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_14'>図7-14</a>の例は、2×2のMaxプーリングをストライド2で行った場合の処理手順です。「Maxプーリング」とは最大値を取る演算であり、「2×2」とは対象とする領域のサイズを表します。図に示すとおり、2×2の領域に対して最大となる要素を取り出します。また、ストライドはこの例では2に設定しているので、2×2のウィンドウの移動間隔は2要素ごとになります。なお、一般的に、プーリングのウィンドウサイズと、ストライドは同じ値に設定します。たとえば、3×3のウィンドウはストライド3、4×4のウィンドウはストライド4といったように設定します。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>プーリングには、<!-- IDX:Maxプーリング -->Maxプーリングの他に、<!-- IDX:Averageプーリング -->Averageプーリングなどがあります。Maxプーリングは対象領域から最大値を取る演算であるのに対して、Averageプーリングは、対象領域の平均を計算します。画像認識の分野においては、主にMaxプーリングが使われます。そのため、本書で「プーリング層」という場合は、Maxプーリングを指すものとします。</p>
+</td></tr></table></div>
+
+<h3 id='h7-3-1'><span class='secno'>7.3.1　</span>プーリング層の特徴</h3>
+<p>プーリング層には以下の特徴があります。</p>
+<dl>
+<dt><strong>学習するパラメータがない</strong></dt>
+<dd>プーリング層は、畳み込み層と違って、学習するパラメータを持ちません。プーリングは、対象領域から最大値を取る（もしくは平均を取る）だけの処理なので、学習すべきパラメータは存在しないのです。</dd>
+<dt><strong>チャンネル数は変化しない</strong></dt>
+<dd>プーリングの演算によって、入力データと出力データのチャンネル数は変化しません。<a href='./ch07.xhtml#fig07_15'>図7-15</a>に示すようにチャンネルごとに独立して計算が行われます。</dd>
+</dl>
+<div class='image' id='fig07_15'>
+<img alt='プーリングではチャンネル数は変わらない' src='images/ch07/fig07_15.png'/>
+<p class='caption'>
+図7-15　プーリングではチャンネル数は変わらない
+</p>
+</div>
+<dl>
+<dt><strong>微小な位置変化に対してロバスト（頑健）</strong></dt>
+<dd>入力データの小さなズレに対して、プーリングは同じような結果を返します。そのため、入力データの微小なズレに対してロバストです。たとえば、3×3のプーリングの場合、<a href='./ch07.xhtml#fig07_16'>図7-16</a>に示すように、入力データのズレをプーリングが吸収します（データによって、結果が必ず一致するとはかぎりません）。</dd>
+</dl>
+<div class='image' id='fig07_16'>
+<img alt='入力データが横方向に1要素分だけずれた場合でも、出力は同じような結果になる（データによっては同じにならない場合もある）' src='images/ch07/fig07_16.png'/>
+<p class='caption'>
+図7-16　入力データが横方向に1要素分だけずれた場合でも、出力は同じような結果になる（データによっては同じにならない場合もある）
+</p>
+</div>
+
+<h2 id='h7-4'><span class='secno'>7.4　</span>Convolution／Poolingレイヤの実装</h2>
+<p>これまでに、畳み込み層とプーリング層について詳しく説明してきました。ここでは、その2つの層をPythonで実装したいと思います。「5章 誤差逆伝播法」で説明したように、ここで実装するクラスにも、<code class='tt'>forward</code>と<code class='tt'>backward</code>というメソッドを持たせ、モジュールとして利用できるように実装します。</p>
+<p>畳み込み層やプーリング層の実装は複雑になりそうな予感がするかもしれませんが、実は、ある“トリック”を使えば簡単に実装することができます。本節では、そのトリックについて説明し、問題を簡単にしてから、畳み込み層の実装を行います。</p>
+
+<h3 id='h7-4-1'><span class='secno'>7.4.1　</span>4次元配列</h3>
+<p>先に説明したとおり、CNNでは、各層を流れるデータは4次元のデータです。4次元のデータとは、たとえば、データの形状が<span class='equation mathnoimage'><i><span class='math-normal'>(10,</span> <span class='math-normal'>1,</span> <span class='math-normal'>28,</span> <span class='math-normal'>28)</span></i></span>だとすると、これは高さ28・横幅28で1チャンネルのデータが10個ある場合に対応します。これをPythonで実装すると、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.random.rand(10, 1, 28, 28)</b> # ランダムにデータを生成
+&gt;&gt;&gt; <b>x.shape</b>
+(10, 1, 28, 28)
+</pre>
+</div>
+<p>ここでひとつ目のデータにアクセスするには、単に<code class='tt'>x[0]</code>と書くだけです（Pythonのインデックスは0から始まることに注意）。同じように2つ目のデータは<code class='tt'>x[1]</code>でアクセスできます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x[0].shape</b> # (1, 28, 28)
+&gt;&gt;&gt; <b>x[1].shape</b> # (1, 28, 28)
+</pre>
+</div>
+<p>また、ひとつ目のデータの1チャンネル目の空間データにアクセスするには次のように書きます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x[0, 0]</b> # もしくは x[0][0]
+</pre>
+</div>
+<p>このように、CNNでは4次元のデータを扱うことになります。そのため、畳み込み演算の実装は複雑になりそうですが、次に説明するim2colという“トリック”によって、問題は簡単になります。</p>
+
+<h3 id='h7-4-2'><span class='secno'>7.4.2　</span>im2colによる展開</h3>
+<p><!-- IDX:im2col -->畳み込み演算の実装は、真面目にやるとすれば、<code class='tt'>for</code>文を幾重にも重ねた実装になるでしょう。そのような実装はやや面倒であり、また、NumPyでは<code class='tt'>for</code>文を使うと処理が遅くなってしまうという欠点があります（NumPyでは、要素アクセスの際に<code class='tt'>for</code>文を使わないことが望まれます）。ここでは、<code class='tt'>for</code>文による実装は行わず、<code class='tt'>im2col</code>という便利な関数を使ったシンプルな実装を行います。</p>
+<p><code class='tt'>im2col</code>は、フィルター（重み）にとって都合の良いように入力データを展開する関数です。<a href='./ch07.xhtml#fig07_17'>図7-17</a>に示すように、3次元の入力データに対して<code class='tt'>im2col</code>を適用すると、2次元の行列に変換されます（正確には、バッチ数も含めた4次元のデータを2次元に変換します）。</p>
+<div class='image' id='fig07_17'>
+<img alt='im2colの概略図' src='images/ch07/fig07_17.png'/>
+<p class='caption'>
+図7-17　im2colの概略図
+</p>
+</div>
+<p><code class='tt'>im2col</code>は、フィルターにとって都合の良いように入力データを展開します。具体的には、<a href='./ch07.xhtml#fig07_18'>図7-18</a>に示すように、入力データに対してフィルターを適用する場所の領域（3次元のブロック）を横方向に1列に展開します。この展開処理を、フィルターを適用するすべての場所で行うのが<code class='tt'>im2col</code>です。</p>
+<div class='image' id='fig07_18'>
+<img alt='フィルターの適用領域を、先頭から順番に1列に展開する' src='images/ch07/fig07_18.png'/>
+<p class='caption'>
+図7-18　フィルターの適用領域を、先頭から順番に1列に展開する
+</p>
+</div>
+<p>なお、<a href='./ch07.xhtml#fig07_18'>図7-18</a>の図では、見やすさを優先し、フィルターの適用領域が重ならないように、ストライドを大きく設定しています。実際の畳み込み演算の場合は、フィルター領域が重なる場合がほとんどでしょう。フィルターの適用領域が重なる場合、<code class='tt'>im2col</code>によって展開すると、展開後の要素の数は元のブロックの要素数よりも多くなります。そのため、<code class='tt'>im2col</code>を使った実装では通常よりも多くのメモリを消費するという欠点があります。しかし、大きな行列にまとめて計算することは、コンピュータで計算する上で多くの恩恵があります。たとえば、行列計算のライブラリ（線形代数ライブラリ）などは、行列の計算実装が高度に最適化されており、大きな行列の掛け算を高速に行うことができます。そのため、行列の計算に帰着させることで、線形代数ライブラリを有効に活用することができるのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><code class='tt'>im2col</code>という名前は、「image to column」の略記であり、日本語では「画像から行列へ」という意味になります。ディープラーニングのフレームワークであるCaffeやChainerなどでは、<code class='tt'>im2col</code>という名前の関数があり、畳み込み層の実装では、それぞれ<code class='tt'>im2col</code>を利用した実装が行われています。</p>
+</td></tr></table></div>
+<p><code class='tt'>im2col</code>によって入力データを展開してしまえば、その後にやることは、畳み込み層のフィルター（重み）を1列に展開して、2つの行列の内積を計算するだけです（<a href='./ch07.xhtml#fig07_19'>図7-19</a>参照）。これは、全結合層のAffineレイヤで行ったこととほとんど同じです。</p>
+<div class='image' id='fig07_19'>
+<img alt='畳み込み演算のフィルター処理の詳細：フィルターを縦方向に1列に展開して並べ、im2colで展開したデータと行列の内積を計算する。最後に、出力データのサイズに整形（reshape）する' src='images/ch07/fig07_19.png'/>
+<p class='caption'>
+図7-19　畳み込み演算のフィルター処理の詳細：フィルターを縦方向に1列に展開して並べ、im2colで展開したデータと行列の内積を計算する。最後に、出力データのサイズに整形（reshape）する
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_19'>図7-19</a>に示すように、im2col方式による出力結果は2次元の行列です。CNNの場合、データは4次元配列として格納するので、2次元の出力データを適切な形状に整形します。以上が畳み込み層の実装の流れです。</p>
+
+<h3 id='h7-4-3'><span class='secno'>7.4.3　</span>Convolutionレイヤの実装</h3>
+<p>本書では、<code class='tt'>im2col</code>という関数を提供します。この<code class='tt'>im2col</code>という関数は、ブラックボックスとして（実装の中身は気にせずに）利用することを想定します。なお、<code class='tt'>im2col</code>の実装の中身は<code class='tt'>common/util.py</code>にあります。その実装は（実質）10行程度の簡単な関数です。興味のある方は参照してください。</p>
+<p>さて、便利関数の<code class='tt'>im2col</code>ですが、これは次のインタフェースを持ちます。</p>
+<blockquote><p><code class='tt'>im2col(input_data, filter_h, filter_w, stride=1, pad=0)</code></p></blockquote>
+<ul>
+<li><code class='tt'>input_data</code> —— <code class='tt'>(データ数, チャンネル, 高さ, 横幅)</code>の4次元配列からなる入力データ</li>
+<li><code class='tt'>filter_h</code> —— フィルターの高さ</li>
+<li><code class='tt'>filter_w</code> —— フィルターの横幅</li>
+<li><code class='tt'>stride</code> —— ストライド</li>
+<li><code class='tt'>pad</code> —— パディング</li>
+</ul>
+<p>この<code class='tt'>im2col</code>は、「フィルターサイズ」「ストライド」「パディング」を考慮して、入力データを2次元配列に展開します。それでは、この<code class='tt'>im2col</code>を実際に使ってみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.util</span> <span style='color: #008000; font-weight: bold'>import</span> im2col
+
+x1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>1</span>, <span style='color: #666666'>3</span>, <span style='color: #666666'>7</span>, <span style='color: #666666'>7</span>)
+col1 <span style='color: #666666'>=</span> im2col(x1, <span style='color: #666666'>5</span>, <span style='color: #666666'>5</span>, stride<span style='color: #666666'>=1</span>, pad<span style='color: #666666'>=0</span>)
+<span style='color: #008000; font-weight: bold'>print</span>(col1<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (9, 75)</span>
+
+x2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>10</span>, <span style='color: #666666'>3</span>, <span style='color: #666666'>7</span>, <span style='color: #666666'>7</span>) <span style='color: #408080; font-style: italic'># 10個のデータ</span>
+col2 <span style='color: #666666'>=</span> im2col(x2, <span style='color: #666666'>5</span>, <span style='color: #666666'>5</span>, stride<span style='color: #666666'>=1</span>, pad<span style='color: #666666'>=0</span>)
+<span style='color: #008000; font-weight: bold'>print</span>(col2<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (90, 75)</span>
+</pre>
+</div>
+<p>ここでは2つの例を示しています。ひとつ目は、バッチサイズが1で、チャンネル3の7×7のデータ、2つ目はバッチサイズが10で、データの形状はひとつ目と同じ場合の例です。それぞれ<code class='tt'>im2col</code>関数を適用すると、両方のケースで、2次元目の要素数は75になります。これはフィルター（チャンネル3、サイズ5×5）の要素数の総和です。また、バッチサイズが1の場合は<code class='tt'>im2col</code>の結果が<code class='tt'>(9, 75)</code>のサイズです。一方、2つ目の例はバッチサイズが10なので、<code class='tt'>(90, 75)</code>と10倍のデータが格納されることになります。</p>
+<p>それでは、この<code class='tt'>im2col</code>を使って、畳み込み層を実装します。ここでは、畳み込み層を<code class='tt'>Convolution</code>という名前のクラスで実装することにします。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Convolution</span>:<!-- IDX:Convolution（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, W, b, stride<span style='color: #666666'>=1</span>, pad<span style='color: #666666'>=0</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W <span style='color: #666666'>=</span> W
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>b <span style='color: #666666'>=</span> b
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride <span style='color: #666666'>=</span> stride
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pad <span style='color: #666666'>=</span> pad
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x):
+        FN, C, FH, FW <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W<span style='color: #666666'>.</span>shape
+        N, C, H, W <span style='color: #666666'>=</span> x<span style='color: #666666'>.</span>shape
+        out_h <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> (H <span style='color: #666666'>+</span> <span style='color: #666666'>2*</span><span style='color: #008000'>self</span><span style='color: #666666'>.</span>pad <span style='color: #666666'>-</span> FH) <span style='color: #666666'>/</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride)
+        out_w <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> (W <span style='color: #666666'>+</span> <span style='color: #666666'>2*</span><span style='color: #008000'>self</span><span style='color: #666666'>.</span>pad <span style='color: #666666'>-</span> FW) <span style='color: #666666'>/</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride)
+
+        <b>col = im2col(x, FH, FW, self.stride, self.pad)</b>
+        <b>col_W = self.W.reshape(FN, -1).T</b> <span style='color: #408080; font-style: italic'># フィルターの展開</span>
+        <b>out = np.dot(col, col_W) + self.b</b>
+
+        out <span style='color: #666666'>=</span> out<span style='color: #666666'>.</span>reshape(N, out_h, out_w, <span style='color: #666666'>-1</span>)<span style='color: #666666'>.</span>transpose(<span style='color: #666666'>0</span>, <span style='color: #666666'>3</span>, <span style='color: #666666'>1</span>, <span style='color: #666666'>2</span>)
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+</pre>
+</div>
+<p>Convolutionレイヤの初期化メソッドは、フィルター（重み）とバイアス、ストライドとパディングを引数として受け取ります。フィルターは<code class='tt'>(FN, C, FH, FW)</code>の4次元の形状です。なお、<code class='tt'>FN</code>はFilter Number（フィルターの個数）、<code class='tt'>C</code>はChannel、<code class='tt'>FH</code>はFilter Height、<code class='tt'>FW</code>はFilter Widthを表す略記だとします。</p>
+<p>Convolutionレイヤの実装では、重要な箇所を太字で示しています。この太字の箇所では、入力データを<code class='tt'>im2col</code>で展開し、フィルターも<code class='tt'>reshape</code>を使って2次元配列に展開します。そして、その展開した行列の内積を計算します。</p>
+<p>フィルターの展開を行う箇所（コード中の太字）は、<a href='./ch07.xhtml#fig07_19'>図7-19</a>に示したように、各フィルターのブロックを1列に展開して並べます。ここで、<code class='tt'>reshape(FN, -1)</code>のように<code class='tt'>-1</code>が指定されていますが、これは、<code class='tt'>reshape</code>の便利な機能のひとつです。<code class='tt'>reshape</code>の際に<code class='tt'>-1</code>を指定すると、多次元配列の要素数の辻褄が合うように要素数をまとめてくれるのです。たとえば、<span class='equation mathnoimage'><i><span class='math-normal'>(10,</span> <span class='math-normal'>3,</span> <span class='math-normal'>5,</span> <span class='math-normal'>5)</span></i></span>の形状の配列は要素数が全部で750個ありますが、ここで<code class='tt'>reshape(10, -1)</code>とすると、<span class='equation mathnoimage'><i><span class='math-normal'>(10,</span> <span class='math-normal'>75)</span></i></span>の形状の配列に整形されます。</p>
+<p>また、<code class='tt'>forward</code>の実装では、最後に、出力サイズを適切な形状に整形します。この整形の際に、NumPyの<!-- IDX:transpose --><code class='tt'>transpose</code>という関数を使います。<code class='tt'>transpose</code>は、多次元配列の軸の順番を入れ替える関数です。<a href='./ch07.xhtml#fig07_20'>図7-20</a>に示すように、0から始まるインデックス（番号）の並びを指定することで、軸の順番を変更します。</p>
+<div class='image' id='fig07_20'>
+<img alt='NumPyのtransposeによる軸の順番の入れ替え：インデックス（番号）によって、軸の順番を変更する' src='images/ch07/fig07_20.png'/>
+<p class='caption'>
+図7-20　NumPyのtransposeによる軸の順番の入れ替え：インデックス（番号）によって、軸の順番を変更する
+</p>
+</div>
+<p>以上が畳み込み層の<code class='tt'>forward</code>処理の実装です。<code class='tt'>im2col</code>によって展開することで、全結合層のAffineレイヤとほとんど同じように実装することができます（<a href='ch05.xhtml#h5-6'>「5.6 Affine／Softmaxレイヤの実装」</a>を参照）。続いてConvolutionレイヤの逆伝播の実装ですが、これはAffineレイヤの実装と共通することが多いので、説明は省略します。ひとつ注意点としては、Convolutionレイヤの逆伝播の際には、<code class='tt'>im2col</code>の逆の処理を行う必要があることです。これは本書が提供する<code class='tt'>col2im</code>という関数（<code class='tt'>col2im</code>の実装は<code class='tt'>common/util.py</code>にあります）を使って対応します。<code class='tt'>col2im</code>を使うという点を除けば、Convolutionレイヤの逆伝播は、Affineレイヤと同じように実装することができます。Convolutionレイヤの逆伝播の実装は<code class='tt'>common/layer.py</code>にあるので、興味のある方は参照して下さい。</p>
+
+<h3 id='h7-4-4'><span class='secno'>7.4.4　</span>Poolingレイヤの実装</h3>
+<p>Poolingレイヤの実装も、Convolutionレイヤと同じく、<code class='tt'>im2col</code>を使って入力データを展開します。ただし、プーリングの場合は、チャンネル方向には独立である点が畳み込み層の場合と異なります。具体的には、<a href='./ch07.xhtml#fig07_21'>図7-21</a>に示すように、プーリングの適用領域はチャンネルごとに独立して展開します。</p>
+<div class='image' id='fig07_21'>
+<img alt='入力データに対してプーリング適用領域を展開（2×2のプーリングの例）' src='images/ch07/fig07_21.png'/>
+<p class='caption'>
+図7-21　入力データに対してプーリング適用領域を展開（2×2のプーリングの例）
+</p>
+</div>
+<p>一度このように展開してしまえば、後は展開した行列に対して、行ごとに最大値を求め、適切な形状に整形するだけです（<a href='./ch07.xhtml#fig07_22'>図7-22</a>）。</p>
+<div class='image' id='fig07_22'>
+<img alt='Poolingレイヤの実装の流れ：プーリング適用領域内の最大値の要素は背景をグレーで描画' src='images/ch07/fig07_22.png'/>
+<p class='caption'>
+図7-22　Poolingレイヤの実装の流れ：プーリング適用領域内の最大値の要素は背景をグレーで描画
+</p>
+</div>
+<p>以上が、Poolingレイヤの<code class='tt'>forward</code>処理の実装の流れです。それでは、次にPythonの実装例を示します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Pooling</span>:<!-- IDX:Pooling（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, pool_h, pool_w, stride<span style='color: #666666'>=1</span>, pad<span style='color: #666666'>=0</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_h <span style='color: #666666'>=</span> pool_h
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_w <span style='color: #666666'>=</span> pool_w
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride <span style='color: #666666'>=</span> stride
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pad <span style='color: #666666'>=</span> pad
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x):
+        N, C, H, W <span style='color: #666666'>=</span> x<span style='color: #666666'>.</span>shape
+        out_h <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> (H <span style='color: #666666'>-</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_h) <span style='color: #666666'>/</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride)
+        out_w <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> (W <span style='color: #666666'>-</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_w) <span style='color: #666666'>/</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride)
+
+        <span style='color: #408080; font-style: italic'># 展開 (1)</span>
+        col <span style='color: #666666'>=</span> im2col(x, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_h, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_w, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>stride, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pad)
+        col <span style='color: #666666'>=</span> col<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>-1</span>, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_h<span style='color: #666666'>*</span><span style='color: #008000'>self</span><span style='color: #666666'>.</span>pool_w)
+
+        <span style='color: #408080; font-style: italic'># 最大値 (2)</span>
+        <b>out = np.max(col, axis=1)</b>
+        <span style='color: #408080; font-style: italic'># 整形 (3)</span>
+        out <span style='color: #666666'>=</span> out<span style='color: #666666'>.</span>reshape(N, out_h, out_w, C)<span style='color: #666666'>.</span>transpose(<span style='color: #666666'>0</span>, <span style='color: #666666'>3</span>, <span style='color: #666666'>1</span>, <span style='color: #666666'>2</span>)
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+</pre>
+</div>
+<p>Poolingレイヤの実装は、<a href='./ch07.xhtml#fig07_22'>図7-22</a>に示すように、次の3段階の流れで行います。</p>
+<ol>
+<li>入力データを展開する</li>
+<li>行ごとに最大値を求める</li>
+<li>適切な出力サイズに整形する</li>
+</ol>
+<p>各段階での実装は、1、2行程度の簡単なものです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>最大値の計算には、NumPyの<code class='tt'>np.max</code>メソッドが利用できます。<code class='tt'>np.max</code>は、引数に<code class='tt'>axis</code>を指定することができ、その引数で指定した軸ごとに最大値を求めることができます。たとえば、<code class='tt'>np.max(x, axis=1)</code>のように書けば、入力<code class='tt'>x</code>の1次元目の軸ごとに最大値が求められます。</p>
+</td></tr></table></div>
+<p>以上がPoolingレイヤの<code class='tt'>forward</code>処理の説明です。ここで示したように、入力データを、プーリングを行いやすい形に展開してしまえば、後の実装はとてもシンプルになります。</p>
+<p>Poolingレイヤの<code class='tt'>backward</code>処理については、関連する事項はすでに説明してあるので、ここでは説明を省略します。なお、Poolingレイヤの<code class='tt'>backward</code>処理は、ReLUレイヤの実装で使ったmaxの逆伝播（「5.5.1 ReLU レイヤ」）が参考になります。Poolingレイヤの実装は<code class='tt'>common/layer.py</code>にあるので、興味のある方は参考にしてください。</p>
+
+<h2 id='h7-5'><span class='secno'>7.5　</span>CNNの実装</h2>
+<p>ConvolutionレイヤとPoolingレイヤを実装したので、それらのレイヤを組み合わせて、手書き数字認識を行うCNNを組み立てたいと思います。ここでは、<a href='./ch07.xhtml#fig07_23'>図7-23</a>に示すようなCNNを実装します。</p>
+<div class='image' id='fig07_23'>
+<img alt='単純なCNNのネットワーク構成' src='images/ch07/fig07_23.png'/>
+<p class='caption'>
+図7-23　単純なCNNのネットワーク構成
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_23'>図7-23</a>に示すように、ネットワークの構成は、「Convolution - ReLU - Pooling - Affine - ReLU - Affine - Softmax」という流れです。これを、<!-- IDX:SimpleConvNet --><code class='tt'>SimpleConvNet</code>という名前のクラスで実装します。</p>
+<p>それでは、初めに<code class='tt'>SimpleConvNet</code>の初期化（<code class='tt'>__init__</code>）を見ていきましょう。これは、次の引数を取るものとします。</p>
+
+<h4 id='h7-5-0-1'>引数</h4>
+<ul>
+<li><code class='tt'>input_dim</code> —— 入力データの<code class='tt'>(チャンネル, 高さ, 幅)</code>の次元</li>
+<li><code class='tt'>conv_param</code> —— 畳み込み層のハイパーパラメータ（ディクショナリ）。ディクショナリのキーは下記のとおり<ul>
+<li><code class='tt'>filter_num</code> —— フィルターの数</li>
+<li><code class='tt'>filter_size</code> —— フィルターのサイズ</li>
+<li><code class='tt'>stride</code> —— ストライド</li>
+<li><code class='tt'>pad</code> —— パディング</li>
+</ul>
+</li>
+<li><code class='tt'>hidden_size</code> —— 隠れ層（全結合）のニューロンの数</li>
+<li><code class='tt'>output_size</code> —— 出力層（全結合）のニューロンの数</li>
+<li><code class='tt'>weight_init_std</code> —— 初期化の際の重みの標準偏差</li>
+</ul>
+<p>ここで、畳み込み層のハイパーパラメータは、<code class='tt'>conv_param</code>という名前のディクショナリとして与えられるものとします。これは、たとえば、<code class='tt'>{'filter_num':30, </code><code class='tt'>'filter_size':5, 'pad':0, 'stride':1}</code>のように、必要なハイパーパラメータの値が格納されていることを想定します。</p>
+<p>さて、<code class='tt'>SimpleConvNet</code>の初期化の実装ですが、これは少し長くなるので、3つのパートに分けて説明します。それでは、初期化の最初のパートです。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>SimpleConvNet</span>:
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, input_dim<span style='color: #666666'>=</span>(<span style='color: #666666'>1</span>, <span style='color: #666666'>28</span>, <span style='color: #666666'>28</span>),
+                 conv_param<span style='color: #666666'>=</span>{<span style='color: #BA2121'>&#39;filter_num&#39;</span>:<span style='color: #666666'>30</span>, <span style='color: #BA2121'>&#39;filter_size&#39;</span>:<span style='color: #666666'>5</span>,
+                             <span style='color: #BA2121'>&#39;pad&#39;</span>:<span style='color: #666666'>0</span>, <span style='color: #BA2121'>&#39;stride&#39;</span>:<span style='color: #666666'>1</span>},
+                 hidden_size<span style='color: #666666'>=100</span>, output_size<span style='color: #666666'>=10</span>, weight_init_std<span style='color: #666666'>=0.01</span>):
+        filter_num <span style='color: #666666'>=</span> conv_param[<span style='color: #BA2121'>&#39;filter_num&#39;</span>]
+        filter_size <span style='color: #666666'>=</span> conv_param[<span style='color: #BA2121'>&#39;filter_size&#39;</span>]
+        filter_pad <span style='color: #666666'>=</span> conv_param[<span style='color: #BA2121'>&#39;pad&#39;</span>]
+        filter_stride <span style='color: #666666'>=</span> conv_param[<span style='color: #BA2121'>&#39;stride&#39;</span>]
+        input_size <span style='color: #666666'>=</span> input_dim[<span style='color: #666666'>1</span>]
+        conv_output_size <span style='color: #666666'>=</span> (input_size <span style='color: #666666'>-</span> filter_size <span style='color: #666666'>+</span> <span style='color: #666666'>2*</span>filter_pad) <span style='color: #666666'>/</span> \
+                           filter_stride <span style='color: #666666'>+</span> <span style='color: #666666'>1</span>
+        pool_output_size <span style='color: #666666'>=</span> <span style='color: #008000'>int</span>(filter_num <span style='color: #666666'>*</span> (conv_output_size<span style='color: #666666'>/2</span>) <span style='color: #666666'>*</span>
+                               (conv_output_size<span style='color: #666666'>/2</span>))
+</pre>
+</div>
+<p>ここでは、初期化の引数で与えられた畳み込み層のハイパーパラメータをディクショナリから取り出します（後ほど簡単に使えるようにするため）。そして、畳み込み層の出力サイズを計算します。続いて、重みパラメータの初期化を行うパートです。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params <span style='color: #666666'>=</span> {}
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(filter_num, input_dim[<span style='color: #666666'>0</span>],
+                                            filter_size, filter_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(filter_num)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(pool_output_size,
+                                            hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W3&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(hidden_size, output_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b3&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(output_size)
+</pre>
+</div>
+<p>学習に必要なパラメータは、1層目の畳み込み層と、残り2つの全結合層の重みとバイアスです。それらのパラメータをインスタンス変数の<code class='tt'>params</code>ディクショナリに格納します。1層目の畳み込み層の重みを<code class='tt'>W1</code>、バイアスを<code class='tt'>b1</code>というキーとします。同じように、2つ目の全結合層の重みとバイアスを<code class='tt'>W2</code>、<code class='tt'>b2</code>、3層目の全結合層の重みとバイアスを<code class='tt'>W3</code>、<code class='tt'>b3</code>というキーでそれぞれ格納します。</p>
+<p>最後に必要なレイヤを生成します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers <span style='color: #666666'>=</span> OrderedDict()
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Conv1&#39;</span>] <span style='color: #666666'>=</span> Convolution(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>],
+                                       <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>],
+                                       conv_param[<span style='color: #BA2121'>&#39;stride&#39;</span>],
+                                       conv_param[<span style='color: #BA2121'>&#39;pad&#39;</span>])
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Relu1&#39;</span>] <span style='color: #666666'>=</span> Relu()
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Pool1&#39;</span>] <span style='color: #666666'>=</span> Pooling(pool_h<span style='color: #666666'>=2</span>, pool_w<span style='color: #666666'>=2</span>, stride<span style='color: #666666'>=2</span>)
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine1&#39;</span>] <span style='color: #666666'>=</span> Affine(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>],
+                                    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>])
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Relu2&#39;</span>] <span style='color: #666666'>=</span> Relu()
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine2&#39;</span>] <span style='color: #666666'>=</span> Affine(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W3&#39;</span>],
+                                    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b3&#39;</span>])
+</pre>
+</div>
+<p>先頭から順にレイヤを順序付きディクショナリ（<code class='tt'>OrderedDict</code>）の<code class='tt'>layers</code>に追加していきます。最後の<code class='tt'>SoftmaxWithLoss</code>レイヤだけは、<code class='tt'>lastLayer</code>という別の変数に追加します。</p>
+<p>以上が、<code class='tt'>SimpleConvNet</code>の初期化で行う処理です。このように初期化してしまえば、推論を行う<code class='tt'>predict</code>メソッドと、損失関数の値を求める<code class='tt'>loss</code>メソッドは次のように実装できます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>predict</span>(<span style='color: #008000'>self</span>, x):
+    <span style='color: #008000; font-weight: bold'>for</span> layer <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers<span style='color: #666666'>.</span>values():
+        x <span style='color: #666666'>=</span> layer<span style='color: #666666'>.</span>forward(x)
+    <span style='color: #008000; font-weight: bold'>return</span> x
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>loss</span>(<span style='color: #008000'>self</span>, x, t):
+    y <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>predict(x)
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lastLayer<span style='color: #666666'>.</span>forward(y, t)
+</pre>
+</div>
+<p>ここで引数の<code class='tt'>x</code>は入力データ、<code class='tt'>t</code>は教師ラベルです。推論のための<code class='tt'>predict</code>メソッドは、追加したレイヤを先頭から順に呼び出し、その結果を次のレイヤに渡すだけです。損失関数を求める<code class='tt'>loss</code>では、<code class='tt'>predict</code>メソッドで行った<code class='tt'>forward</code>処理に加えて、最後の層の<code class='tt'>SoftmaxWithLoss</code>レイヤまで<code class='tt'>forward</code>処理を行います。</p>
+<p>続いて、誤差逆伝播法によって勾配を求める実装ですが、これは次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>gradient</span>(<span style='color: #008000'>self</span>, x, t):
+    <span style='color: #408080; font-style: italic'># forward</span>
+    <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss(x, t)
+
+    <span style='color: #408080; font-style: italic'># backward</span>
+    dout <span style='color: #666666'>=</span> <span style='color: #666666'>1</span>
+    dout <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lastLayer<span style='color: #666666'>.</span>backward(dout)
+
+    layers <span style='color: #666666'>=</span> <span style='color: #008000'>list</span>(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers<span style='color: #666666'>.</span>values())
+    layers<span style='color: #666666'>.</span>reverse()
+    <span style='color: #008000; font-weight: bold'>for</span> layer <span style='color: #AA22FF; font-weight: bold'>in</span> layers:
+        dout <span style='color: #666666'>=</span> layer<span style='color: #666666'>.</span>backward(dout)
+
+    <span style='color: #408080; font-style: italic'># 設定</span>
+    grads <span style='color: #666666'>=</span> {}
+    grads[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Conv1&#39;</span>]<span style='color: #666666'>.</span>dW
+    grads[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Conv1&#39;</span>]<span style='color: #666666'>.</span>db
+    grads[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine1&#39;</span>]<span style='color: #666666'>.</span>dW
+    grads[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine1&#39;</span>]<span style='color: #666666'>.</span>db
+    grads[<span style='color: #BA2121'>&#39;W3&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine2&#39;</span>]<span style='color: #666666'>.</span>dW
+    grads[<span style='color: #BA2121'>&#39;b3&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine2&#39;</span>]<span style='color: #666666'>.</span>db
+
+    <span style='color: #008000; font-weight: bold'>return</span> grads
+</pre>
+</div>
+<p>パラメータの勾配は、誤差逆伝播法（逆伝播）によって求めます。これは、順伝播と逆伝播を続けて行います。それぞれのレイヤで順伝播と逆伝播の機能が正しく実装されているので、ここでは単にそれらを適切な順番で呼ぶだけです。最後に<code class='tt'>grads</code>というディクショナリに各重みパラメータの勾配を格納します。以上が<code class='tt'>SimpleConvNet</code>の実装です。</p>
+<p>それでは、この<code class='tt'>SimpleConvNet</code>で、MNISTデータセットを学習してみましょう。学習のためのコードは、<a href='ch04.xhtml#h4-5'>「4.5 学習アルゴリズムの実装」</a>で説明したものとほとんど同じです。そのため、ここではコードの掲載は省略します（対象のソースコードは、<code class='tt'>ch07/train_convnet.py</code>にあります）。</p>
+<p>さて、<code class='tt'>SimpleConvNet</code>をMNISTデータセットで学習すると、訓練データの認識率は99.82%、テストデータの認識率は98.96%となります（学習ごとに認識精度には若干の誤差が発生します）。テストデータの認識率がおよそ99%というのは、比較的小さなネットワークにしては、とても高い認識率ではないでしょうか。なお、次章では、さらに層を重ねてディープにすることで、テストデータの認識率が99%を超えるネットワークを実現します。</p>
+<p>ここで見てきたように、畳み込み層とプーリング層は画像認識では必須のモジュールです。画像という空間的な形状のある特性を、CNNはうまく読み取ることができ、手書き数字認識においても、高精度の認識を実現することができました。</p>
+
+<h2 id='cnnvisible'><a id='h7-6'/><span class='secno'>7.6　</span>CNNの可視化</h2>
+<p><!-- IDX:CNNの可視化 -->CNNで用いられる畳み込み層は“何を見ている”のでしょうか？ ここでは、畳み込み層の可視化を通じて、CNNで何が行われているのか探索していきたいと思います。</p>
+
+<h3 id='h7-6-1'><span class='secno'>7.6.1　</span>1層目の重みの可視化</h3>
+<p>先ほどMNISTデータセットに対して単純なCNNの学習を行いましたが、そのとき、1層目の畳み込み層の重みの形状は<span class='equation mathnoimage'><i><span class='math-normal'>(30,</span> <span class='math-normal'>1,</span> <span class='math-normal'>5,</span> <span class='math-normal'>5)</span></i></span>——サイズが5×5でチャンネルが1のフィルターが30個——でした。フィルターのサイズが5×5でチャンネル数が1ということは、フィルターは1チャンネルのグレー画像として可視化できるということを意味します。それでは、畳み込み層（1層目）のフィルターを画像として表示してみましょう。ここでは、学習前と学習後の重みを見比べてみたいと思います。結果は<a href='./ch07.xhtml#fig07_24'>図7-24</a>のようになります（ソースコードは<code class='tt'>ch07/visualize_filter.py</code>にあります）。</p>
+<div class='image' id='fig07_24'>
+<img alt='学習前と学習後における1層目の畳み込み層の重み：重みの要素は実数であるが、画像の表示においては、最も小さな値は黒（0）、最も大きな値は白（255）に正規化して表示する' src='images/ch07/fig07_24.png'/>
+<p class='caption'>
+図7-24　学習前と学習後における1層目の畳み込み層の重み：重みの要素は実数であるが、画像の表示においては、最も小さな値は黒（0）、最も大きな値は白（255）に正規化して表示する
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_24'>図7-24</a>に示すように、学習前のフィルターはランダムに初期化されているため、白黒の濃淡には規則性がありません。一方、学習を終えたフィルターは規則性のある画像になっています。白から黒へグラデーションを伴って変化するフィルターや、塊のある領域（これを「<!-- IDX:ブロブ -->ブロブ（blob）」と言う）を持つフィルターなど、学習によって規則性のあるフィルターへと更新されていることが分かります。</p>
+<p><a href='./ch07.xhtml#fig07_24'>図7-24</a>の右側のような規則性のあるフィルターは“何を見ている”のかというと、それは、<!-- IDX:エッジ -->エッジ（色が変化する境目）やブロブ（局所的に塊のある領域）などを見ています。たとえば、左半分が白で、右半分が黒のフィルターの場合、<a href='./ch07.xhtml#fig07_25'>図7-25</a>に示すように、縦方向のエッジに反応するフィルターになります。</p>
+<div class='image' id='fig07_25'>
+<img alt='横方向のエッジと縦方向のエッジに反応するフィルター：出力画像1は縦方向のエッジに白いピクセルが出現。一方、出力画像2は横方向のエッジに白いピクセルが多く現れる' src='images/ch07/fig07_25.png'/>
+<p class='caption'>
+図7-25　横方向のエッジと縦方向のエッジに反応するフィルター：出力画像1は縦方向のエッジに白いピクセルが出現。一方、出力画像2は横方向のエッジに白いピクセルが多く現れる
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_25'>図7-25</a>は、学習済みのフィルターを2つ選んで、入力画像に畳み込み処理を行ったときの結果を示しています。「フィルター1」は縦方向のエッジに反応し、「フィルター2」は横方向のエッジに反応するのが分かります。</p>
+<p>このように、畳み込み層のフィルターは、エッジやブロブなどのプリミティブな情報を抽出することが分かります。そのようなプリミティブな情報が後段の層に渡されていくというのが、先に実装したCNNで行われていることなのです。</p>
+
+<h3 id='h7-6-2'><span class='secno'>7.6.2　</span>階層構造による情報抽出</h3>
+<p>さて、上の結果は、1層目の畳み込み層を対象としたものでした。1層目の畳み込み層では、エッジやブロブなどの低レベルな情報が抽出されますが、何層にも重ねたCNNでは、各層でどのような情報が抽出されるのでしょうか？ ディープラーニングの可視化に関する研究<u>［17］</u><u>［18］</u>によると、層が深くなるに従って、抽出される情報（正確には強く反応するニューロン）は、より抽象化されていくということが示されています。</p>
+<div class='image' id='fig07_26'>
+<img alt='CNNの畳み込み層で抽出される情報。1層目はエッジやブロブ、3層目はテクスチャ、5層目は物体のパーツ、そして、最後の全結合層で物体のクラス（犬や車など）にニューロンは反応する（画像は文献&lt;u&gt;［19］&lt;/u&gt;より引用）' src='images/ch07/fig07_26.png'/>
+<p class='caption'>
+図7-26　CNNの畳み込み層で抽出される情報。1層目はエッジやブロブ、3層目はテクスチャ、5層目は物体のパーツ、そして、最後の全結合層で物体のクラス（犬や車など）にニューロンは反応する（画像は文献<u>［19］</u>より引用）
+</p>
+</div>
+<p><a href='./ch07.xhtml#fig07_26'>図7-26</a>には、一般物体認識（車や犬など）を行う8層のCNNを示します。このネットワーク構造には、次節で説明するAlexNetという名前が付いています。このAlexNetのネットワーク構成は、畳み込み層とプーリング層が何層にも重なり、最後に全結合層を経て結果が出力されます。<a href='./ch07.xhtml#fig07_26'>図7-26</a>のブロックで示されているのは中間データであり、それらの中間データに対して畳み込み演算が連続的に適用されます。</p>
+<p>ディープラーニングの興味深い点は、<a href='./ch07.xhtml#fig07_26'>図7-26</a>で示すように、畳み込み層を何層も重ねると、層が深くなるにつれて、より複雑で抽象化された情報が抽出されるということです。最初の層は単純なエッジに反応し、続いてテクスチャに反応し、そして、より複雑な物体のパーツへと反応するように変化します。つまり、層が深くなるに従って、ニューロンは単純な形状から“高度”な情報へと変化していくのです。言い換えれば、モノの「意味」を理解するように、反応する対象が変化していくのです。</p>
+
+<h2 id='h7-7'><span class='secno'>7.7　</span>代表的なCNN</h2>
+<p>CNNは、これまでさまざまな構成のネットワークが提案されてきました。ここでは、その中でも特に重要なネットワークを2つ紹介します。ひとつは1989年に初めて提案されたCNNの元祖であるLeNet<u>［20］</u>。そして、もうひとつは、ディープラーニングが注目を集めるに至った2012年のAlexNet<u>［21］</u>です。</p>
+
+<h3 id='h7-7-1'><span class='secno'>7.7.1　</span>LeNet</h3>
+<p><!-- IDX:LeNet -->LeNetは手書き数字認識を行うネットワークとして、1989年に提案されました。<a href='./ch07.xhtml#fig07_27'>図7-27</a>に示すように、畳み込み層とプーリング層——正確には、単に「要素を間引く」だけの<!-- IDX:サブサンプリング -->サブサンプリング層——を連続して行い、最後に全結合層を経て結果が出力されます。</p>
+<div class='image' id='fig07_27'>
+<img alt='LeNetのネットワーク構成（文献&lt;u&gt;［20］&lt;/u&gt;より引用）' src='images/ch07/fig07_27.png'/>
+<p class='caption'>
+図7-27　LeNetのネットワーク構成（文献<u>［20］</u>より引用）
+</p>
+</div>
+<p>LeNetと「現在のCNN」を比較すると、いくつか違いがあります。ひとつ目の違いは活性化関数にあります。LeNetではシグモイド関数が使用されているのに対して、現在では主にReLUが使われます。また、オリジナルのLeNetでは、サブサンプリング（subsampling）によって中間データのサイズ縮小を行っていますが、現在ではMaxプーリングが主流です。</p>
+<p>このように、LeNetと「現在のCNN」にはいくらか違いはあるものの、それほど大きな違いではありません。LeNetが今から20年以上も前に提案された「初めてのCNN」だということを考慮すれば、これは驚くべきことです。</p>
+
+<h3 id='h7-7-2'><span class='secno'>7.7.2　</span>AlexNet</h3>
+<p><!-- IDX:AlexNet -->LeNetが世に出てから20年以上が経過して、AlexNetが発表されました。このAlexNetがディープラーニング・ブームの火付け役になったのですが、<a href='./ch07.xhtml#fig07_28'>図7-28</a>に示すように、そのネットワーク構成は基本的にLeNetと大きくは変わっていません。</p>
+<div class='image' id='fig07_28'>
+<img alt='AlexNet（文献&lt;u&gt;［21］&lt;/u&gt;を参考に作成）' src='images/ch07/fig07_28.png'/>
+<p class='caption'>
+図7-28　AlexNet（文献<u>［21］</u>を参考に作成）
+</p>
+</div>
+<p>AlexNetは畳み込み層とプーリング層を重ねて、最後に全結合層を経由して結果を出力します。LeNetと大きな構造は変わりませんが、AlexNetでは以下の点が異なります。</p>
+<ul>
+<li>活性化関数にReLUを用いる</li>
+<li><!-- IDX:LRN -->LRN（Local Response Normalization）という<!-- IDX:局所的正規化 -->局所的正規化を行う層を用いる</li>
+<li>Dropout（<a href='ch06.xhtml#h6-4-3'>「6.4.3 Dropout」</a>参照）を使用する</li>
+</ul>
+<p>ここで見てきたように、ネットワーク構成については、LeNetとAlexNetには大きな違いはありません。しかし、それを取り巻く環境やコンピュータ技術には大きな進歩がありました。具体的に言うと、大量のデータを誰もが入手できるようになりました。そして、大量の並列計算を得意とするGPUが普及し、大量の演算を高速に行うことが可能になりました。<!-- IDX:ビッグデータ -->ビッグデータと<!-- IDX:GPU -->GPU——これがディープラーニングの発展にとって大きな原動力となったのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ディープラーニング（層を深くしたネットワーク）は、多くの場合、大量のパラメータが存在します。そのため、学習には多くの計算が必要であり、さらに、それらのパラメータを“満足”させるだけの大量のデータが必要になります。GPUとビッグデータは、それらの課題に光を投げかけたと言えます。</p>
+</td></tr></table></div>
+
+<h2 id='h7-8'><span class='secno'>7.8　</span>まとめ</h2>
+<p>本章では、CNNについて学びました。CNNを構成する基本モジュールである「畳み込み層」と「プーリング層」はやや複雑ですが、一度理解してしまえば、後はそれらをどう使うかということだけが問題になってきます。本章では、畳み込み層とプーリング層を実装レベルで理解できるように時間をかけて説明しました。CNNは、画像を扱う分野では、ほぼ例外なく使われます。本章の内容をしっかり理解して、最終章に進みましょう。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>CNNは、これまでの全結合層のネットワークに対して、畳み込み層とプーリング層が新たに加わる。</li>
+<li>畳み込み層とプーリング層は、im2col（画像を行列に展開する関数）を用いるとシンプルで効率の良い実装ができる。</li>
+<li>CNNの可視化によって、層が深くなるにつれて高度な情報が抽出されていく様子が分かる。</li>
+<li>CNNの代表的なネットワークには、LeNetとAlexNetがある。</li>
+<li>ディープラーニングの発展に、ビッグデータとGPUが大きく貢献している。</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,820 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>ニューラルネットワークの学習</title>
+</head>
+<body>
+<h1 id='h4'><span class='chapno'>4章</span><br/>ニューラルネットワークの学習</h1>
+<p>本章のテーマは、ニューラルネットワークの学習です。ここで言う「学習」とは、訓練データから最適な重みパラメータの値を自動で獲得することを指します。本章では、ニューラルネットワークが学習を行えるようにするために、損失関数という「指標」を導入します。この損失関数を基準として、その値が最も小さくなる重みパラメータを探し出すということが学習の目的です。本章では、できるだけ小さな損失関数の値を探し出すための手法として、勾配法と呼ばれる、関数の傾きを使った手法を説明します。</p>
+
+<h2 id='h4-1'><span class='secno'>4.1　</span>データから学習する</h2>
+<p>ニューラルネットワークの特徴は、データから学習できる点にあります。データから学習するとは、重みパラメータの値をデータから自動で決定できるということです。これはとても素晴らしいニュースです！ なぜなら、もし仮にすべてのパラメータを手作業によって決めるとすれば、それは相当に大変な作業になるからです。たとえば、2章で見たパーセプトロンの例では、真理値表を見ながら手作業でパラメータの値を設定しましたが、その際のパラメータの個数は3個程度でした。しかし、実際のニューラルネットワークでは、パラメータの数が数千、数万にも及びます。さらに、層を深くしたディープラーニングにもなれば、パラメータの数は数億に及ぶこともあります。それらのパラメータを手作業で決めるというのは、もはや不可能でしょう。本章では、ニューラルネットワークの学習——データからパラメータの値を決める方法——について説明し、PythonによってMNISTデータセットの手書き数字を学習する実装を行います。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>2章のパーセプトロンは、線形分離可能な問題であれば、データから自動で学習することは可能です。有限回の学習によって、線形分離可能な問題が解けることは「<!-- IDX:パーセプトロンの収束定理 -->パーセプトロンの収束定理」として知られています。しかし、非線形分離問題は（自動で）学習することはできません。</p>
+</td></tr></table></div>
+
+<h3 id='h4-1-1'><span class='secno'>4.1.1　</span>データ駆動</h3>
+<p><!-- IDX:データ駆動 -->機械学習はデータが命です。データから答えを探し、データからパターンを見つけ、データからストーリーを語る——これが機械学習で行うことであり、データがなければ何も始まりません。そのため、機械学習の中心には「データ」が存在します。このデータ駆動によるアプローチは、「人」を中心とするアプローチからの脱却とも言えます。</p>
+<p>さて、通常、何らかの問題を解決しようとする場合——特に何らかのパターンを見つける必要がある場合——、人があれやこれやと考えて答えを出すことが一般的でしょう。「この問題はどうやらこういう規則性があるのではないか」、「いやいや、別の場所に原因があるかもしれない」といったように、人の経験や直感を手がかりに試行錯誤を重ねて仕事を進めます。一方、機械学習による手法では、人の介入を極力避け、集められたデータから答え（パターン）を見つけようと試みます。さらに、ニューラルネットワークやディープラーニングは、従来の機械学習で使われた手法以上に、人の介入を遠ざけることができるという重要な性質を持ちます。</p>
+<p>ここでは、ひとつ具体的な問題を考えてみましょう。たとえば、「5」という数字を認識するプログラムを実装したいとします。「5」という数字は、<a href='./ch04.xhtml#fig04_1'>図4-1</a>に示すような手書きの画像だとして、5か／5でないかを見分けるプログラムを実装することがゴールだとしましょう。さて、この問題は比較的単純そうに見えますが、どのようなアルゴリズムが考えられるでしょうか？</p>
+<div class='image' id='fig04_1'>
+<img alt='手書き数字の「5」の例：人によってさまざまな書き方（クセ）がある' src='images/ch04/fig04_1.png'/>
+<p class='caption'>
+図4-1　手書き数字の「5」の例：人によってさまざまな書き方（クセ）がある
+</p>
+</div>
+<p>「5」を正しく分類できるプログラムを自分で考えて設計しようとすると、それは意外と難しい問題であることが分かります。人にとっては簡単に「5」だと認識できますが、どういう規則性で「5」と認識したのかを明確に述べることは困難でしょう。また、<a href='./ch04.xhtml#fig04_1'>図4-1</a>を見ると、人によってさまざまなクセがあり、「5」であることのルールを見つけることは、骨の折れる仕事であり、時間のかかる作業になりそうだということも分かるでしょう。</p>
+<p>そこで、ゼロから「5」を認識するアルゴリズムを“ひねり出す”代わりに、データを有効に活用して解決したいと考えます。そのひとつの方法としては、画像から<!-- IDX:特徴量 --><b>特徴量</b>を抽出して、その特徴量のパターンを機械学習の技術で学習する方法が考えられます。ここで言う特徴量とは、入力データ（入力画像）から本質的なデータ（重要なデータ）を的確に抽出できるように設計された変換器を指します。画像の特徴量は通常、ベクトルとして記述されます。なお、コンピュータビジョンの分野で有名な特徴量としては、<!-- IDX:SIFT -->SIFTや<!-- IDX:SURF -->SURF、<!-- IDX:HOG -->HOGなどが挙げられます。そのような特徴量を使って画像データをベクトルに変換し、その変換されたベクトルに対して、機械学習で使われる識別器——<!-- IDX:SVM -->SVMや<!-- IDX:KNN -->KNNなど——で学習させることができます。</p>
+<p>この機械学習によるアプローチでは、集められたデータの中から「機械」が規則性を見つけ出します。これは、ゼロからアルゴリズムを考え出す場合に比べると、より効率的に問題を解決でき、「人」への負担も軽減されるでしょう。ただし、画像をベクトルに変換する際に使用した特徴量は、「人」が設計したものであることに注意が必要です。というのは、問題に応じて適した特徴量を使わなければ（もしくは特徴量を設計しなければ）、なかなか良い結果が得られないのです。たとえば、犬の顔を見分けるためには、「5」を認識する特徴量とは別の特徴量を人が考える必要があるかもしれません。つまり、特徴量と機械学習によるアプローチでも、問題に応じて、「人」の手によって適した特徴量を考える必要があるかもしれないのです。</p>
+<p>さて、これまで機械学習の問題に対して2つのアプローチを述べました。それら2つのアプローチを図で示すと、次の<a href='./ch04.xhtml#fig04_2'>図4-2</a>の上段のようになります。それに対して、ニューラルネットワーク（ディープラーニング）によるアプローチは、<a href='./ch04.xhtml#fig04_2'>図4-2</a>の下段のように、人の介在しないひとつのブロックによって表されます。</p>
+<div class='image' id='fig04_2'>
+<img alt='「人」の手によるルール作りから、「機械」にデータから学ばせる手法へのパラダイムシフト：人のアイデアが介在しないブロックは灰色で示している' src='images/ch04/fig04_2.png'/>
+<p class='caption'>
+図4-2　「人」の手によるルール作りから、「機械」にデータから学ばせる手法へのパラダイムシフト：人のアイデアが介在しないブロックは灰色で示している
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_2'>図4-2</a>に示すとおり、ニューラルネットワークは、画像を“そのまま”学習します。2つ目のアプローチ——特徴量と機械学習によるアプローチ——の例では人が特徴量を設計しましたが、ニューラルネットワークは、画像に含まれる重要な特徴量までも「機械」が学習するのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ディープラーニングは、「end-to-end machine learning」と呼ばれることがあります。ここで言う<!-- IDX:end&#45;to&#45;end --><b>end-to-end</b>とは、「端から端まで」という意味であり、これは生データ（入力）から目的の結果（出力）を得ることを意味します。</p>
+</td></tr></table></div>
+<p>ニューラルネットワークの利点は、すべての問題を同じ流れで解くことができる点にあります。たとえば、解くべき問題が「5」を認識する問題なのか、「犬」を認識する問題なのか、それとも、「人の顔」を認識する問題なのかといった詳細とは関係なしに、ニューラルネットワークは与えられたデータをただひたすら学習し、与えられた問題のパターンを発見しようと試みます。つまり、ニューラルネットワークは、対象とする問題に関係なく、データをそのままの生データとして、“end-to-end”で学習することができるのです。</p>
+
+<h3 id='h4-1-2'><span class='secno'>4.1.2　</span>訓練データとテストデータ</h3>
+<p>本章では、ニューラルネットワークの学習について説明しますが、その前に、機械学習におけるデータの取り扱いについて注意事項を説明します。</p>
+<p>機械学習の問題では、<!-- IDX:訓練データ --><b>訓練データ</b>と<!-- IDX:テストデータ --><b>テストデータ</b>の2つのデータに分けて、学習や実験などを行うのが一般的です。その場合、まずは訓練データだけを使って学習を行い、最適なパラメータを探索します。そして、テストデータを使って、その訓練したモデルの実力を評価するのです。それでは、なぜ訓練データとテストデータを分ける必要があるのでしょうか？ それは、私たちが求めているものは、モデルの汎用的な能力であるからです。この<!-- IDX:汎化能力 --><b>汎化能力</b>を正しく評価したいがために、訓練データとテストデータを分離する必要があるのです。なお、訓練データは<!-- IDX:教師データ --><b>教師データ</b>と呼ぶ場合もあります。</p>
+<p>汎化能力とは、まだ見ぬデータ（訓練データに含まれないデータ）に対しての能力であり、この汎化能力を獲得することこそが機械学習の最終的な目標です。たとえば、手書き数字認識の問題の場合、それはハガキの郵便番号を自動で読み取るためのシステムに使われるかもしれません。その場合、手書き数字認識は、“誰か”が書いた文字を認識できる能力が高くなければなりません。その誰かとは「特定の人の特定の文字」ではなく、「任意の人の任意の文字」なのです。もし、手元にある訓練データだけうまく判別できたとしても、それはそのデータに含まれる人の、クセのある文字だけを学習している可能性があります。</p>
+<p>そのため、ひとつのデータセットだけでパラメータの学習と評価を行ってしまうと、正しい評価が行えないことになります。そのようなことを行ってしまうと、あるデータセットにはうまく対応できても、他のデータセットには対応できない、といったことが起こります。ちなみに、<span class='bou'>あるデータセット</span>だけに過度に対応した状態を<!-- IDX:過学習 --><b>過学習</b>（<!-- IDX:overfitting -->overfitting）と言います。過学習を避けることは、機械学習の重要な課題でもあります。</p>
+
+<h2 id='h4-2'><span class='secno'>4.2　</span>損失関数</h2>
+<p><!-- IDX:損失関数 -->「あなたは今、どれだけ幸せですか？」と聞かれたら、どう答えるでしょうか？ 「まあまあ、幸せ」とか「そんなに幸せじゃない」といった漠然とした答え方をするのが、普通の人の回答かもしれません。そんな中、「私の現在の幸せ指数は10.23です」のような答え方をする人がいたら、呆気にとられてしまうでしょう。自分の幸せを、ひとつの指標だけで数値的に判断するのですから。もしそのような人がいるとしたら、きっとその人は、自分の「幸せ指標」だけを手がかりに自分の人生を歩むことになるかもしれません。</p>
+<p>さて、この「幸せ指標」の話はひとつのたとえ話ですが、実はニューラルネットワークの学習でも、これと同じようなことを行います。ニューラルネットワークの学習では、ある「ひとつの指標」によって現在の状態を表します。そして、その指標を基準として、最適な重みパラメータの探索を行うのです。先の「幸せ指標」の人が、幸せ指数を手がかりに“最適な人生”を探索するように、ニューラルネットワークも「ひとつの指標」を手がかりに最適なパラメータを探索します。なお、ニューラルネットワークの学習で用いられる指標は、<!-- IDX:損失関数 --><b>損失関数</b>（<!-- IDX:loss function -->loss function）と呼ばれます。この損失関数は、任意の関数を用いることができますが、一般には、2乗和誤差や交差エントロピー誤差などが用いられます。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>損失関数はニューラルネットワークの性能の“悪さ”を示す指標です。現在のニューラルネットワークが教師データに対してどれだけ適合していないか、教師データに対してどれだけ一致していないかということを表します。ここで「性能の悪さ」を指標にするというと、なんだが不自然に感じられるかもしれませんが、損失関数にマイナスを掛けた値は、「どれだけ性能が悪くないか」つまり「どれだけ性能が良いか」という指標として解釈できます。また、「性能の悪さを最小にすること」と「性能の良さを最大にすること」は同じことですから、性能の「悪さ」と「良さ」のどちらを指標にしたとしても、本質的に行うことは同じなのです。</p>
+</td></tr></table></div>
+
+<h3 id='h4-2-1'><span class='secno'>4.2.1　</span>2乗和誤差</h3>
+<p>損失関数として用いられる関数はいくつかありますが、最も有名なものは<!-- IDX:2乗和誤差 --><b>2乗和誤差</b>（<!-- IDX:mean squared error -->mean squared error）でしょう。この2乗和誤差は数式で次のように表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='E = \frac{1}{2}\sum_k ({y_k} - {t_k})^2  %\qquad(4.1)' src='images/math/6b11c90adf51d0718009058f5afa9dfb.png' style='height: 2.84em'/></div>
+<p class='eqno' id='eq1'>式(4.1)</p>
+</div>
+<p>ここで、<span class='equation mathnoimage'><i>y<sub>k</sub></i></span>はニューラルネットワークの出力、<span class='equation mathnoimage'><i>t<sub>k</sub></i></span>は教師データを表し、<span class='equation mathnoimage'><i>k</i></span>はデータの次元数を表します。たとえば、<a href='ch03.xhtml#h3-6'>「3.6 手書き数字認識」</a>の例では、<span class='equation mathnoimage'><i>y<sub>k</sub></i></span>、<span class='equation mathnoimage'><i>t<sub>k</sub></i></span>は次のような10個の要素からなるデータです。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]</b>
+&gt;&gt;&gt; <b>t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]</b>
+</pre>
+</div>
+<p>この配列の要素は、最初のインデックスから順に、数字の「0」、「1」、「2」…に対応します。ここでニューラルネットワークの出力である<code class='tt'>y</code>は、ソフトマックス関数の出力です。ソフトマックス関数の出力は確率として解釈できるので、上の例では、「0」の確率は0.1、「1」の確率は0.05、「2」の確率は0.6といったようなことを表しています。一方、<code class='tt'>t</code>は教師データです。この教師データは正解となるラベルを1、それ以外を0とします。ここではラベルの「2」が1なので、正解は「2」であることを表しています。なお、正解ラベルを1として、それ以外は0で表す表記法を<!-- IDX:one&#45;hot表現 --><b>one-hot表現</b>と言います。</p>
+<p>さて、2乗和誤差は式(4.1)で表されるように、ニューラルネットワークの出力と正解となる教師データの各要素の差の2乗を計算し、その総和を求めます。それでは、この2乗和誤差をPythonで実装してみましょう。これは、次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>mean_squared_error</span>(y, t):<!-- IDX:mean_squared_error() -->
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0.5</span> <span style='color: #666666'>*</span> np<span style='color: #666666'>.</span>sum((y<span style='color: #666666'>-</span>t)<span style='color: #666666'>**2</span>)
+</pre>
+</div>
+<p>ここで、引数の<code class='tt'>y</code>と<code class='tt'>t</code>は、NumPyの配列とします。中身の実装は、式(4.1)をそのまま実装しただけなので、説明は不要でしょう。それでは、この関数を使って、実際に計算してみます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; # 「2」を正解とする
+&gt;&gt;&gt; <b>t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]</b>
+&gt;&gt;&gt;
+&gt;&gt;&gt; # 例1：「2」の確率が最も高い場合（0.6）
+&gt;&gt;&gt; <b>y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]</b>
+&gt;&gt;&gt; <b>mean_squared_error(np.array(y), np.array(t))</b>
+0.097500000000000031
+&gt;&gt;&gt;
+&gt;&gt;&gt; # 例2：「7」の確率が最も高い場合（0.6）
+&gt;&gt;&gt; <b>y = [0.1, 0.05, 0.1, 0.0, 0.05, 0.1, 0.0, 0.6, 0.0, 0.0]</b>
+&gt;&gt;&gt; <b>mean_squared_error(np.array(y), np.array(t))</b>
+0.59750000000000003
+</pre>
+</div>
+<p>ここでは、2つの例を示しています。ひとつ目の例は、正解を「2」として、ニューラルネットワークの出力が「2」で最も高い場合です。一方、2つ目の例では、正解は「2」ですが、ニューラルネットワークの出力は「7」で最も高くなっています。この実験の結果で示されるように、ひとつ目の例の損失関数のほうが小さくなっており、教師データとの誤差が小さいことが分かります。つまり、ひとつ目の例のほうが、出力結果が教師データにより適合していることを2乗和誤差は示しているのです。</p>
+
+<h3 id='crossentropy'><a id='h4-2-2'/><span class='secno'>4.2.2　</span>交差エントロピー誤差</h3>
+<p>2乗和誤差と別の損失関数として、<!-- IDX:交差エントロピー誤差 --><b>交差エントロピー誤差</b>（<!-- IDX:cross entropy error -->cross entropy error）もよく用いられます。交差エントロピー誤差は次の数式で表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='E =  -\sum\limits_k {t_k}\log {y_k}  %\qquad(4.2)' src='images/math/1feeeb00e9813d8fe745758fbd199c6d.png' style='height: 2.42em'/></div>
+<p class='eqno' id='eq2'>式(4.2)</p>
+</div>
+<p>ここで、<span class='equation mathnoimage'><i><span class='math-normal'>log</span></i></span>は底が<span class='equation mathnoimage'><i>e</i></span>の自然対数（<span class='equation mathnoimage'><i><span class='math-normal'>log</span><sub>e</sub></i></span>）を表します。<span class='equation mathnoimage'><i>y<sub>k</sub></i></span>はニューラルネットワークの出力、<span class='equation mathnoimage'><i>t<sub>k</sub></i></span>は正解ラベルとします。また、<span class='equation mathnoimage'><i>t<sub>k</sub></i></span>は正解ラベルとなるインデックスだけが1で、その他は0であるとします（one-hot表現）。そのため、式(4.2)は実質的に正解ラベルが1に対応する出力の自然対数を計算するだけになります。たとえば、「2」が正解ラベルのインデックスであるとして、それに対応するニューラルネットワークの出力が0.6の場合、交差エントロピー誤差は<span class='equation mathnoimage'><i><span class='math-normal'>−log</span><span class='math-normal'>0.6</span><span class='math-normal'>＝</span><span class='math-normal'>0.51</span></i></span>と計算できます。また、「2」の出力が0.1の場合は、<span class='equation mathnoimage'><i><span class='math-normal'>−log</span><span class='math-normal'>0.1</span><span class='math-normal'>＝</span><span class='math-normal'>2.30</span></i></span>となります。つまり、交差エントロピー誤差は、正解ラベルとなる出力の結果によって、その値が決まるのです。</p>
+<p>ところで、自然対数をグラフで表すと<a href='./ch04.xhtml#fig04_3'>図4-3</a>のようになります。</p>
+<div class='image' id='fig04_3'>
+<img alt='自然対数&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;y&lt;span class=&apos;math-normal&apos;&gt;＝&lt;/span&gt;&lt;span class=&apos;math-normal&apos;&gt;log&lt;/span&gt;x&lt;/i&gt;&lt;/span&gt;のグラフ' src='images/ch04/fig04_3.png'/>
+<p class='caption'>
+図4-3　自然対数<span class='equation mathnoimage'><i>y<span class='math-normal'>＝</span><span class='math-normal'>log</span>x</i></span>のグラフ
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_3'>図4-3</a>で示されるように、<span class='equation mathnoimage'><i>x</i></span>が1のとき<span class='equation mathnoimage'><i>y</i></span>は0になり、<span class='equation mathnoimage'><i>x</i></span>が0に近づくにつれて、<span class='equation mathnoimage'><i>y</i></span>の値はどんどん小さくなります。そのため、式(4.2)は正解ラベルに対応する出力が大きければ大きいほど0に近づきます。そして、その出力が1のとき交差エントロピー誤差は0になります。また、正解ラベルに対応する出力が小さければ式(4.2)の値は大きくなることも分かります。</p>
+<p>それでは、交差エントロピー誤差を実装しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>cross_entropy_error</span>(y, t):<!-- IDX:cross_entropy_error() -->
+    delta <span style='color: #666666'>=</span> <span style='color: #666666'>1e-7</span>
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>-</span>np<span style='color: #666666'>.</span>sum(t <span style='color: #666666'>*</span> np<span style='color: #666666'>.</span>log(y <span style='color: #666666'>+</span> delta))
+</pre>
+</div>
+<p>ここで、引数の<code class='tt'>y</code>と<code class='tt'>t</code>は、NumPyの配列とします。中身の実装では、<code class='tt'>np.log</code>の計算時に、微小な値である<code class='tt'>delta</code>を足して計算しています。これは、<code class='tt'>np.log(0)</code>のような計算が発生した場合、<code class='tt'>np.log(0)</code>はマイナスの無限大を表す<code class='tt'>-inf</code>となり、そうなってしまうと、それ以上計算を進めることができなくなります。その防止策として、微小な値を追加して、マイナス無限大を発生させないようにしています。それでは、この<code class='tt'>cross_entropy_error(y, t)</code>を使って、簡単な計算をしてみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>t = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0]</b>
+&gt;&gt;&gt; <b>y = [0.1, 0.05, 0.6, 0.0, 0.05, 0.1, 0.0, 0.1, 0.0, 0.0]</b>
+&gt;&gt;&gt; <b>cross_entropy_error(np.array(y), np.array(t))</b>
+0.51082545709933802
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>y = [0.1, 0.05, 0.1, 0.0, 0.05, 0.1, 0.0, 0.6, 0.0, 0.0]</b>
+&gt;&gt;&gt; <b>cross_entropy_error(np.array(y), np.array(t))</b>
+2.3025840929945458
+</pre>
+</div>
+<p>ひとつ目の例では、正解となるラベルの出力が0.6の場合で、このとき、交差エントロピー誤差はおよそ0.51です。その次は、正解となるラベルの出力が0.1と低い場合の例ですが、このときの交差エントロピー誤差はおよそ2.3です。これらの結果から、これまでの議論と一致していることが分かります。</p>
+
+<h3 id='h4-2-3'><span class='secno'>4.2.3　</span>ミニバッチ学習</h3>
+<p>機械学習の問題は、訓練データを使って学習を行います。訓練データを使って学習するとは、正確に言うと、訓練データに対する損失関数を求め、その値をできるだけ小さくするようなパラメータを探し出す、ということです。そのため、損失関数は、すべての訓練データを対象として求める必要があります。つまり、訓練データが100個あれば、その100個の損失関数の和を指標とするのです。</p>
+<p>ところで、先ほど説明した損失関数の例は、ひとつのデータの損失関数を考えていました。そこで、訓練データすべての損失関数の和を求めたいとすると、たとえば、交差エントロピー誤差の場合、次の式(4.3)のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='E =  -\frac{1}{N}\sum_n \sum_k t_{nk}\log y_{nk}  %\qquad(4.3)' src='images/math/fc8676c2d39c450bfc065952c1aaef73.png' style='height: 2.84em'/></div>
+<p class='eqno' id='eq3'>式(4.3)</p>
+</div>
+<p>ここで、データが<span class='equation mathnoimage'><i>N</i></span>個あるとして、<span class='equation mathnoimage'><i>t<sub>nk</sub></i></span>は<span class='equation mathnoimage'><i>n</i></span>個目のデータの<span class='equation mathnoimage'><i>k</i></span>次元目の値を意味します（<span class='equation mathnoimage'><i>y<sub>nk</sub></i></span>はニューラルネットワークの出力、<span class='equation mathnoimage'><i>t<sub>nk</sub></i></span>は教師データです）。数式が少し複雑に見えますが、ひとつのデータに対する損失関数を表す式(4.2)を、単に<span class='equation mathnoimage'><i>N</i></span>個分のデータに拡張しただけです。ただし、最後に<span class='equation mathnoimage'><i>N</i></span>で割って正規化しています。この<span class='equation mathnoimage'><i>N</i></span>で割ることによって、1個あたりの「平均の損失関数」を求めることになります。そのように平均化すれば、訓練データの数に関係なく、いつでも統一した指標が得られます。たとえば、訓練データが1,000個や10,000個の場合であっても、1個あたりの平均の損失関数を求められます。</p>
+<p>ところで、MNISTのデータセットは訓練データが60,000個ありました。そのため、すべてのデータを対象にして損失関数の和を求めるには少々時間がかかってしまいます。また、ビッグデータともなれば、その数は数百万、数千万といったオーダーの巨大なデータになります。その場合、すべてのデータを対象とした損失関数を計算するのは、現実的ではありません。そこで、データの中から一部を選び出し、その一部のデータを全体の「近似」として利用します。ニューラルネットワークの学習においても、訓練データからある枚数だけを選び出し——これをミニバッチ（小さな塊）と言う——、そのミニバッチごとに学習を行います。たとえば、60,000枚の訓練データの中から100枚を無作為に選び出して、その100枚を使って学習を行うのです。このような学習手法を<!-- IDX:ミニバッチ学習 --><b>ミニバッチ学習</b>と言います。</p>
+<p>それでは、ミニバッチ学習のために、訓練データの中から指定された個数のデータをランダムに選び出すコードを書いてみましょう。それに先立ち、MNISTデータセットを読み込むためのコードを次に示します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> \
+    load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, one_hot_label<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+
+<span style='color: #008000; font-weight: bold'>print</span>(x_train<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (60000, 784)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(t_train<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (60000, 10)</span>
+</pre>
+</div>
+<p>3章でも説明しましたが、<code class='tt'>load_mnist</code>という関数は、MNISTデータセットを読み込むための関数です。この関数は、本書が提供するスクリプト<code class='tt'>dataset/mnist.py</code>にあります。この関数は、訓練データとテストデータを読み込みます。読み込む際に、引数で<code class='tt'>one_hot_label=True</code>と指定することで、one-hot表現として、つまり、正解となるラベルだけが1で、残りが0となるようなデータ構造で取得できます。</p>
+<p>さて、上のMNISTデータの読み込みによって、訓練データは60,000個あり、入力データは784次元（元は<span class='equation mathnoimage'><i><span class='math-normal'>28</span>×<span class='math-normal'>28</span></i></span>）の画像データであることが分かります。また、教師データは10次元のデータです。そのため、上の<code class='tt'>x_train</code>、<code class='tt'>t_train</code>の形状は、それぞれ<code class='tt'>(60000, 784)</code>、<code class='tt'>(60000, 10)</code>になります。</p>
+<p>それでは、この訓練データの中からランダムに10枚だけ抜き出すには、どうすればよいでしょうか？ それには、NumPyの<!-- IDX:np.random.choice() --><code class='tt'>np.random.choice()</code>を使って、次のように書くことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>train_size <span style='color: #666666'>=</span> x_train<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+batch_size <span style='color: #666666'>=</span> <span style='color: #666666'>10</span>
+batch_mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>choice(train_size, batch_size)
+x_batch <span style='color: #666666'>=</span> x_train[batch_mask]
+t_batch <span style='color: #666666'>=</span> t_train[batch_mask]
+</pre>
+</div>
+<p><code class='tt'>np.random.choice()</code>を使えば、指定された数字の中からランダムに好きな数だけ取り出すことができます。たとえば、<code class='tt'>np.random.choice(60000, 10)</code>とすると、0から60000未満の数字の中からランダムに10個の数字を選び出します。実際のコードで示すと、次の例に示すように、ミニバッチとして選び出すインデックスを配列として取得できるのです。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>np.random.choice(60000, 10)</b>
+array([ 8013, 14666, 58210, 23832, 52091, 10153,  8107, 19410, 27260, 21411])
+</pre>
+</div>
+<p>後は、このランダムに選ばれたインデックスを指定して、ミニバッチを取り出すだけです。このミニバッチを使って、損失関数を計算します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>テレビの視聴率を計測するには、すべての世帯のテレビではなく、ある選ばれた世帯のテレビだけを対象とします。たとえば、関東地方の中から無作為に選ばれた1,000世帯を対象に視聴率を計測することで、関東地方全体の視聴率を近似して求めることができます。その1,000世帯の視聴率は、正確には全体の視聴率とは一致しませんが、全体のおおよその値として用いることができます。この視聴率の話と同じように、ミニバッチの損失関数も、一部のサンプルデータによって全体を近似して計測します。つまり、全体の訓練データのおおよその近似として、ランダムに選ばれた小さな集まり（ミニバッチ）で代替するのです。</p>
+</td></tr></table></div>
+
+<h3 id='h4-2-4'><span class='secno'>4.2.4　</span>［バッチ対応版］交差エントロピー誤差の実装</h3>
+<p>では、ミニバッチのようなバッチデータに対応した交差エントロピー誤差はどのように実装できるでしょうか？ これは、先ほど実装した交差エントロピー誤差——それはひとつのデータを対象とした誤差でした——を改良することで簡単に実装することができます。ここでは、データがひとつの場合と、データがバッチとしてまとめられて入力される場合の両方のケースに対応するように実装します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>cross_entropy_error</span>(y, t):
+    <span style='color: #008000; font-weight: bold'>if</span> y<span style='color: #666666'>.</span>ndim <span style='color: #666666'>==</span> <span style='color: #666666'>1</span>:
+        t <span style='color: #666666'>=</span> t<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>1</span>, t<span style='color: #666666'>.</span>size)
+        y <span style='color: #666666'>=</span> y<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>1</span>, y<span style='color: #666666'>.</span>size)
+
+    batch_size <span style='color: #666666'>=</span> y<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>-</span>np<span style='color: #666666'>.</span>sum(t <span style='color: #666666'>*</span> np<span style='color: #666666'>.</span>log(y)) <span style='color: #666666'>/</span> batch_size
+</pre>
+</div>
+<p>ここで、<code class='tt'>y</code>はニューラルネットワークの出力、<code class='tt'>t</code>は教師データとします。<code class='tt'>y</code>の次元数が1の場合、つまり、データひとつあたりの交差エントロピー誤差を求める場合は、データの形状を整形します。そして、バッチの枚数で正規化し、1枚あたりの平均の交差エントロピー誤差を計算します。</p>
+<p>また、教師データがラベルとして与えられたとき（one-hot表現ではなく、「2」や「7」といったラベルとして与えられたとき）、交差エントロピー誤差は次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>cross_entropy_error</span>(y, t):
+    <span style='color: #008000; font-weight: bold'>if</span> y<span style='color: #666666'>.</span>ndim <span style='color: #666666'>==</span> <span style='color: #666666'>1</span>:
+        t <span style='color: #666666'>=</span> t<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>1</span>, t<span style='color: #666666'>.</span>size)
+        y <span style='color: #666666'>=</span> y<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>1</span>, y<span style='color: #666666'>.</span>size)
+
+    batch_size <span style='color: #666666'>=</span> y<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>-</span>np<span style='color: #666666'>.</span>sum(np<span style='color: #666666'>.</span>log(y[np<span style='color: #666666'>.</span>arange(batch_size), t])) <span style='color: #666666'>/</span> batch_size
+</pre>
+</div>
+<p>実装のポイントは、one-hot表現で<code class='tt'>t</code>が0の要素は、交差エントロピー誤差も0であるから、その計算は無視してもよいということです。言い換えれば、正解ラベルに対して、ニューラルネットワークの出力を得ることができれば、交差エントロピー誤差を計算することができるのです。そのため、<code class='tt'>t</code>がone-hot表現のときは<code class='tt'>t * np.log(y)</code>で計算していた箇所を、<code class='tt'>t</code>がラベル表現の場合は、<code class='tt'>np.log( y[np.arange(batch_size), t] )</code>として、同じ処理を実現します。</p>
+<p>参考までに<code class='tt'>np.log( y[np.arange(batch_size), t] )</code>を簡単に説明します。<code class='tt'>np.arange(batch_size)</code>は、0から<code class='tt'>batch_size-1</code>までの配列を生成します。たとえば、<code class='tt'>batch_size</code>が5だとしたら、<code class='tt'>np.arange(batch_size)</code>は<code class='tt'>[0, 1, 2, 3, 4]</code>のNumPy配列を生成します。<code class='tt'>t</code>にはラベルが<code class='tt'>[2, 7, 0, 9, 4]</code>のように格納されているので、<code class='tt'>y[np.arange(batch_size), t]</code>は、各データの正解ラベルに対応するニューラルネットワークの出力を抽出します（この例では、<code class='tt'>y[np.arange(batch_size), t]</code>は、<code class='tt'>[y[0,2], y[1,7], y[2,0], y[3,9], y[4,4]]</code>のNumPy配列を生成します）。</p>
+
+<h3 id='h4-2-5'><span class='secno'>4.2.5　</span>なぜ損失関数を設定するのか？</h3>
+<p>損失関数の話が出てきて、なぜ損失関数を導入するのか、と疑問に思った方がいるかもしれません。たとえば、数字認識の場合、認識精度が高くなるようなパラメータを獲得したいので、わざわざ損失関数なるものを導入するのは二度手間ではないか、つまり、私たちが目標とすることは、できるだけ認識精度が高くなるニューラルネットワークを獲得することなので、「認識精度」を指標にすべきではないか、という疑問です。</p>
+<p>この疑問に対する答えは、ニューラルネットワークの学習における「微分」の役割に注目すると解決します。詳しくは次節で説明しますが、ニューラルネットワークの学習では、最適なパラメータ（重みとバイアス）を探索する際に、損失関数の値ができるだけ小さくなるようなパラメータを探します。ここで、できるだけ小さな損失関数の場所を探すために、パラメータの微分（正確には勾配）を計算し、その微分の値を手がかりにパラメータの値を徐々に更新していきます。</p>
+<p>たとえば、ここに仮想上のニューラルネットワークがあったとして、そのニューラルネットワークのあるひとつの重みパラメータに注目するとします。このとき、そのひとつの重みパラメータの損失関数に対する微分は、「その重みパラメータの値を少しだけ変化させたときに、損失関数がどのように変化するか」ということを表します。もし、その微分の値がマイナスとなれば、その重みパラメータを正の方向へ変化させることで、損失関数を減少させることができます。逆に、その微分の値がプラスであれば、その重みパラメータを負の方向へ変化させることで、損失関数を減少させることができるのです。しかし、微分の値が0になると、重みパラメータをどちらに動かしても、損失関数の値が変わらないため、その重みパラメータの更新はそこでストップします。</p>
+<p>認識精度を指標にしてはいけない理由は、微分がほとんどの場所で0になってしまい、パラメータの更新ができなくなってしまうからなのです。さて、話が少し長くなってきたので、ここまでの説明をまとめることにします。</p>
+<blockquote><p>ニューラルネットワークの学習の際に、認識精度を“指標”にしてはいけない。その理由は、認識精度を指標にすると、パラメータの微分がほとんどの場所で0になってしまうからである。</p></blockquote>
+<p>認識精度を指標にすると、なぜパラメータの微分がほとんどの場所で0になってしまうのか？——その理由を説明するために、別の具体例を出して考えてみます。ここでは、あるニューラルネットワークが現在100枚ある訓練データの中で32枚を正しく認識できているとします。このとき、認識精度は32%です。もし認識精度を指標にしたとすれば、重みパラメータの値を少し変えただけでは、認識精度は32%のままで、変化が現れないでしょう。つまり、パラメータの少しの調整だけでは、認識精度は改善されず一定のままなのです。もし認識精度が改善されたとしても、その値は32.0123…%のような連続的な変化ではなく、33%や34%のように、不連続のとびとびの値へと変わってしまいます。一方、損失関数を指標とした場合、現在の損失関数の値は0.92543…のような値によって表されます。そして、パラメータの値を少し変化させると、それに反応して損失関数も0.93432…のように連続的に変化するのです。</p>
+<p>認識精度はパラメータの微小な変化にはほとんど反応を示さず、もし反応があるにしても、その値は不連続にいきなり変化します。これは、活性化関数の「ステップ関数」にも同じ話が当てはまります。なぜなら、もし活性化関数にステップ関数を使うと、ニューラルネットワークの学習は、同じ理由でうまく行えないのです。同じ理由とは、<a href='./ch04.xhtml#fig04_4'>図4-4</a>に示すように、ステップ関数の微分は、ほとんどの場所（0以外の場所）で0になります。つまり、ステップ関数を用いると、損失関数を指標に用いたとしても、パラメータの微小な変化は、ステップ関数によって抹殺されてしまい、損失関数の値は何の変化も示さなくなってしまうのです。</p>
+<div class='image' id='fig04_4'>
+<img alt='ステップ関数とシグモイド関数：ステップ関数はほとんどの場所で傾きは0であるのに対して、シグモイド関数の傾き（接線）は0にならない' src='images/ch04/fig04_4.png'/>
+<p class='caption'>
+図4-4　ステップ関数とシグモイド関数：ステップ関数はほとんどの場所で傾きは0であるのに対して、シグモイド関数の傾き（接線）は0にならない
+</p>
+</div>
+<p>ステップ関数は「ししおどし」のように、ある瞬間だけ変化を起こす関数でしたが、一方、シグモイド関数の微分（接線）は、<a href='./ch04.xhtml#fig04_4'>図4-4</a>に示すように、出力（縦軸の値）が連続的に変化し、さらに、曲線の傾きも連続的に変化します。つまり、シグモイド関数の微分はどの場所であっても0にはならないのです。これは、ニューラルネットワークの「学習」において重要な性質になります。この性質——傾きが0にはならない——によって、ニューラルネットワークは正しい学習が行えるようになります。</p>
+
+<h2 id='h4-3'><span class='secno'>4.3　</span>数値微分</h2>
+<p>勾配法では、勾配の情報を使って、進む方向を決めます。ここでは、勾配とはどういうものか、また、どういう性質があるのか、といったことについて説明します。それに先立ち、まずは「微分」の説明から始めたいと思います。</p>
+
+<h3 id='h4-3-1'><span class='secno'>4.3.1　</span>微分</h3>
+<p><!-- IDX:微分 -->たとえば、あなたはフルマラソンを走るランナーだとして、スタートから10分間で2kmを走ったとします。このときの走る速さはどう計算できるかというと、2 / 10 = 0.2［km/分］と計算できます。つまり、1分間に0.2kmだけ進むスピード（変化）で走ったと計算できるのです。</p>
+<p>このマラソンの例では、「走った距離」が「時間」に対してどのくらい変化したかということを計算しました。ただし、ここで行った計算は、10分間に2km走ったということなので、正しくは10分間の「平均速度」を求めたことになります。微分とは、「ある瞬間」の変化の量を表したものです。そのため、10分間という時間をできるかぎり小さくする——直前の1分間に走った距離、直前の1秒間に走った距離、直前の0.1秒間に走った距離、…とどんどん時間を小さくする——ことで、ある瞬間の変化の量（ある瞬間の速度）を得ることができるようになります。</p>
+<p>このように、微分とは、ある瞬間の変化の量を表したものです。これは数式で次のように定義されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\frac{df(x)}{dx} = \lim_{h \to 0} \frac{f(x + h) - f(x)}{h}  %\qquad(4.4)' src='images/math/81e585adb12469d32cbc3c391f732881.png' style='height: 2.42em'/></div>
+<p class='eqno' id='eq4'>式(4.4)</p>
+</div>
+<p>式(4.4)は、関数の微分を表した式です。左辺の<span class='equation mathimage'><img alt='\frac{df(x)}{dx}' src='images/math/13a68e25c683dfc32f7c508ff90575c7.png' style='height: 1.58em'/></span>は、<span class='equation mathnoimage'><i>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>の<span class='equation mathnoimage'><i>x</i></span>についての微分——<span class='equation mathnoimage'><i>x</i></span>に対する<span class='equation mathnoimage'><i>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>の変化の度合い——を表す記号です。式(4.4)で表される微分は、<span class='equation mathnoimage'><i>x</i></span>の「小さな変化」によって、関数<span class='equation mathnoimage'><i>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>の値がどれだけ変化するか、ということを意味します。その際、「小さな変化」である<span class='equation mathnoimage'><i>h</i></span>を限りなく0に近づけますが、これは<span class='equation mathimage'><img alt='\lim\limits_{h \to 0}' src='images/math/055ec61312837e513cc388223213366c.png' style='height: 1.58em'/></span>で表されます。</p>
+<p>さて、式(4.4)を参考に、関数の微分を求める計算をプログラムで実装しましょう。式(4.4)を素直に実装するとすれば、<span class='equation mathnoimage'><i>h</i></span>に小さな値を代入して、計算することができます。たとえば、次のような実装はどうでしょうか？</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #408080; font-style: italic'># 悪い実装例</span>
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>numerical_diff</span>(f, x):
+    h <span style='color: #666666'>=</span> <span style='color: #666666'>10e-50</span>
+    <span style='color: #008000; font-weight: bold'>return</span> (f(x<span style='color: #666666'>+</span>h) <span style='color: #666666'>-</span> f(x)) <span style='color: #666666'>/</span> h
+</pre>
+</div>
+<p>関数の名前は<!-- IDX:数値微分 --><b>数値微分</b>（<!-- IDX:numerical differentiation -->numerical differentiation）から<code class='tt'>numerical_diff(f, x)</code>という名前の関数にしています。この関数は、「関数<code class='tt'>f</code>」と「関数<code class='tt'>f</code>への引数<code class='tt'>x</code>」の2つの引数を取るものとします。一見この実装に問題はなさそうですが、実際には改善すべきポイントが2つあります。</p>
+<p>上の実装では、<code class='tt'>h</code>にはできるだけ小さな値を用いたかったので（できることなら、<code class='tt'>h</code>を0に無限に近づけたかったので）、<code class='tt'>h</code>には<code class='tt'>10e-50</code>（「0.00…1」の0が50個続く数）という小さな値を用いてます。しかし、これでは逆に<!-- IDX:丸め誤差 --><b>丸め誤差</b>（rounding error）が問題になってしまいます。丸め誤差とは、小数の小さな範囲において数値が省略されることで（たとえば、小数点第8位以下が省略されるといったこと）、最終的な計算結果に誤差が生じることを言います。たとえば、Pythonの場合、丸め誤差は次のような例で示すことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>np.float32(1e-50)</b>
+0.0
+</pre>
+</div>
+<p>上で示すように、<code class='tt'>1e-50</code>を<code class='tt'>float32</code>型（32ビットの浮動小数点数）で表すと、0.0となり、正しく表現できないことが分かります。つまり、小さすぎる値を用いることはコンピュータで計算する上で問題になるということです。そこで、ひとつ目の改善ポイントです。それは、この微小な値<code class='tt'>h</code>として<span class='equation mathimage'><img alt='{10^{ - 4}}' src='images/math/2741e2e785c4d73a15bc580c066f8a1d.png' style='height: 1.0em'/></span>を用いることです。<span class='equation mathimage'><img alt='{10^{ - 4}}' src='images/math/2741e2e785c4d73a15bc580c066f8a1d.png' style='height: 1.0em'/></span>程度の値を用いれば、良い結果が得られることが分かっています。</p>
+<p>上の実装の2つ目の改善ポイントは、関数<code class='tt'>f</code>の差分についてです。上の実装では、<code class='tt'>x+h</code>と<code class='tt'>x</code>の間での関数<code class='tt'>f</code>の差分を計算していますが、そもそも、この計算には誤差が生じることに注意する必要があります。<a href='./ch04.xhtml#fig04_5'>図4-5</a>に示すように、「真の微分」は、<span class='equation mathnoimage'><i>x</i></span>の位置での関数の傾き（これを接線と言う）に対応しますが、今回の実装で行っている微分は、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>＋</span>h<span class='math-normal'>)</span></i></span>と<span class='equation mathnoimage'><i>x</i></span>の間の傾きに対応します。そのため、真の微分（真の接線）と今回の実装の値は、厳密には一致しません。この差異は、<span class='equation mathnoimage'><i>h</i></span>を無限に0へと近づけることができないために生じるものです。</p>
+<div class='image' id='fig04_5'>
+<img alt='真の微分（真の接線）と数値微分（近似による接線）の値は異なる' src='images/ch04/fig04_5.png'/>
+<p class='caption'>
+図4-5　真の微分（真の接線）と数値微分（近似による接線）の値は異なる
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_5'>図4-5</a>で示すように、数値微分には誤差が含まれます。この誤差を減らす工夫として、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>＋</span>h<span class='math-normal'>)</span></i></span>と<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>−</span>h<span class='math-normal'>)</span></i></span>での関数<span class='equation mathnoimage'><i>f</i></span>の差分を計算することで、誤差を減らすことができます。この差分は、<span class='equation mathnoimage'><i>x</i></span>を中心として、その前後の差分を計算することから、<!-- IDX:中心差分 --><b>中心差分</b>と言います（一方、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<span class='math-normal'>＋</span>h<span class='math-normal'>)</span></i></span>と<span class='equation mathnoimage'><i>x</i></span>の差分は<!-- IDX:前方差分 --><b>前方差分</b>と言います）。それでは、2つの改善点を元に、数値微分（数値勾配）の実装を行います。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>numerical_diff</span>(f, x):
+    h <span style='color: #666666'>=</span> <span style='color: #666666'>1e-4</span> <span style='color: #408080; font-style: italic'># 0.0001</span>
+    <span style='color: #008000; font-weight: bold'>return</span> (f(x<span style='color: #666666'>+</span>h) <span style='color: #666666'>-</span> f(x<span style='color: #666666'>-</span>h)) <span style='color: #666666'>/</span> (<span style='color: #666666'>2*</span>h)
+</pre>
+</div>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ここで行っているように、微小な差分によって微分を求めることを<!-- IDX:数値微分 --><b>数値微分</b>（numerical differentiation）と言います。一方、数式の展開によって微分を求めることは、<!-- IDX:解析的 --><b>解析的</b>（analytic）という言葉を用いて、たとえば、「解析的に解く」とか「解析的に微分を求める」などと言います。たとえば、<span class='equation mathnoimage'><i>y<span class='math-normal'>＝</span>x<sup><span class='math-normal'>2</span></sup></i></span>の微分は、解析的には、<span class='equation mathimage'><img alt='{\frac{dy}{dx}} = 2x' src='images/math/fc066178b19e996383cba6a43f90064a.png' style='height: 1.5em'/></span>として解くことができます。そのため、<span class='equation mathnoimage'><i>x<span class='math-normal'>＝2</span></i></span>での<span class='equation mathnoimage'><i>y</i></span>の微分は4と計算できます。解析的な微分は、誤差が含まれない「真の微分」として求めることができます。</p>
+</td></tr></table></div>
+
+<h3 id='h4-3-2'><span class='secno'>4.3.2　</span>数値微分の例</h3>
+<p>上の数値微分を使って、簡単な関数を微分してみましょう。まずは、次の数式で表される2次関数です。</p>
+<div class='equation'>
+<div class='math'><img alt='y = 0.01{x^2} + 0.1x  %\qquad(4.5)' src='images/math/a87e411437ab861ed40bf1fa6dbd47ed.png' style='height: 1.26em'/></div>
+<p class='eqno' id='eq5'>式(4.5)</p>
+</div>
+<p>この式(4.5)をPythonで実装すると次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>function_1</span>(x):
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0.01*</span>x<span style='color: #666666'>**2</span> <span style='color: #666666'>+</span> <span style='color: #666666'>0.1*</span>x
+</pre>
+</div>
+<p>続いて、この関数を描画します。描画のためのコードと生成されるグラフは次のようになります（<a href='./ch04.xhtml#fig04_6'>図4-6</a>）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pylab</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>arange(<span style='color: #666666'>0.0</span>, <span style='color: #666666'>20.0</span>, <span style='color: #666666'>0.1</span>) <span style='color: #408080; font-style: italic'># 0から20まで、0.1刻みのx配列</span>
+y <span style='color: #666666'>=</span> function_1(x)
+plt<span style='color: #666666'>.</span>xlabel(<span style='color: #BA2121'>&quot;x&quot;</span>)
+plt<span style='color: #666666'>.</span>ylabel(<span style='color: #BA2121'>&quot;f(x)&quot;</span>)
+plt<span style='color: #666666'>.</span>plot(x, y)
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<div class='image' id='fig04_6'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/c6ba33270d52040872d6d27fa3eef920.png&quot; alt=&quot;f(x) = 0.01{x^2} + 0.1x&quot; /&gt;&lt;/span&gt;のグラフ' src='images/ch04/fig04_6.png'/>
+<p class='caption'>
+図4-6　<span class='equation mathimage'><img alt='f(x) = 0.01{x^2} + 0.1x' src='images/math/c6ba33270d52040872d6d27fa3eef920.png' style='height: 1.26em'/></span>のグラフ
+</p>
+</div>
+<p>それでは、この関数の微分を、<code class='tt'>x</code>=5と<code class='tt'>x</code>=10のときで、それぞれ計算してみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>numerical_diff(function_1, 5)</b>
+0.1999999999990898
+&gt;&gt;&gt; <b>numerical_diff(function_1, 10)</b>
+0.2999999999986347
+</pre>
+</div>
+<p>ここで計算した微分の値は、<span class='equation mathnoimage'><i>x</i></span>に対する<span class='equation mathnoimage'><i>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>の変化の量であり、これは関数の傾きに対応します。なお、<span class='equation mathimage'><img alt='f(x) = 0.01{x^2} + 0.1x' src='images/math/c6ba33270d52040872d6d27fa3eef920.png' style='height: 1.26em'/></span>の解析的な解は、<span class='equation mathimage'><img alt='\frac{df(x)}{dx} = 0.02x + 0.1' src='images/math/373f7266a9cc642ef465cfbe18946676.png' style='height: 1.58em'/></span>です。そのため、<code class='tt'>x</code>=5、10での「真の微分」は、0.2、0.3となり、上の数値微分との結果を比べると、厳密には一致しませんが、その誤差は非常に小さいことが分かります。実際、ほとんど同じ値と見なすことができるぐらい小さな誤差です。</p>
+<p>それでは、上の数値微分の結果を使って、その数値微分の値を傾きとする直線をグラフにプロットしてみます。結果は<a href='./ch04.xhtml#fig04_7'>図4-7</a>のようになり、関数の接線に対応することが確認できます（ソースコードは<code class='tt'>ch04/gradient_1d.py</code>にあります）。</p>
+<div class='image' id='fig04_7'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;x&lt;span class=&apos;math-normal&apos;&gt;＝5&lt;/span&gt;&lt;/i&gt;&lt;/span&gt;、&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;x&lt;span class=&apos;math-normal&apos;&gt;＝10&lt;/span&gt;&lt;/i&gt;&lt;/span&gt;での接線：直線の傾きは数値微分から求めた値を用いる' src='images/ch04/fig04_7.png'/>
+<p class='caption'>
+図4-7　<span class='equation mathnoimage'><i>x<span class='math-normal'>＝5</span></i></span>、<span class='equation mathnoimage'><i>x<span class='math-normal'>＝10</span></i></span>での接線：直線の傾きは数値微分から求めた値を用いる
+</p>
+</div>
+
+<h3 id='h4-3-3'><span class='secno'>4.3.3　</span>偏微分</h3>
+<p>続いて、式(4.6)で表される関数について見ていきます。引数の2乗和を計算するだけの単純な式ですが、先の例と違って、変数が2つあることに注意しましょう。</p>
+<div class='equation'>
+<div class='math'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2  %\qquad(4.6)' src='images/math/6398fd71601401eda49327fe6ea56798.png' style='height: 1.34em'/></div>
+<p class='eqno' id='eq6'>式(4.6)</p>
+</div>
+<p>この式はPythonで次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>function_2</span>(x):
+    <span style='color: #008000; font-weight: bold'>return</span> x[<span style='color: #666666'>0</span>]<span style='color: #666666'>**2</span> <span style='color: #666666'>+</span> x[<span style='color: #666666'>1</span>]<span style='color: #666666'>**2</span>
+    <span style='color: #408080; font-style: italic'># または return np.sum(x**2)</span>
+</pre>
+</div>
+<p>ここでは、引数にNumPy配列が入力されることを想定します。関数の中身は、NumPy配列の各要素を2乗して、その和を求めるだけの簡単な実装です（また、<code class='tt'>np.sum(x**2)</code>でも同じ処理が実装できます）。さて、この関数をグラフに描画してみましょう。結果は<a href='./ch04.xhtml#fig04_8'>図4-8</a>のように3次元のグラフとして描画されます。</p>
+<div class='image' id='fig04_8'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/8d145d11f1437ae7c483520fc152bec8.png&quot; alt=&quot;f({x_0},{x_1}) = x_0^2 + x_1^2&quot; /&gt;&lt;/span&gt;のグラフ' src='images/ch04/fig04_8.png'/>
+<p class='caption'>
+図4-8　<span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>のグラフ
+</p>
+</div>
+<p>それでは、式(4.6)の微分を求めたいと思います。ここで注意するポイントは、式(4.6)には変数が2つあるということです。そのため、「どの変数に対しての微分か」ということ、つまり、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>の2つある変数のどちらの変数に対しての微分かということを区別する必要があります。なお、ここで扱うような複数の変数からなる関数の微分を<!-- IDX:偏微分 --><b>偏微分</b>と言います。この偏微分を数式で表すと、<span class='equation mathimage'><img alt='\frac{\partial f}{\partial {x_0}}' src='images/math/6fb8f257101923287dea61c92441d044.png' style='height: 1.58em'/></span>、<span class='equation mathimage'><img alt='\frac{\partial f}{\partial {x_1}}' src='images/math/a175314ea5b6aca16a912811cb64017f.png' style='height: 1.58em'/></span>のように書きます。</p>
+<p>偏微分はどのように求めることができるでしょうか？ ここでは、実際に、次の2つの偏微分の問題を解いてみることにしましょう。</p>
+<blockquote><p><b>問1</b>：<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub><span class='math-normal'>＝</span><span class='math-normal'>3</span></i></span>、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>＝</span><span class='math-normal'>4</span></i></span>のときの<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub></i></span>に対する偏微分<span class='equation mathimage'><img alt='\frac{\partial f}{\partial {x_0}}' src='images/math/6fb8f257101923287dea61c92441d044.png' style='height: 1.58em'/></span>を求めよ。</p></blockquote>
+<div class='emlist-code'>
+<pre class='emlist'>    &gt;&gt;&gt; <b>def function_tmp1(x0):</b>
+    ...     <b>return x0*x0 + 4.0**2.0</b>
+    ...
+    &gt;&gt;&gt; <b>numerical_diff(function_tmp1, 3.0)</b>
+    6.00000000000378
+</pre>
+</div>
+<blockquote><p><b>問2</b>：<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub><span class='math-normal'>＝</span><span class='math-normal'>3</span></i></span>、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>＝</span><span class='math-normal'>4</span></i></span>のときの<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>に対する偏微分<span class='equation mathimage'><img alt='\frac{\partial f}{\partial {x_1}}' src='images/math/a175314ea5b6aca16a912811cb64017f.png' style='height: 1.58em'/></span>を求めよ。</p></blockquote>
+<div class='emlist-code'>
+<pre class='emlist'>    &gt;&gt;&gt; <b>def function_tmp2(x1):</b>
+    ...     <b>return 3.0**2.0 + x1*x1</b>
+    ...
+    &gt;&gt;&gt; <b>numerical_diff(function_tmp2, 4.0)</b>
+    7.999999999999119
+</pre>
+</div>
+<p>これらの問題では、変数がひとつだけの関数を定義して、その関数について微分を求めるような実装を行っています。たとえば、問1の場合、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>＝4</span></i></span>で固定した新しい関数を定義し、そして、変数が<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub></i></span>だけの関数に対して、数値微分の関数を適用しています。なお、上の結果から、問1の答えは6.00000000000378、問2の答えは7.999999999999119になりました。これは、解析的な微分の解とほぼ一致します。</p>
+<p>このように、偏微分は、1変数の微分と同じで、ある場所の傾きを求めます。ただし、偏微分の場合、複数ある変数の中でターゲットとする変数をひとつに絞り、他の変数はある値に固定します。上の例の実装では、ターゲットとする変数以外を特定の値に固定するために、新しい関数を定義したのでした。そして、その新しく定義した関数に対して、これまで使用した数値微分の関数を適用して、偏微分を求めたのです。</p>
+
+<h2 id='h4-4'><span class='secno'>4.4　</span>勾配</h2>
+<p>先の例では、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>の偏微分の計算を変数ごとに計算しました。それでは、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>の偏微分をまとめて計算したいとします。たとえば、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>0</span></sub><span class='math-normal'>＝3</span></i></span>、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>＝4</span></i></span>のときの<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<sub><span class='math-normal'>0</span></sub><span class='math-normal'>,</span> x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>)</span></i></span>の両方の偏微分をまとめて、<span class='equation mathimage'><img alt='\left(\frac{\partial f}{\partial x_0}, \frac{\partial f}{\partial x_1}\right)' src='images/math/523cfdbc6a1bae5eb69482b88dc7b6b0.png' style='height: 2.08em'/></span>として計算することを考えましょう。なお、<span class='equation mathimage'><img alt='\left(\frac{\partial f}{\partial x_0}, \frac{\partial f}{\partial x_1}\right)' src='images/math/523cfdbc6a1bae5eb69482b88dc7b6b0.png' style='height: 2.08em'/></span>のように、すべての変数の偏微分をベクトルとしてまとめたものを<!-- IDX:勾配 --><b>勾配</b>（<!-- IDX:gradient -->gradient）と言います。勾配は、たとえば、次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>numerical_gradient</span>(f, x):<!-- IDX:numerical_gradient() -->
+    h <span style='color: #666666'>=</span> <span style='color: #666666'>1e-4</span> <span style='color: #408080; font-style: italic'># 0.0001</span>
+    grad <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros_like(x) <span style='color: #408080; font-style: italic'># xと同じ形状の配列を生成</span>
+
+    <span style='color: #008000; font-weight: bold'>for</span> idx <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(x<span style='color: #666666'>.</span>size):
+        tmp_val <span style='color: #666666'>=</span> x[idx]
+        <span style='color: #408080; font-style: italic'># f(x+h)の計算</span>
+        x[idx] <span style='color: #666666'>=</span> tmp_val <span style='color: #666666'>+</span> h
+        fxh1 <span style='color: #666666'>=</span> f(x)
+
+        <span style='color: #408080; font-style: italic'># f(x-h)の計算</span>
+        x[idx] <span style='color: #666666'>=</span> tmp_val <span style='color: #666666'>-</span> h
+        fxh2 <span style='color: #666666'>=</span> f(x)
+
+        grad[idx] <span style='color: #666666'>=</span> (fxh1 <span style='color: #666666'>-</span> fxh2) <span style='color: #666666'>/</span> (<span style='color: #666666'>2*</span>h)
+        x[idx] <span style='color: #666666'>=</span> tmp_val <span style='color: #408080; font-style: italic'># 値を元に戻す</span>
+
+    <span style='color: #008000; font-weight: bold'>return</span> grad
+</pre>
+</div>
+<p><code class='tt'>numerical_gradient(f, x)</code>関数の実装は少々複雑に見えますが、行っていることは1変数の数値微分とほとんど変わりません。ひとつ補足として述べるとすれば、<!-- IDX:np.zeros_like() --><code class='tt'>np.zeros_like(x)</code>は、<code class='tt'>x</code>と同じ形状の配列で、その要素がすべて0の配列を生成するということです。</p>
+<p><code class='tt'>numerical_gradient(f, x)</code>関数は、引数の<code class='tt'>f</code>は関数、<code class='tt'>x</code>はNumPy配列であるとして、NumPy配列<code class='tt'>x</code>の各要素に対して数値微分を求めます。それでは、この関数を使って、実際に勾配を計算してみましょう。ここでは点(3, 4)、(0, 2)、(3, 0)での勾配を求めてみます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>numerical_gradient(function_2, np.array([3.0, 4.0]))</b>
+array([ 6.,  8.]) &lt;a id=&quot;fnb-fn0401&quot; href=&quot;#fn-fn0401&quot; class=&quot;noteref&quot; epub:type=&quot;noteref&quot;&gt;*1&lt;/a&gt;
+&gt;&gt;&gt; <b>numerical_gradient(function_2, np.array([0.0, 2.0]))</b>
+array([ 0.,  4.])
+&gt;&gt;&gt; <b>numerical_gradient(function_2, np.array([3.0, 0.0]))</b>
+array([ 6.,  0.])
+</pre>
+</div>
+<div class='footnote' id='fn-fn0401' epub:type='footnote'><p class='footnote'>[†1] 実際は、<code class='tt'>[6.0000000000037801, 7.9999999999991189]</code>という値が得られますが、<code class='tt'>[6., 8.]</code>として出力されます。これは、NumPy配列を出力するときには、数値が“見やすいように”整形して出力されるためです。</p></div>
+<p>このように、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>x<sub><span class='math-normal'>0</span></sub><span class='math-normal'>,</span> x<sub><span class='math-normal'>1</span></sub><span class='math-normal'>)</span></i></span>の各点における勾配を計算することができます。上の例では、点(3, 4)の勾配は(6, 8)、点(0, 2)の勾配は(0, 4)、点(3, 0)の勾配は(6, 0)といったような結果になりましたが、この勾配は何を意味しているのでしょうか？ それを理解するために、<span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>の勾配を図で表してみることにしましょう。ただし、ここでは勾配の結果にマイナスを付けたベクトルを描画します（ソースコードは<code class='tt'>ch04/gradient_2d.py</code>にあります）。</p>
+<p><span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>の勾配は、<a href='./ch04.xhtml#fig04_9'>図4-9</a>のように向きを持ったベクトル（矢印）として図示されます。<a href='./ch04.xhtml#fig04_9'>図4-9</a>を見ると、勾配は、関数<span class='equation mathimage'><img alt='f({x_0},{x_1})' src='images/math/01d0954bd764598807ebdcf1540ca9c2.png' style='height: 1.16em'/></span>の「一番低い場所（最小値）」を指しているようです。まるで羅針盤のように、矢印は一点を向いています。また、「一番低い場所」から遠く離れれば離れるほど、矢印の大きさも大きくなることが分かります。</p>
+<div class='image' id='fig04_9'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/8d145d11f1437ae7c483520fc152bec8.png&quot; alt=&quot;f({x_0},{x_1}) = x_0^2 + x_1^2&quot; /&gt;&lt;/span&gt;の勾配' src='images/ch04/fig04_9.png'/>
+<p class='caption'>
+図4-9　<span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>の勾配
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_9'>図4-9</a>の例では、勾配は一番低い場所を指しましたが、実際は必ずしもそうなるとはかぎりません。しかし、勾配は、各地点において低くなる方向を指します。より正確に言うならば、勾配が示す方向は、各場所において<b>関数の値を最も減らす方向</b>なのです。これは重要なポイントなので、しっかりと覚えておきましょう！</p>
+
+<h3 id='h4-4-1'><span class='secno'>4.4.1　</span>勾配法</h3>
+<p>機械学習の問題の多くは、学習の際に最適なパラメータを探索します。ニューラルネットワークも同様に最適なパラメータ（重みとバイアス）を学習時に見つけなければなりません。ここで、最適なパラメータというのは、損失関数が最小値を取るときのパラメータの値です。しかし、一般的に損失関数は複雑です。パラメータ空間は広大であり、どこに最小値を取る場所があるのか検討がつきません。そこで、勾配をうまく利用して関数の最小値（または、できるだけ小さな値）を探そう、というのが勾配法です。</p>
+<p>ここでの注意点は、各地点において関数の値を最も減らす方向を示すのが勾配だということです。そのため、勾配が指す先が本当に関数の最小値なのかどうか、また、その先が本当に進むべき方向なのかどうか保証することはできません。実際、複雑な関数においては、勾配が指す方向は、最小値ではない場合がほとんどです。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>関数の極小値や最小値また<!-- IDX:鞍点 --><ruby>鞍点<rp>（</rp><rt>あんてん</rt><rp>）</rp></ruby>（saddle point）と呼ばれる場所では、勾配が0になります。極小値は、局所的な最小値、つまり、ある範囲に限定した場合にのみ最小値となる点です。また、鞍点とは、ある方向で見れば極大値で、別の方向で見れば極小値となる点です。勾配法は勾配が0の場所を探しますが、それが必ずしも最小値だとはかぎりません（それは極小値や鞍点の可能性があります）。また、関数が複雑で歪な形をしていると、（ほとんど）平らな土地に入り込み、「<!-- IDX:プラトー -->プラトー」と呼ばれる学習が進まない停滞期に陥ることがあります。</p>
+</td></tr></table></div>
+<p>勾配の方向が必ず最小値を指すとはかぎらないにせよ、その方向に進むことで関数の値を最も減らせることができます。そのため、最小値の場所を探す問題——もしくは、できるだけ小さな値となる関数の場所を探す問題——においては、勾配の情報を手がかりに、進む方向を決めるべきでしょう。</p>
+<p>そこで勾配法の出番です。勾配法では、現在の場所から勾配方向に一定の距離だけ進みます。そして、移動した先でも同様に勾配を求め、また、その勾配方向へ進むというように、繰り返し勾配方向へ移動します。このように勾配方向へ進むことを繰り返すことで、関数の値を徐々に減らすのが<!-- IDX:勾配法 --><b>勾配法</b>（<!-- IDX:gradient method -->gradient method）です。勾配法は機械学習の最適化問題でよく使われる手法です。特に、ニューラルネットワークの学習では勾配法がよく用いられます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>勾配法は、目的が最小値を探すことか、それとも最大値を探すことかによって呼び名が変わります。正確には、最小値を探す場合を<!-- IDX:勾配降下法 --><b>勾配降下法</b>（<!-- IDX:gradient descent method -->gradient descent method）、最大値を探す場合を<!-- IDX:勾配上昇法 --><b>勾配上昇法</b>（<!-- IDX:gradient ascent method -->gradient ascent method）と言います。ただし、損失関数の符号を反転させれば、最小値を探す問題と最大値を探す問題は同じことになるので、「降下」か「上昇」かの違いは本質的には重要ではありません。一般的に、ニューラルネットワーク（ディープラーニング）の分野では、勾配法は「勾配降下法」として登場することが多くあります。</p>
+</td></tr></table></div>
+<p>それでは、勾配法を数式で表してみます。勾配法を数式で表すと次の式(4.7)のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+{x_0} = {x_0} - \eta \frac{\partial f}{\partial {x_0}}\\[4pt]
+{x_1} = {x_1} - \eta \frac{\partial f}{\partial {x_1}}
+\end{aligned}
+%\qquad(4.7)' src='images/math/15e9cbd9a72a83c6b8085ca5f9d67416.png' style='height: 5.76em'/></div>
+<p class='eqno' id='eq7'>式(4.7)</p>
+</div>
+<p>式(4.7)の<span class='equation mathimage'><img alt='\eta' src='images/math/ae30ff863eb7eceedafb53297e4d8cd6.png' style='height: 0.76em'/></span>は更新の量を表します。これは、ニューラルネットワークの学習においては、<!-- IDX:学習率 --><b>学習率</b>（<!-- IDX:learning rate -->learning rate）と呼ばれます。1回の学習で、どれだけ学習すべきか、どれだけパラメータを更新するか、ということを決めるのが学習率です。</p>
+<p>式(4.7)は1回の更新式を示しており、このステップを繰り返し行います。つまり、ステップごとに、式(4.7)のように変数の値を更新していき、そのステップを何度か繰り返すことによって徐々に関数の値を減らしていくのです。また、ここでは、変数が2つの場合を示していますが、変数の数が増えても、同じような式——それぞれの変数の偏微分の値——によって更新されることになります。</p>
+<p>なお、学習率の値は、0.01や0.001など、前もって何らかの値に決める必要があります。この値は、一般的に、大きすぎても小さすぎても、「良い場所」にたどり着くことができません。ニューラルネットワークの学習においては、学習率の値を変更しながら、正しく学習できているかどうか、確認作業を行うのが一般的です。</p>
+<p>それでは、勾配降下法をPythonで実装しましょう。実装は簡単で、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>gradient_descent</span>(f, init_x, lr<span style='color: #666666'>=0.01</span>, step_num<span style='color: #666666'>=100</span>):<!-- IDX:gradient_descent() -->
+    x  <span style='color: #666666'>=</span> init_x
+
+    <span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(step_num):
+        grad <span style='color: #666666'>=</span> numerical_gradient(f, x)
+        x <span style='color: #666666'>-=</span> lr <span style='color: #666666'>*</span> grad
+
+    <span style='color: #008000; font-weight: bold'>return</span> x
+</pre>
+</div>
+<p>引数の<code class='tt'>f</code>は最適化したい関数、<code class='tt'>init_x</code>は初期値、<code class='tt'>lr</code>はlearning rateを意味する学習率、<code class='tt'>step_num</code>は勾配法による繰り返しの数とします。関数の勾配は、<code class='tt'>numerical_gradient(f, x)</code>で求めて、その勾配に学習率を掛けた値で更新する処理を<code class='tt'>step_num</code>で指定された回数繰り返します。</p>
+<p>この関数を使えば、関数の極小値を求めることができ、うまくいけば最小値を求めることができます。それでは、試しに次の問題を解いてみることにしましょう。</p>
+<blockquote><p><b>問</b>：<span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>の最小値を勾配法で求めよ。</p></blockquote>
+<div class='emlist-code'>
+<pre class='emlist'>    &gt;&gt;&gt; <b>def function_2(x):</b>
+    ...     <b>return x[0]**2 + x[1]**2</b>
+    ...
+    &gt;&gt;&gt; <b>init_x = np.array([-3.0, 4.0])</b>
+    &gt;&gt;&gt; <b>gradient_descent(function_2, init_x=init_x, lr=0.1, step_num=100)</b>
+    array([ -6.11110793e-10,   8.14814391e-10])
+</pre>
+</div>
+<p>ここでは、初期値を<code class='tt'>(-3.0, 4.0)</code>として、勾配法を使って最小値の探索を開始します。最終的な結果は<code class='tt'>(-6.1e-10, 8.1e-10)</code>となり、これはほとんど<code class='tt'>(0, 0)</code>に近い結果です。実際、真の最小値は<code class='tt'>(0, 0)</code>なので、勾配法によって、ほぼ正しい結果を得ることができたのです。なお、勾配法による更新のプロセスを図示すると、<a href='./ch04.xhtml#fig04_10'>図4-10</a>のようになります。原点が最も低い場所ですが、そこへ徐々に近づいていることが分かります。なお、この図を描画するためのソースコードは、<code class='tt'>ch04/gradient_method.py</code>にあります（<code class='tt'>ch04/gradient_method.py</code>では、図の等高線を表す破線は表示されません）。</p>
+<div class='image' id='fig04_10'>
+<img alt='&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/8d145d11f1437ae7c483520fc152bec8.png&quot; alt=&quot;f({x_0},{x_1}) = x_0^2 + x_1^2&quot; /&gt;&lt;/span&gt;の勾配法による更新のプロセス：破線は関数の等高線を示す' src='images/ch04/fig04_10.png'/>
+<p class='caption'>
+図4-10　<span class='equation mathimage'><img alt='f({x_0},{x_1}) = x_0^2 + x_1^2' src='images/math/8d145d11f1437ae7c483520fc152bec8.png' style='height: 1.26em'/></span>の勾配法による更新のプロセス：破線は関数の等高線を示す
+</p>
+</div>
+<p>ところで、学習率は大きすぎても、小さすぎても良い結果にならないと言いましたが、ここでは、その両方のケースについて実験してみることにします。</p>
+<div class='emlist-code'>
+<pre class='emlist'># 学習率が大きすぎる例：lr=10.0
+&gt;&gt;&gt; <b>init_x = np.array([-3.0, 4.0])</b>
+&gt;&gt;&gt; <b>gradient_descent(function_2, init_x=init_x, lr=10.0, step_num=100)</b>
+array([ -2.58983747e+13,  -1.29524862e+12])
+
+# 学習率が小さすぎる例：lr=1e-10
+&gt;&gt;&gt; <b>init_x = np.array([-3.0, 4.0])</b>
+&gt;&gt;&gt; <b>gradient_descent(function_2, init_x=init_x, lr=1e-10, step_num=100)</b>
+array([-2.99999994,  3.99999992])
+</pre>
+</div>
+<p>この実験の結果が示すように、学習率が大きすぎると、大きな値へと発散してしまいます。逆に、学習率が小さすぎると、ほとんど更新されずに終わってしまいます。つまりは、適切な学習率を設定するということが重要な問題になるということです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>学習率のようなパラメータは<!-- IDX:ハイパーパラメータ --><b>ハイパーパラメータ</b>と言います。これは、ニューラルネットワークのパラメータ——重みやバイアス——とは性質の異なるパラメータです。なぜなら、ニューラルネットワークの重みパラメータは訓練データと学習アルゴリズムによって“自動”で獲得されるパラメータであるのに対して、学習率のようなハイパーパラメータは人の手によって設定されるパラメータだからです。一般的には、このハイパーパラメータをいろいろな値で試しながら、うまく学習できるケースを探すという作業が必要になります。</p>
+</td></tr></table></div>
+
+<h3 id='h4-4-2'><span class='secno'>4.4.2　</span>ニューラルネットワークに対する勾配</h3>
+<p>ニューラルネットワークの学習においても、勾配を求める必要があります。ここで言う勾配とは、重みパラメータに関する損失関数の勾配です。たとえば、形状が2×3の重み<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>だけを持つニューラルネットワークがあり、損失関数を<span class='equation mathnoimage'><i>L</i></span>で表す場合を考えましょう。この場合、勾配は<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>と表すことができます。実際に数式で表すと次のようになります。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; \mathbf{W} = \left(
+ \begin{matrix}
+   w_{11}^{} &amp; w_{21}^{} &amp; w_{31}^{} \\
+   w_{12}^{} &amp; w_{22}^{} &amp; w_{32}^{}
+ \end{matrix}
+ \right)\\[4pt]
+  &amp; \frac{\partial L}{\partial \mathbf{W}} = \left(
+ \begin{matrix}
+   \frac{\partial L}{\partial w_{11}^{}} &amp; \frac{\partial L}{\partial w_{21}^{}} &amp; \frac{\partial L}{\partial w_{31}^{}} \\
+   \frac{\partial L}{\partial w_{12}^{}} &amp; \frac{\partial L}{\partial w_{22}^{}} &amp; \frac{\partial L}{\partial w_{32}^{}}  \\
+ \end{matrix}
+ \right)
+\end{aligned}
+%\qquad(4.8)' src='images/math/c5fa757a8d20eed93250a849d777b1f9.png' style='height: 7.66em'/></div>
+<p class='eqno' id='eq8'>式(4.8)</p>
+</div>
+<p><span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>の各要素は、それぞれの要素に関する偏微分から構成されます。たとえば、1行1列目の要素である<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{w_{11}}}' src='images/math/d203e239b7e241502f0aaee7ad2acac7.png' style='height: 1.58em'/></span>は、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>11</span></sub></i></span>を少し変化させると損失関数<span class='equation mathnoimage'><i>L</i></span>がどれだけ変化するか、ということを表します。ここで大切な点は、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>の形状は<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>と同じであるということです。実際、式(4.8)では、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>は2×3の同じ形状です。</p>
+<p>それでは、簡単なニューラルネットワークを例にして、実際に勾配を求める実装を行います。そのために、<code class='tt'>simpleNet</code>というクラスを実装することにします（ソースコードは<code class='tt'>ch04/gradient_simplenet.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.functions</span> <span style='color: #008000; font-weight: bold'>import</span> softmax, cross_entropy_error
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.gradient</span> <span style='color: #008000; font-weight: bold'>import</span> numerical_gradient
+
+<span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>simpleNet</span>:<!-- IDX:simpleNet（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(<span style='color: #666666'>2</span>,<span style='color: #666666'>3</span>) <span style='color: #408080; font-style: italic'># ガウス分布で初期化</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>predict</span>(<span style='color: #008000'>self</span>, x):
+        <span style='color: #008000; font-weight: bold'>return</span> np<span style='color: #666666'>.</span>dot(x, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>loss</span>(<span style='color: #008000'>self</span>, x, t):
+        z <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>predict(x)
+        y <span style='color: #666666'>=</span> softmax(z)
+        loss <span style='color: #666666'>=</span> cross_entropy_error(y, t)
+
+        <span style='color: #008000; font-weight: bold'>return</span> loss
+</pre>
+</div>
+<p>ここでは、<code class='tt'>common/functions.py</code>にある<code class='tt'>softmax</code>と<code class='tt'>cross_entropy_error</code>メソッドを利用します。また、<code class='tt'>common/gradient.py</code>にある<code class='tt'>numerical_gradient</code>メソッドを利用します。さて、<code class='tt'>simpleNet</code>というクラスですが、これは、形状が2×3の重みパラメータをひとつだけインスタンス変数として持ちます。また、2つのメソッドがあり、ひとつは予測するためのメソッド<code class='tt'>predict(x)</code>、もうひとつは損失関数の値を求めるためのメソッド<code class='tt'>loss(x, t)</code>です。ここで、引数の<code class='tt'>x</code>には入力データ、<code class='tt'>t</code>には正解ラベルが入力されるものとします。それでは試しに、この<code class='tt'>simpleNet</code>を使ってみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>net = simpleNet()</b>
+&gt;&gt;&gt; <b>print(net.W)</b> # 重みパラメータ
+[[ 0.47355232,  0.9977393 ,  0.84668094],
+ [ 0.85557411,  0.03563661,  0.69422093]])
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>x = np.array([0.6, 0.9])</b>
+&gt;&gt;&gt; <b>p = net.predict(x)</b>
+&gt;&gt;&gt; <b>print(p)</b>
+[ 1.13282549  0.66052348  1.20919114]
+&gt;&gt;&gt; <b>np.argmax(p)</b> # 最大値のインデックス
+2
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>t = np.array([0, 0, 1])</b> # 正解ラベル
+&gt;&gt;&gt; <b>net.loss(x, t)</b>
+0.92806853663411326
+</pre>
+</div>
+<p>続いて、勾配を求めてみましょう。これまでどおり、<code class='tt'>numerical_gradient(f, x)</code>を使って勾配を求めます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>def f(W):</b>
+...     <b>return net.loss(x, t)</b>
+...
+&gt;&gt;&gt; <b>dW = numerical_gradient(f, net.W)</b>
+&gt;&gt;&gt; <b>print(dW)</b>
+[[ 0.21924763  0.14356247 -0.36281009]
+ [ 0.32887144  0.2153437  -0.54421514]]
+</pre>
+</div>
+<p><code class='tt'>numerical_gradient(f, x)</code>の引数<code class='tt'>f</code>は関数、<code class='tt'>x</code>は関数<code class='tt'>f</code>への引数です。そのため、ここでは、<code class='tt'>net.W</code>を引数に取り、損失関数を計算する新しい関数<code class='tt'>f</code>を定義します。そして、その新しく定義した関数を、<code class='tt'>numerical_gradient(f, x)</code>に渡します。</p>
+<p><code class='tt'>numerical_gradient(f, net.W)</code>の結果は<code class='tt'>dW</code>となり、形状が2×3の2次元配列になります。<code class='tt'>dW</code>の中身を見ると、たとえば、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>11</span></sub></i></span>はおよそ0.2ということが分かります。これは、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>11</span></sub></i></span>を<span class='equation mathnoimage'><i>h</i></span>だけ増やすと損失関数の値は<span class='equation mathnoimage'><i><span class='math-normal'>0.2</span>h</i></span>だけ増加するということを意味します。また、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>23</span></sub></i></span>はおよそ<span class='equation mathnoimage'><i><span class='math-normal'>−0.5</span></i></span>ですが、これは<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>23</span></sub></i></span>を<span class='equation mathnoimage'><i>h</i></span>だけ増やすと損失関数の値は<span class='equation mathnoimage'><i><span class='math-normal'>0.5</span>h</i></span>だけ減少するということです。そのため、損失関数を減らすという観点からは、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>23</span></sub></i></span>はプラス方向へ更新し、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>11</span></sub></i></span>はマイナス方向へ更新するのが良いことが分かります。また、更新の度合いについても、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>23</span></sub></i></span>のほうが<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>11</span></sub></i></span>よりも大きく貢献するということが分かります。</p>
+<p>なお、上の実装では、新しい関数を定義するために、「<code class='tt'>def f(x):</code>…」のように書きましたが、Pythonでは簡単な関数であれば、<code class='tt'>lambda</code>という記法を使って書くこともできます。たとえば、<code class='tt'>lambda</code>を使って次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>f = lambda w: net.loss(x, t)</b>
+&gt;&gt;&gt; <b>dW = numerical_gradient(f, net.W)</b>
+</pre>
+</div>
+<p>ニューラルネットワークの勾配を求めれば、後は勾配法に従って、重みパラメータを更新するだけです。次節では、2層のニューラルネットワークを対象に学習の全プロセスを実装していきます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ここで使用した<code class='tt'>numerical_gradient()</code>は、重みパラメータ<code class='tt'>W</code>のような多次元配列に対応するため、前の実装から少し変更しています。ただし、変更点は多次元配列に対応するためだけの簡単なものです。ここでは実装に関する説明は省略しますが、詳しく知りたい方はソースコード（<code class='tt'>common/gradient.py</code>）を参照してください。</p>
+</td></tr></table></div>
+
+<h2 id='learningimpl'><a id='h4-5'/><span class='secno'>4.5　</span>学習アルゴリズムの実装</h2>
+<p>ニューラルネットワークの学習に関する基本的な知識は、これですべて出そろいました。これまでに、「損失関数」「ミニバッチ」「勾配」「勾配降下法」と、重要なキーワードが立て続けに登場してきたので、ここでは復習を兼ねて、ニューラルネットワークの学習の手順を確認することにします。次に、ニューラルネットワークの学習手順をまとめて示します。</p>
+<dl>
+<dt><strong>前提</strong></dt>
+<dd>ニューラルネットワークは、適応可能な重みとバイアスがあり、この重みとバイアスを訓練データに適応するように調整することを「学習」と呼ぶ。ニューラルネットワークの学習は次の4つの手順で行う。</dd>
+<dt><strong>ステップ1（ミニバッチ）</strong></dt>
+<dd>訓練データの中からランダムに一部のデータを選び出す。その選ばれたデータをミニバッチと言い、ここでは、そのミニバッチの損失関数の値を減らすことを目的とする。</dd>
+<dt><strong>ステップ2（勾配の算出）</strong></dt>
+<dd>ミニバッチの損失関数を減らすために、各重みパラメータの勾配を求める。勾配は、損失関数の値を最も減らす方向を示す。</dd>
+<dt><strong>ステップ3（パラメータの更新）</strong></dt>
+<dd>重みパラメータを勾配方向に微小量だけ更新する。</dd>
+<dt><strong>ステップ4（繰り返す）</strong></dt>
+<dd>ステップ1、ステップ2、ステップ3を繰り返す。</dd>
+</dl>
+<p>ニューラルネットワークの学習は、上の4つの手順による方法で行います。この方法は、勾配降下法によってパラメータを更新する方法ですが、ここで使用するデータはミニバッチとして無作為に選ばれたデータを使用していることから、<!-- IDX:確率的勾配降下法 --><b>確率的勾配降下法</b>（<!-- IDX:stochastic gradient descent -->stochastic gradient descent）という名前で呼ばれます。確率的とは、「確率的に無作為に選び出した」という意味です。そのため、確率的勾配降下法は、「無作為に選び出したデータに対して行う勾配降下法」という意味になります。なお、ディープラーニングのフレームワークの多くでは、確率的勾配降下法は、英語の頭文字を取って<!-- IDX:SGD --><b>SGD</b>という名前の関数で実装されるのが一般的です。</p>
+<p>それでは、実際に手書き数字を学習するニューラルネットワークを実装していきましょう。ここでは2層のニューラルネットワーク（隠れ層が1層のネットワーク）を対象に、MNISTデータセットを使って学習を行います。</p>
+
+<h3 id='h4-5-1'><span class='secno'>4.5.1　</span>2層ニューラルネットワークのクラス</h3>
+<p>初めに、2層ニューラルネットワークを、ひとつのクラスとして実装することから始めます。このクラスを<code class='tt'>TwoLayerNet</code>という名前のクラスとして、次のように実装します<a class='noteref' href='#fn-fn0402' id='fnb-fn0402' epub:type='noteref'>†2</a>。なお、ソースコードは、<code class='tt'>ch04/two_layer_net.py</code>にあります。</p>
+<div class='footnote' id='fn-fn0402' epub:type='footnote'><p class='footnote'>[†2] <code class='tt'>TwoLayerNet</code>の実装は、スタンフォード大学のCS231n<u>［5］</u>という授業で提供されているPythonソースコードの実装を参考にしました。</p></div>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.functions</span> <span style='color: #008000; font-weight: bold'>import</span> <span style='color: #666666'>*</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.gradient</span> <span style='color: #008000; font-weight: bold'>import</span> numerical_gradient
+
+<span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>TwoLayerNet</span>:
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, input_size, hidden_size, output_size,
+                 weight_init_std<span style='color: #666666'>=0.01</span>):
+        <span style='color: #408080; font-style: italic'># 重みの初期化</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params <span style='color: #666666'>=</span> {}
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(input_size, hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(hidden_size, output_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(output_size)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>predict</span>(<span style='color: #008000'>self</span>, x):
+        W1, W2 <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>], <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>]
+        b1, b2 <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>], <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>]
+
+        a1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(x, W1) <span style='color: #666666'>+</span> b1
+        z1 <span style='color: #666666'>=</span> sigmoid(a1)
+        a2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(z1, W2) <span style='color: #666666'>+</span> b2
+        y <span style='color: #666666'>=</span> softmax(a2)
+
+        <span style='color: #008000; font-weight: bold'>return</span> y
+
+    <span style='color: #408080; font-style: italic'># x:入力データ, t:教師データ</span>
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>loss</span>(<span style='color: #008000'>self</span>, x, t):
+        y <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>predict(x)
+
+        <span style='color: #008000; font-weight: bold'>return</span> cross_entropy_error(y, t)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>accuracy</span>(<span style='color: #008000'>self</span>, x, t):
+        y <span style='color: #666666'>=</span> predict(x)
+        y <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>argmax(y, axis<span style='color: #666666'>=1</span>)
+        t <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>argmax(t, axis<span style='color: #666666'>=1</span>)
+
+        accuracy <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(y <span style='color: #666666'>==</span> t) <span style='color: #666666'>/</span> <span style='color: #008000'>float</span>(x<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>])
+        <span style='color: #008000; font-weight: bold'>return</span> accuracy
+
+    <span style='color: #408080; font-style: italic'># x:入力データ, t:教師データ</span>
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>numerical_gradient</span>(<span style='color: #008000'>self</span>, x, t):
+        loss_W <span style='color: #666666'>=</span> <span style='color: #008000; font-weight: bold'>lambda</span> W: <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss(x, t)
+
+        grads <span style='color: #666666'>=</span> {}
+        grads[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>])
+
+        <span style='color: #008000; font-weight: bold'>return</span> grads
+</pre>
+</div>
+<p>このクラスの実装は少々長くなりましたが、前章のニューラルネットワークのフォワード処理の実装と共通する部分が多くあるので、それほど新しいことは登場していません。まずは、このクラスで使用する変数とメソッドを整理して示しましょう。変数については重要な変数だけをピックアップして<a href='./ch04.xhtml#tbl04-1'>表4-1</a>に示します。メソッドについては、そのすべてを<a href='./ch04.xhtml#tbl04-2'>表4-2</a>に示します。</p>
+<div class='table' id='tbl04-1'>
+<p class='caption'>表4-1　TwoLayerNetクラスで使用する変数</p>
+<table>
+<tr><th>変数</th><th>説明</th></tr>
+<tr><td><code class='tt'>params</code></td><td>ニューラルネットワークのパラメータを保持するディクショナリ変数（インスタンス変数）。<br/><code class='tt'>params['W1']</code>は1層目の重み、<code class='tt'>params['b1']</code>は1層目のバイアス。<br/><code class='tt'>params['W2']</code>は2層目の重み、<code class='tt'>params['b2']</code>は2層目のバイアス。</td></tr>
+<tr><td><code class='tt'>grads</code></td><td>勾配を保持するディクショナリ変数（<code class='tt'>numerical_gradient()</code>メソッドの返り値）。<br/><code class='tt'>grads['W1']</code>は1層目の重みの勾配、<code class='tt'>grads['b1']</code>は1層目のバイアスの勾配。<br/><code class='tt'>grads['W2']</code>は2層目の重みの勾配、<code class='tt'>grads['b2']</code>は2層目のバイアスの勾配。</td></tr>
+</table>
+</div>
+<div class='table' id='tbl04-2'>
+<p class='caption'>表4-2　TwoLayerNetクラスのメソッド</p>
+<table>
+<tr><th>メソッド</th><th>説明</th></tr>
+<tr><td><code class='tt'>__init__(self, input_size, </code><code class='tt'>hidden_size, output_size)</code></td><td>初期化を行う。<br/>引数は頭から順に、入力層のニューロンの数、隠れ層のニューロンの数、出力層のニューロンの数。</td></tr>
+<tr><td><code class='tt'>predict(self, x)</code></td><td>認識（推論）を行う。<br/>引数の<code class='tt'>x</code>は画像データ。</td></tr>
+<tr><td><code class='tt'>loss(self, x, t)</code></td><td>損失関数の値を求める。<br/>引数の<code class='tt'>x</code>は画像データ、<code class='tt'>t</code>は正解ラベル（以下の3つのメソッドの引数についても同様）。</td></tr>
+<tr><td><code class='tt'>accuracy(self, x, t)</code></td><td>認識精度を求める。</td></tr>
+<tr><td><code class='tt'>numerical_gradient(self, x, t)</code></td><td>重みパラメータに対する勾配を求める。</td></tr>
+<tr><td><code class='tt'>gradient(self, x, t)</code></td><td>重みパラメータに対する勾配を求める。<br/><code class='tt'>numerical_gradient()</code>の高速版！<br/>実装は次章で行う。</td></tr>
+</table>
+</div>
+<p><code class='tt'>TwoLayerNet</code>クラスには、インスタンス変数として、<code class='tt'>params</code>と<code class='tt'>grads</code>というディクショナリの変数があります。<code class='tt'>params</code>変数には重みパラメータが格納されており、たとえば、1層目の重みパラメータは<code class='tt'>params['W1']</code>にNumPy配列として格納されています。また、1層目のバイアスは<code class='tt'>params['b1']</code>のようにアクセスします。ひとつ例を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>net <span style='color: #666666'>=</span> TwoLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size<span style='color: #666666'>=100</span>, output_size<span style='color: #666666'>=10</span>)
+net<span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>]<span style='color: #666666'>.</span>shape <span style='color: #408080; font-style: italic'># (784, 100)</span>
+net<span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>]<span style='color: #666666'>.</span>shape <span style='color: #408080; font-style: italic'># (100,)</span>
+net<span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>]<span style='color: #666666'>.</span>shape <span style='color: #408080; font-style: italic'># (100, 10)</span>
+net<span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>]<span style='color: #666666'>.</span>shape <span style='color: #408080; font-style: italic'># (10,)</span>
+</pre>
+</div>
+<p>上のように<code class='tt'>params</code>変数には、このネットワークに必要なパラメータがすべて格納されています。そして、<code class='tt'>params</code>変数に格納された重みパラメータが、推論処理（フォワード処理）で使われるのです。ちなみに、推論処理は次のように実行できます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>100</span>, <span style='color: #666666'>784</span>) <span style='color: #408080; font-style: italic'># ダミーの入力データ（100枚分）</span>
+y <span style='color: #666666'>=</span> net<span style='color: #666666'>.</span>predict(x)
+</pre>
+</div>
+<p>また、<code class='tt'>grads</code>変数には、<code class='tt'>params</code>変数と対応するように、各パラメータの勾配が格納されます。たとえば、次に示すように、<code class='tt'>numerical_gradient()</code>メソッドを使って勾配を計算すると、<code class='tt'>grads</code>変数に勾配情報が格納されます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>100</span>, <span style='color: #666666'>784</span>) <span style='color: #408080; font-style: italic'># ダミーの入力データ（100枚分）</span>
+t <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>rand(<span style='color: #666666'>100</span>, <span style='color: #666666'>10</span>)  <span style='color: #408080; font-style: italic'># ダミーの正解ラベル（100枚分）</span>
+
+grads <span style='color: #666666'>=</span> net<span style='color: #666666'>.</span>numerical_gradient(x, t)  <span style='color: #408080; font-style: italic'># 勾配を計算</span>
+
+grads[<span style='color: #BA2121'>&#39;W1&#39;</span>]<span style='color: #666666'>.</span>shape  <span style='color: #408080; font-style: italic'># (784, 100)</span>
+grads[<span style='color: #BA2121'>&#39;b1&#39;</span>]<span style='color: #666666'>.</span>shape  <span style='color: #408080; font-style: italic'># (100,)</span>
+grads[<span style='color: #BA2121'>&#39;W2&#39;</span>]<span style='color: #666666'>.</span>shape  <span style='color: #408080; font-style: italic'># (100, 10)</span>
+grads[<span style='color: #BA2121'>&#39;b2&#39;</span>]<span style='color: #666666'>.</span>shape  <span style='color: #408080; font-style: italic'># (10,)</span>
+</pre>
+</div>
+<p>続いて、<code class='tt'>TwoLayerNet</code>のメソッドの実装を見ていきましょう。まずは<code class='tt'>__init__(self, input_size, hidden_size, output_size)</code>メソッドですが、これはクラスの初期化メソッドです（初期化メソッドとは<code class='tt'>TwoLayerNet</code>を生成する際に呼ばれるメソッドです）。引数は頭から順に、入力層のニューロンの数、隠れ層のニューロンの数、出力層のニューロンの数を意味します。なお、手書き数字認識を行う場合は、入力画像サイズが28×28の計784個あり、出力は10個のクラスになります。そのため、引数の<code class='tt'>input_size=784</code>、<code class='tt'>output_size=10</code>と指定し、隠れ層の個数である<code class='tt'>hidden_size</code>は適当な値を設定します。</p>
+<p>また、この初期化メソッドでは、重みパラメータの初期化を行います。重みパラメータの初期値をどのような値に設定するかという問題は、ニューラルネットワークの学習を成功させる上で重要です。後ほど、重みパラメータの初期化について詳しく見ていきますが、ここでは、重みはガウス分布に従う乱数で初期化し、バイアスは0で初期化すると述べるにとどめておきましょう。<code class='tt'>predict(self, x)</code>と<code class='tt'>accuracy(self, x, t)</code>については、前章のニューラルネットワークの推論処理の実装とほとんど同じです。もし分からない点があれば、前章を確認しましょう。また、<code class='tt'>loss(self, x, t)</code>については、損失関数の値を計算するメソッドです。このメソッドの実装は、<code class='tt'>predict()</code>の結果と正解ラベルを元に、交差エントロピー誤差を求めるだけになります。</p>
+<p>残る<code class='tt'>numerical_gradient(self, x, t)</code>メソッドは、各パラメータの勾配を計算します。これは数値微分によって、各パラメータの損失関数に対する勾配を計算します。なお、<code class='tt'>gradient(self, x, t)</code>は次章で実装する予定のメソッドです。これは、誤差逆伝播法を使って効率的に高速に勾配を計算します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><code class='tt'>numerical_gradient(self, x, t)</code>は、数値微分によってパラメータの勾配を計算します。次章では、この勾配の計算を高速に求める手法について説明します。その手法は<!-- IDX:誤差逆伝播法 -->誤差逆伝播法と言います。誤差逆伝播法を使って求めた勾配の結果は、数値微分による結果とほぼ同じになりますが、高速に処理することができます。なお、誤差逆伝播法によって勾配を求めるメソッドは、<code class='tt'>gradient(self, x, t)</code>という名前で、次章で実装する予定ですが、ニューラルネットワークの学習には時間がかかりますので、時間を節約したい人は、先取りして、<code class='tt'>numerical_gradient(self, x, t)</code>の代わりに、<code class='tt'>gradient(self, x, t)</code>を使いましょう！</p>
+</td></tr></table></div>
+
+<h3 id='h4-5-2'><span class='secno'>4.5.2　</span>ミニバッチ学習の実装</h3>
+<p>ニューラルネットワークの学習の実装は、前に説明したミニバッチ学習で行います。ミニバッチ学習とは、訓練データから無作為に一部のデータを取り出して——これをミニバッチという——、そのミニバッチを対象に、勾配法によりパラメータを更新するのでした。それでは、<code class='tt'>TwoLayerNet</code>クラスを対象に、MNISTデータセットを使って学習を行います（ソースコードは<code class='tt'>ch04/train_neuralnet.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>two_layer_net</span> <span style='color: #008000; font-weight: bold'>import</span> TwoLayerNet
+
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+
+train_loss_list <span style='color: #666666'>=</span> []
+
+<span style='color: #408080; font-style: italic'># ハイパーパラメータ</span>
+iters_num <span style='color: #666666'>=</span> <span style='color: #666666'>10000</span>
+train_size <span style='color: #666666'>=</span> x_train<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+batch_size <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+learning_rate <span style='color: #666666'>=</span> <span style='color: #666666'>0.1</span>
+
+network <span style='color: #666666'>=</span> TwoLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size<span style='color: #666666'>=50</span>, output_size<span style='color: #666666'>=10</span>)
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(iters_num):
+    <span style='color: #408080; font-style: italic'># ミニバッチの取得</span>
+    batch_mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>choice(train_size, batch_size)
+    x_batch <span style='color: #666666'>=</span> x_train[batch_mask]
+    t_batch <span style='color: #666666'>=</span> t_train[batch_mask]
+
+    <span style='color: #408080; font-style: italic'># 勾配の計算</span>
+    grad <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>numerical_gradient(x_batch, t_batch)
+    <span style='color: #408080; font-style: italic'># grad = network.gradient(x_batch, t_batch) # 高速版!</span>
+
+    <span style='color: #408080; font-style: italic'># パラメータの更新</span>
+    <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> (<span style='color: #BA2121'>&#39;W1&#39;</span>, <span style='color: #BA2121'>&#39;b1&#39;</span>, <span style='color: #BA2121'>&#39;W2&#39;</span>, <span style='color: #BA2121'>&#39;b2&#39;</span>):
+        network<span style='color: #666666'>.</span>params[key] <span style='color: #666666'>-=</span> learning_rate <span style='color: #666666'>*</span> grad[key]
+
+    <span style='color: #408080; font-style: italic'># 学習経過の記録</span>
+    loss <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>loss(x_batch, t_batch)
+    train_loss_list<span style='color: #666666'>.</span>append(loss)
+</pre>
+</div>
+<p>ここでは、ミニバッチのサイズを100として、毎回60,000個の訓練データからランダムに100個のデータ（画像データと正解ラベルデータ）を抜き出しています。そして、その100個のミニバッチを対象に勾配を求め、確率勾配降下法（SGD）によりパラメータを更新します。ここでは、勾配法による更新の回数——繰り返し（iteration）の回数——を10,000回として、更新するごとに、訓練データに対する損失関数を計算し、その値を配列に追加します。この損失関数の値の推移をグラフで表すと、<a href='./ch04.xhtml#fig04_11'>図4-11</a>のようになります。</p>
+<div class='image' id='fig04_11'>
+<img alt='損失関数の推移：左図は10,000イテレーションまでの推移、右図は1,000イテレーションまでの推移' src='images/ch04/fig04_11.png'/>
+<p class='caption'>
+図4-11　損失関数の推移：左図は10,000イテレーションまでの推移、右図は1,000イテレーションまでの推移
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_11'>図4-11</a>を見ると学習の回数が進むにつれて、損失関数の値が減っていくことが分かります。これは、学習がうまくいっていることのサインであり、ニューラルネットワークの重みパラメータが徐々にデータに適応していることを意味しています。まさしくニューラルネットワークは学習しているのです——繰り返しデータを浴びることによって、最適な重みパラメータへと徐々に近づいているのです！</p>
+
+<h3 id='h4-5-3'><span class='secno'>4.5.3　</span>テストデータで評価</h3>
+<p><a href='./ch04.xhtml#fig04_11'>図4-11</a>の結果より、学習を繰り返し行うことで損失関数の値が徐々に下がっていくことを確認できました。しかし、この損失関数の値とは、正確には「訓練データのミニバッチに対する損失関数」の値です。訓練データの損失関数の値が減ることは、ニューラルネットワークの学習がうまくいっていることのサインではありますが、この結果だけからは、他のデータセットにも同じ程度の実力を発揮できるかどうかは定かではありません。</p>
+<p>ニューラルネットワークの学習では、訓練データ以外のデータを正しく認識できるかどうかを確認する必要があります——これは、「過学習」を起こしていないかの確認です。過学習を起こすとは、たとえば、訓練データに含まれる数字画像だけは正しく見分けられるが、訓練データに含まれない数字画像は識別できない、ということを意味します。</p>
+<p>そもそもニューラルネットワークの学習で目標とすることは、汎化能力を身につけることです。そのため、ニューラルネットワークの汎化的な能力を評価するには、訓練データに含まれないデータを使って評価しなければなりません。そこで次の実装では、学習を行う過程で、定期的に訓練データとテストデータを対象に、認識精度を記録することにします。ここでは、1エポックごとに、訓練データとテストデータの認識精度を記録することにします。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p><!-- IDX:エポック --><b>エポック</b>（epoch）とは単位を表します。1エポックとは学習において訓練データをすべて使い切ったときの回数に対応します。たとえば、10,000個の訓練データに対して100個のミニバッチで学習する場合、確率的勾配降下法を100回繰り返したら、すべての訓練データを“見た”ことになります。この場合、100回＝1エポックとなります。</p>
+</td></tr></table></div>
+<p>それでは、正しい評価ができるように、前の実装から少しだけ修正します。ここでは、前の実装と異なる箇所を太字で示します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>two_layer_net</span> <span style='color: #008000; font-weight: bold'>import</span> TwoLayerNet
+
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+
+train_loss_list <span style='color: #666666'>=</span> []
+<b>train_acc_list = []</b>
+<b>test_acc_list = []</b>
+<b># 1エポックあたりの繰り返し数</b>
+<b>iter_per_epoch = max(train_size / batch_size, 1)</b>
+
+<span style='color: #408080; font-style: italic'># ハイパーパラメータ</span>
+iters_num <span style='color: #666666'>=</span> <span style='color: #666666'>10000</span>
+batch_size <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+learning_rate <span style='color: #666666'>=</span> <span style='color: #666666'>0.1</span>
+
+network <span style='color: #666666'>=</span> TwoLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size<span style='color: #666666'>=50</span>, output_size<span style='color: #666666'>=10</span>)
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(iters_num):
+    <span style='color: #408080; font-style: italic'># ミニバッチの取得</span>
+    batch_mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>choice(train_size, batch_size)
+    x_batch <span style='color: #666666'>=</span> x_train[batch_mask]
+    t_batch <span style='color: #666666'>=</span> t_train[batch_mask]
+
+    <span style='color: #408080; font-style: italic'># 勾配の計算</span>
+    grad <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>numerical_gradient(x_batch, t_batch)
+    <span style='color: #408080; font-style: italic'># grad = network.gradient(x_batch, t_batch) # 高速版!</span>
+
+    <span style='color: #408080; font-style: italic'># パラメータの更新</span>
+    <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> (<span style='color: #BA2121'>&#39;W1&#39;</span>, <span style='color: #BA2121'>&#39;b1&#39;</span>, <span style='color: #BA2121'>&#39;W2&#39;</span>, <span style='color: #BA2121'>&#39;b2&#39;</span>):
+        network<span style='color: #666666'>.</span>params[key] <span style='color: #666666'>-=</span> learning_rate <span style='color: #666666'>*</span> grad[key]
+
+    loss <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>loss(x_batch, t_batch)
+    train_loss_list<span style='color: #666666'>.</span>append(loss)
+
+    <b># 1エポックごとに認識精度を計算</b>
+    <b>if i % iter_per_epoch == 0:</b>
+        <b>train_acc = network.accuracy(x_train, t_train)</b>
+        <b>test_acc = network.accuracy(x_test, t_test)</b>
+        <b>train_acc_list.append(train_acc)</b>
+        <b>test_acc_list.append(test_acc)</b>
+        <b>print(&quot;train acc, test acc | &quot; + str(train_acc) + &quot;, &quot; + str(test_acc))</b>
+</pre>
+</div>
+<p>上の例では、1エポックごとに、すべての訓練データとテストデータに対して認識精度を計算して、その結果を記録します。なぜ1エポックごとに認識精度を計算するかというと、<code class='tt'>for</code>文の繰り返しの中で常に認識精度を計算していては、時間がかかってしまうからです。そして、そこまで細かい頻度で認識精度を記録する必要もないからです（より大きな視点でざっくりと認識精度の推移が分かればよいのです）。そのため、訓練データの1エポックごとに認識精度の経過を記録します。</p>
+<p>さて、上のコードで得られた結果をグラフで表しましょう。結果は、次の<a href='./ch04.xhtml#fig04_12'>図4-12</a>のようになります。</p>
+<div class='image' id='fig04_12'>
+<img alt='訓練データとテストデータに対する認識精度の推移。横軸はエポック' src='images/ch04/fig04_12.png'/>
+<p class='caption'>
+図4-12　訓練データとテストデータに対する認識精度の推移。横軸はエポック
+</p>
+</div>
+<p><a href='./ch04.xhtml#fig04_12'>図4-12</a>では、訓練データの認識精度を実線で示し、テストデータの認識精度を破線で示しています。見てのとおり、エポックが進むにつれて（学習が進むにつれて）、訓練データとテストデータを使って評価した認識精度は両方とも向上していることが分かります。また、その2つの認識精度には差がないことが分かります（その2つの線はほぼ重なっています）。そのため、今回の学習では過学習が起きていないことが分かります。</p>
+
+<h2 id='h4-6'><span class='secno'>4.6　</span>まとめ</h2>
+<p>本章では、ニューラルネットワークの学習について説明しました。初めに、ニューラルネットワークが学習を行えるようにするために、損失関数という「指標」を導入しました。この損失関数を基準として、その値が最も小さくなる重みパラメータを探し出すことが、ニューラルネットワークの学習の目標です。また、できるだけ小さな損失関数の値を探し出すための手法として、勾配法と呼ばれる、関数の傾きを使った手法を説明しました。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>機械学習で使用するデータセットは、訓練データとテストデータに分けて使用する。</li>
+<li>訓練データで学習を行い、学習したモデルの汎化能力をテストデータで評価する。</li>
+<li>ニューラルネットワークの学習は、損失関数を指標として、損失関数の値が小さくなるように、重みパラメータを更新する。</li>
+<li>重みパラメータを更新する際には、重みパラメータの勾配を利用して、勾配方向に重みの値を更新する作業を繰り返す。</li>
+<li>微小な値を与えたときの差分によって微分を求めることを数値微分と言う。</li>
+<li>数値微分によって、重みパラメータの勾配を求めることができる。</li>
+<li>数値微分による計算には時間がかかるが、その実装は簡単である。一方、次章で実装するやや複雑な誤差逆伝播法は、高速に勾配を求めることができる。</li>
+</ul>
+</div>
+</body>
+</html>

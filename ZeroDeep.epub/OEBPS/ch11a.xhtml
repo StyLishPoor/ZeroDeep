@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>Softmax-with-Lossレイヤの計算グラフ</title>
+</head>
+<body>
+<h1 id='hA'><span class='chapno'>付録A</span><br/>Softmax-with-Lossレイヤの計算グラフ</h1>
+<p>ここでは、ソフトマックス関数と交差エントロピー誤差の計算グラフを示し、それらの逆伝播を求めます。ソフトマックス関数はSoftmaxレイヤ、交差エントロピー誤差はCross Entropy Errorレイヤと呼び、また、この2つを組み合わせたレイヤをSoftmax-with-Lossレイヤと呼ぶことにします。先に結果を示すと、Softmax-with-Lossレイヤは<a href='./ch11a.xhtml#fig11a_1'>図A-1</a>のような計算グラフで書くことができます。</p>
+<div class='image' id='fig11a_1'>
+<img alt='Softmax-with-Lossレイヤの計算グラフ' src='images/ch11a/fig11a_1.png'/>
+<p class='caption'>
+図A-1　Softmax-with-Lossレイヤの計算グラフ
+</p>
+</div>
+<p><a href='./ch11a.xhtml#fig11a_1'>図A-1</a>の計算グラフでは、3クラス分類を行うニューラルネットワークを想定しています。前レイヤからの入力は<span class='equation mathnoimage'><i><span class='math-normal'>(</span>a<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> a<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> a<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>であり、Softmaxレイヤは<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>を出力します。また、教師ラベルは<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>であり、Cross Entropy Errorレイヤは損失<span class='equation mathnoimage'><i>L</i></span>を出力します。</p>
+<p>本付録では、Softmax-with-Lossレイヤの逆伝播の結果が<a href='./ch11a.xhtml#fig11a_1'>図A-1</a>のように、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>になることを示します。</p>
+
+<h2 id='hA-1'><span class='secno'>A.1　</span>順伝播</h2>
+<p><a href='./ch11a.xhtml#fig11a_1'>図A-1</a>の計算グラフでは、SoftmaxレイヤとCross Entropy Errorレイヤの中身は省略して図示しました。ここでは、その2つのレイヤの中身を省略せずに描くことから始めたいと思います。</p>
+<p>まずはSoftmaxレイヤですが、ソフトマックス関数は次の数式で表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='{y_k} = \frac{\exp(a_k)}{\sum\limits_{i = 1}^n \exp(a_i)} %\qquad({\mathrm A}.1)' src='images/math/40dde780afcb004414529a8f6d433037.png' style='height: 3.92em'/></div>
+<p class='eqno' id='eq1'>式(1.1)</p>
+</div>
+<p>そのため、Softmaxレイヤを計算グラフで表すと<a href='./ch11a.xhtml#fig11a_2'>図A-2</a>のようになります。</p>
+<div class='image' id='fig11a_2'>
+<img alt='Softmaxレイヤの計算グラフ（順伝播のみ）' src='images/ch11a/fig11a_2.png'/>
+<p class='caption'>
+図A-2　Softmaxレイヤの計算グラフ（順伝播のみ）
+</p>
+</div>
+<p><a href='./ch11a.xhtml#fig11a_2'>図A-2</a>の計算グラフでは、指数の和——式(A.1)の分母にあたる項——を<span class='equation mathnoimage'><i>S</i></span>として略記しています。また、最終的な出力を<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>としています。</p>
+<p>続いて、Cross Entropy Errorレイヤについてです。交差エントロピー誤差は数式で次のように表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='L =  - \sum\limits_k t_k\log y_k  %\qquad({\mathrm A}.2)' src='images/math/923a6257033905972988e1a74c76bb64.png' style='height: 2.42em'/></div>
+<p class='eqno' id='eq2'>式(1.2)</p>
+</div>
+<p>式(A.2)から、Cross Entropy Errorレイヤの計算グラフは、<a href='./ch11a.xhtml#fig11a_3'>図A-3</a>のように描くことができます。</p>
+<div class='image' id='fig11a_3'>
+<img alt='Cross Entropy Errorレイヤの計算グラフ（順伝播のみ）' src='images/ch11a/fig11a_3.png'/>
+<p class='caption'>
+図A-3　Cross Entropy Errorレイヤの計算グラフ（順伝播のみ）
+</p>
+</div>
+<p><a href='./ch11a.xhtml#fig11a_3'>図A-3</a>の計算グラフは、式(A.2)を素直に計算グラフとして表したものです。そのため、特に難しい点はないと思います。</p>
+<p>それでは続いて、逆伝播について見ていきましょう。</p>
+
+<h2 id='hA-2'><span class='secno'>A.2　</span>逆伝播</h2>
+<p>まずはCross Entropy Errorレイヤの逆伝播からです。Cross Entropy Errorレイヤの逆伝播は次の<a href='./ch11a.xhtml#fig11a_4'>図A-4</a>のように描くことができます。</p>
+<div class='image' id='fig11a_4'>
+<img alt='交差エントロピー誤差の逆伝播' src='images/ch11a/fig11a_4.png'/>
+<p class='caption'>
+図A-4　交差エントロピー誤差の逆伝播
+</p>
+</div>
+<p>この計算グラフの逆伝播を求める際には、次の点に気をつけます。</p>
+<ul>
+<li>逆伝播の最初の値——<a href='./ch11a.xhtml#fig11a_4'>図A-4</a>の一番右の逆伝播の値——は1である（<span class='equation mathimage'><img alt='\frac{\partial L}{\partial L} = 1' src='images/math/633485009ef62d207fa6ddbecb371d9f.png' style='height: 1.42em'/></span>であるため）</li>
+<li>「×」ノードの逆伝播では、順伝播時の入力値をひっくり返した値を、上流からの微分に乗算して下流に流す</li>
+<li>「+」ノードでは、上流から伝わる微分をそのまま流す</li>
+<li>「log」ノードの逆伝播は、次の式に従う</li>
+</ul>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; y = \log x \\[4pt]
+  &amp; \frac{\partial y}{\partial x} = \frac{1}{x}
+\end{aligned}' src='images/math/1ba97aee1b8bca145be18a47e3011c53.png' style='height: 4.42em'/></div>
+</div>
+<p>以上のポイントに従えば、Cross Entropy Errorレイヤの逆伝播は簡単に求めることができます。結果は、<span class='equation mathimage'><img alt='\left(-\frac{t_1}{y_1},  -\frac{t_2}{y_2},  -\frac{t_3}{y_3}\right)' src='images/math/4172645aab9c2aeb31a42acb7369db49.png' style='height: 2.08em'/></span>という値がSoftmaxレイヤへの逆伝播の入力となります。</p>
+<p>続いて、Softmaxレイヤの逆伝播についてです。Softmaxレイヤは少し複雑なので、ひとつずつ確認しながら、逆伝播を進めていきたいと思います。</p>
+
+<h4 id='hA-2-0-1'>ステップ1</h4>
+<div class='image' id='fig11a_4_1'>
+<img alt='' src='images/ch11a/fig11a_4_1.png'/>
+</div>
+<p>前レイヤ（Cross Entropy Errorレイヤ）からの逆伝播の値が流れてきます。</p>
+
+<h4 id='hA-2-0-2'>ステップ2</h4>
+<div class='image' id='fig11a_4_2'>
+<img alt='' src='images/ch11a/fig11a_4_2.png'/>
+</div>
+<p>「×」ノードでは、順伝播の値を“ひっくり返して”乗算します。ここでは、次の計算が行われます。</p>
+<div class='equation'>
+<div class='math'><img alt='-\frac{t_1}{y_1} \exp(a_1) = -t_1\frac{S}{\exp(a_1)} \exp(a_1) = -t_1 S %\qquad({\mathrm A}.3)' src='images/math/8a152f7bc2b8805d319b11a754ce0c2d.png' style='height: 2.58em'/></div>
+<p class='eqno' id='eq3'>式(1.3)</p>
+</div>
+
+<h4 id='hA-2-0-3'>ステップ3</h4>
+<div class='image' id='fig11a_4_3'>
+<img alt='' src='images/ch11a/fig11a_4_3.png'/>
+</div>
+<p>順伝播の際に複数に枝分かれして流れた場合、逆伝播のときには、それらの逆伝播の値が加算されます。そのため、ここでは、3つの枝分かれした逆伝播の値<span class='equation mathnoimage'><i><span class='math-normal'>(−</span>t<sub><span class='math-normal'>1</span></sub>S<span class='math-normal'>,</span> <span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub>S<span class='math-normal'>,</span> <span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub>S<span class='math-normal'>)</span></i></span>が加算されます。そして、この加算された値に対して「/」の逆伝播を行うので、その結果は<span class='equation mathimage'><img alt='\frac{1}{S}(t_1 + t_2 + t_3)' src='images/math/9871bc61fcf1ef1e4f184d6d4e5fbed0.png' style='height: 1.42em'/></span>になります。また、ここで<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>は教師ラベルですが、これは「one-hotベクトル」です。one-hotベクトルとは、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>のどれかひとつだけが1で、残りはすべて0です。そのため、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>の和は1になります。</p>
+
+<h4 id='hA-2-0-4'>ステップ4</h4>
+<div class='image' id='fig11a_4_4'>
+<img alt='' src='images/ch11a/fig11a_4_4.png'/>
+</div>
+<p>「+」ノードは、そのまま流すだけです。</p>
+
+<h4 id='hA-2-0-5'>ステップ5</h4>
+<div class='image' id='fig11a_4_5'>
+<img alt='' src='images/ch11a/fig11a_4_5.png'/>
+</div>
+<p>「×」ノードは、“ひっくり返して”乗算です。ここでは、式変形の際に、<span class='equation mathimage'><img alt='y_1 = \frac{\exp(a_1)}{S}' src='images/math/88a91e84dff6feae9935ad3ea7333f55.png' style='height: 1.58em'/></span>を利用しています。</p>
+
+<h4 id='hA-2-0-6'>ステップ6</h4>
+<div class='image' id='fig11a_4_6'>
+<img alt='' src='images/ch11a/fig11a_4_6.png'/>
+</div>
+<p>「exp」ノードは次の関係式が成り立ちます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; y = \exp (x)  \\[4pt]
+  &amp; \frac{\partial y}{\partial x} = \exp (x)
+\end{aligned}
+%\qquad({\mathrm A}.4)' src='images/math/db754d497a1c3ab5c8fc60cca94a209e.png' style='height: 4.42em'/></div>
+<p class='eqno' id='eq4'>式(1.4)</p>
+</div>
+<p>これより、枝分かれした2つの入力の和に<span class='equation mathimage'><img alt='\exp (a_1)' src='images/math/4ee5d62468b3346295237d72f5758467.png' style='height: 1.16em'/></span>を掛けた値が、求める逆伝播になります。式で書くと、<span class='equation mathimage'><img alt='(\frac{1}{S} - \frac{t_1}{\exp (a_1)})\exp (a_1)' src='images/math/4a270d56980fcdfa1e813841c4cc8954.png' style='height: 1.58em'/></span>となり、これを整形すると<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub></i></span>になります。以上から、順伝播の入力が<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub></i></span>のノードでは、逆伝播が<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub></i></span>であることが導かれました。残りの<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>2</span></sub></i></span>、<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>3</span></sub></i></span>についても同様の手順で求めることができます（結果はそれぞれ、<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub></i></span>、<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub></i></span>になります）。また、ここで扱った3クラス分類以外で——たとえば、nクラス分類の場合でも——同様の結果が導かれることは簡単に示すことができます。</p>
+
+<h2 id='hA-3'><span class='secno'>A.3　</span>まとめ</h2>
+<p>ここでは、Softmax-with-Lossレイヤの計算グラフを省略せずに図示し、その逆伝播を求めました。Softmax-with-Lossレイヤの計算グラフを省略せずに描けば、<a href='./ch11a.xhtml#fig11a_5'>図A-5</a>のようになりました。</p>
+<div class='image' id='fig11a_5'>
+<img alt='Softmax-with-Lossレイヤの計算グラフ' src='images/ch11a/fig11a_5.png'/>
+<p class='caption'>
+図A-5　Softmax-with-Lossレイヤの計算グラフ
+</p>
+</div>
+<p><a href='./ch11a.xhtml#fig11a_5'>図A-5</a>の計算グラフは複雑そうに見えます。しかし、計算グラフを使ってひとつずつ確認しながら進めれば、微分を求めること（逆伝播の手順）は、そこまで大変な作業ではなかったのではないでしょうか。ここで説明したSoftmax-with-Lossレイヤ以外にも、（Batch Normalizationレイヤなど）複雑そうに見えるレイヤに出くわしたら、ここで行ったような手順でぜひ考えてみてください。きっと数式を追いかけるだけの場合よりも理解しやすいでしょう。</p>
+</body>
+</html>

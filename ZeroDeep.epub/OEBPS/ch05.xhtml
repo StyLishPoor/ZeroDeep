@@ -1,0 +1,964 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>誤差逆伝播法</title>
+</head>
+<body>
+<h1 id='h5'><span class='chapno'>5章</span><br/>誤差逆伝播法</h1>
+<p>前章では、ニューラルネットワークの学習について説明しました。その際、ニューラルネットワークの重みパラメータの勾配——正確には、重みパラメータに関する損失関数の勾配——は、数値微分によって求めました。数値微分はシンプルで、実装は簡単でしたが、計算に時間がかかるという難点があります。本章では、重みパラメータの勾配の計算を効率良く行う手法である「誤差逆伝播法」について学びます。</p>
+<p>誤差逆伝播法を正しく理解するには、2つの方法があると、筆者は（個人的に）考えています。ひとつは「数式」によって、もうひとつは「<b>計算グラフ</b>（computational graph）」によって理解するというものです。前者のほうが一般的な方法で、特に、機械学習に関する書籍の多くでは、数式を中心に話を展開していきます。確かに、数式による説明は、厳密で簡潔になるのでもっともな方法なのですが、いきなり数式を中心に考えようとしたら、本質的なことを見逃してしまったり、数式の羅列にとまどったりすることがあります。そこで本章では、計算グラフによって“視覚的”に誤差逆伝播法を理解してもらおうと思います。実際にコードに書くことでさらに理解が深まり「なるほど！」と納得できると思います。</p>
+<p>なお、誤差逆伝播法を計算グラフによって説明するアイデアは、Andrej Karpathyのブログ<u>［4］</u>、また、彼とFei-Fei Li教授らによって行われたスタンフォード大学のディープラーニングの授業「CS231n」<u>［5］</u>を参考にしています。</p>
+
+<h2 id='h5-1'><span class='secno'>5.1　</span>計算グラフ</h2>
+<p>計算グラフとは、計算の過程をグラフによって表したものです。ここで言うグラフとは、データ構造としてのグラフであり、複数のノードとエッジによって表現されます（ノード間を結ぶ直線を「エッジ」と言います）。本節では、計算グラフに慣れ親しむため、簡単な問題を解いていきます。簡単な問題から始め、ステップ・バイ・ステップで進みながら、最後には誤差逆伝播法にたどり着く予定です。</p>
+
+<h3 id='h5-1-1'><span class='secno'>5.1.1　</span>計算グラフで解く</h3>
+<p><!-- IDX:計算グラフ -->それでは、簡単な問題を「計算グラフ」を使って解いていきましょう。これから見ていく問題は暗算でも解けてしまうほど簡単な問題ですが、ここでの目的は計算グラフに慣れ親しむことです。計算グラフの使い方を身につければ、後ほど見ていく複雑な計算で威力を発揮しますので、ぜひともここで計算グラフの使い方を習得してください。</p>
+<blockquote><p><b>問1</b>：太郎くんはスーパーで1個100円のリンゴを2個買いました。支払う金額を求めなさい。ただし、消費税が10%適用されるものとします。</p></blockquote>
+<p>計算グラフはノードと矢印によって計算の過程を表します。ノードは○で表記し、○の中に演算の内容を書きます。また、計算の途中結果を矢印の上部に書くことで、ノードごとの計算結果が左から右へ伝わるように表します。問1を計算グラフで解くと、<a href='./ch05.xhtml#fig05_1'>図5-1</a>のようになります。</p>
+<div class='image' id='fig05_1'>
+<img alt='計算グラフによる問1の答え' src='images/ch05/fig05_1.png'/>
+<p class='caption'>
+図5-1　計算グラフによる問1の答え
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_1'>図5-1</a>に示すように、最初にリンゴの100円が「×2」ノードへ流れ、200円になって次のノードに伝達されます。続いて、その200円が「×1.1」ノードへ流れ220円になります。よって、この計算グラフの結果から、答えは220円ということになります。</p>
+<p>なお、<a href='./ch05.xhtml#fig05_1'>図5-1</a>では、「×2」や「×1.1」をひとつの演算として○でくくりましたが、乗算である「×」だけを演算として○で表すこともできます。その場合、<a href='./ch05.xhtml#fig05_2'>図5-2</a>のように、「2」と「1.1」は、それぞれ「リンゴの個数」と「消費税」という変数として、○の外に表記することもできます。</p>
+<div class='image' id='fig05_2'>
+<img alt='計算グラフによる問1の答え：「リンゴの個数」と「消費税」を変数として、○の外に表記する' src='images/ch05/fig05_2.png'/>
+<p class='caption'>
+図5-2　計算グラフによる問1の答え：「リンゴの個数」と「消費税」を変数として、○の外に表記する
+</p>
+</div>
+<p>それでは次の問題です。</p>
+<blockquote><p><b>問2</b>：太郎くんはスーパーでリンゴを2個、みかんを3個買いました。リンゴは1個100円、みかんは1個150円です。消費税が10%かかるものとして、支払う金額を求めなさい。</p></blockquote>
+<p>問1と同じように、計算グラフによって問2の問題を解きます。計算グラフは<a href='./ch05.xhtml#fig05_3'>図5-3</a>のようになります。</p>
+<div class='image' id='fig05_3'>
+<img alt='計算グラフによる問2の答え' src='images/ch05/fig05_3.png'/>
+<p class='caption'>
+図5-3　計算グラフによる問2の答え
+</p>
+</div>
+<p>この問題では、加算ノードである「+」が新しく加わり、リンゴとみかんの金額を合算します。計算グラフを構成したら、左から右へ計算を進めていきます。回路に電流が流れるように、計算の結果が左から右へと伝達していくのを意識しましょう。一番右まで計算結果がたどり着いたらそこで終了です。<a href='./ch05.xhtml#fig05_3'>図5-3</a>から答えは715円になります。</p>
+<p>ここまで見てきたように、計算グラフを使って問題を解くには、</p>
+<ol>
+<li>計算グラフを構築する</li>
+<li>計算グラフ上で計算を左から右へ進める</li>
+</ol>
+<p>という流れで行います。ここで2番目の「計算を左から右へ進める」というステップは、順方向の伝播、略して、<!-- IDX:順伝播 --><b>順伝播</b>（forward propagation）と言います。順伝播は、計算グラフの出発点から終着点への伝播です。順伝播という名前があるのであれば、逆方向——図で言うと、右から左方向へ——の伝播も考えることができるでしょう。実際、それを<!-- IDX:逆伝播 --><b>逆伝播</b>（backward propagation）と言います。逆伝播は、この先、微分を計算するにあたって重要な働きをします。</p>
+
+<h3 id='h5-1-2'><span class='secno'>5.1.2　</span>局所的な計算</h3>
+<p><!-- IDX:局所的な計算 -->計算グラフの特徴は、「局所的な計算」を伝播することによって最終的な結果を得ることができる点にあります。局所的という言葉は、「自分に関係する小さな範囲」ということを意味します。局所的な計算とは、つまるところ、全体でどのようなことが行われていようとも、自分に関係する情報だけから次の結果（その先の結果）を出力することができる、ということなのです。</p>
+<p>局所的な計算について具体例を出して説明しましょう。たとえば、スーパーでリンゴを2個と、それ以外にたくさんの買い物をする場合を考えます。その場合、<a href='./ch05.xhtml#fig05_4'>図5-4</a>のような計算グラフを書くことができます。</p>
+<div class='image' id='fig05_4'>
+<img alt='リンゴ2個とそれ以外のたくさんの買い物の例' src='images/ch05/fig05_4.png'/>
+<p class='caption'>
+図5-4　リンゴ2個とそれ以外のたくさんの買い物の例
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_4'>図5-4</a>の計算グラフで示すように、たくさんの買い物を行い、（複雑な計算によって）その金額が4,000円になったとします。ここで大切なポイントは、各ノードにおける計算は局所的な計算であるということです。これは、たとえば、リンゴとそれ以外の買い物を合計する計算——4,000 + 200 → 4,200——は、4,000という数字がどのように計算されてきたかということについては考えずに、ただ2つの数字を足せばよいということを意味します。言い換えれば、各ノードの計算で行うべきことは、自分に関係する計算——この例では、入力された2つの数字の足し算——だけであり、全体のことについては何も考えなくてよいのです。</p>
+<p>このように、計算グラフでは、局所的な計算に集中することができます。たとえ全体の計算がどんなに複雑であったとしても、各ステップでやることは、対象とするノードの「局所的な計算」なのです。局所的な計算は単純ですが、その結果を伝達することで、全体を構成する複雑な計算の結果が得られます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>たとえば、車の組み立ては複雑な作業ですが、それは通常「流れ作業」による分業によって行われます。各担当者（担当の機械）が行うことは単純化された仕事であり、その仕事の成果が次の担当者へと流れていき、最終的に車が完成します。計算グラフも、複雑な計算を「単純で局所的な計算」に分割して、流れ作業を行うように、計算の結果を次のノードへと伝達していきます。複雑な計算も分解してしまえば、単純な計算から構築されるというのは、車の組み立てと似ているものがあります。</p>
+</td></tr></table></div>
+
+<h3 id='h5-1-3'><span class='secno'>5.1.3　</span>なぜ計算グラフで解くのか？</h3>
+<p>これまで計算グラフを使って問題を2つ解いてきましたが、計算グラフの利点は何でしょうか？ ひとつの利点は、先ほど説明した「局所的な計算」にあります。全体がどんなに複雑な計算であっても、局所的な計算によって、各ノードでは単純な計算に集中することで、問題を単純化できます。また、別の利点として、計算グラフによって、途中の計算の結果をすべて保持することができます（たとえば、リンゴ2個まで計算を進めたときの金額は200円、消費税を加算する前の金額は650円といったように）。しかし、それだけの理由で、計算グラフを使うというのでは納得できないかもしれません。実際のところ、計算グラフを使う最大の理由は、逆方向の伝播によって「微分」を効率良く計算できる点にあるのです。</p>
+<p>計算グラフの逆伝播を説明するにあたって、問1の問題をもう一度考えることにしましょう。問1の問題では、リンゴを2個買って消費税を含めて最終的な支払金額を求めました。ここで、たとえば、リンゴの値段が値上がりした場合、最終的な支払金額にどのように影響するかを知りたいとしましょう。これは、「リンゴの値段に関する支払金額の微分」を求めることに相当します。記号で表すとすれば、リンゴの値段を<span class='equation mathnoimage'><i>x</i></span>、支払金額を<span class='equation mathnoimage'><i>L</i></span>とした場合、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial x}' src='images/math/c3196672f8a6fc5870b431a1e0ff7046.png' style='height: 1.42em'/></span>を求めることに相当します。この微分の値は、リンゴの値段が“少しだけ”値上がりした場合に、支払金額がどれだけ増加するか、ということを表したものです。</p>
+<p>先ほど述べたように、「リンゴの値段に関する支払金額の微分」のような値は、計算グラフで逆方向の伝播を行えば求めることができます。先に結果だけを示すと、<a href='./ch05.xhtml#fig05_5'>図5-5</a>のように計算グラフ上での逆伝播によって微分を求めることができます（どのようにして逆伝播を行うかということについては、すぐに説明します）。</p>
+<div class='image' id='fig05_5'>
+<img alt='逆伝播による微分値の伝達' src='images/ch05/fig05_5.png'/>
+<p class='caption'>
+図5-5　逆伝播による微分値の伝達
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_5'>図5-5</a>に示すように、逆伝播の場合は、順方向とは逆向きの矢印（太線）によって図示します。逆伝播は「局所的な微分」を伝達し、その微分の値は矢印の下側に書くことにします。この例の場合、逆伝播は右から左へ「1 → 1.1 → 2.2」と微分の値が伝達されていきます。この結果から、「リンゴの値段に関する支払金額の微分」の値は2.2と言うことができます。これはリンゴが1円値上がりしたら、最終的な支払金額が2.2円増えることを意味します（正確には、リンゴの値段がある微小な値だけ増えたら、最終的な金額はその微小な値の2.2倍だけ増加することを意味します）。</p>
+<p>ここでは、リンゴの値段に関する微分だけを求めましたが、「消費税に関する支払金額の微分」や「リンゴの個数に関する支払金額の微分」も同様の手順で求めることができます。そして、その際には、途中まで求めた微分（途中まで流れた微分）の結果を共有することができ、効率良く複数の微分を計算することができるのです。このように、計算グラフの利点は、順伝播と逆伝播によって、各変数の微分の値を効率良く求めることができる点にあります。</p>
+
+<h2 id='h5-2'><span class='secno'>5.2　</span>連鎖率</h2>
+<p>これまで行ってきた計算グラフの順伝播は、計算の結果を順方向に——左から右方向へ——伝達しました。そのとき行った計算は、日頃行う計算であるため自然に感じられたことでしょう。一方、逆方向の伝播では「局所的な微分」を、順方向とは逆向きに——右から左方向へ——伝達していきます（これは最初はとまどうかもしれません）。なお、この「局所的な微分」を伝達する原理は、<!-- IDX:連鎖率 --><b>連鎖率</b>（chain rule）によるものです。ここでは連鎖率について説明し、それが計算グラフ上での逆伝播に対応することを明らかにします。</p>
+
+<h3 id='h5-2-1'><span class='secno'>5.2.1　</span>計算グラフの逆伝播</h3>
+<p>それでは早速、計算グラフを使った逆伝播の例を示します。ここでは<span class='equation mathnoimage'><i>y<span class='math-normal'>＝</span>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>という計算があるとして、この計算の逆伝播を<a href='./ch05.xhtml#fig05_6'>図5-6</a>に表します。</p>
+<div class='image' id='fig05_6'>
+<img alt='計算グラフの逆伝播：順方向とは逆向きに、局所的な微分を乗算する' src='images/ch05/fig05_6.png'/>
+<p class='caption'>
+図5-6　計算グラフの逆伝播：順方向とは逆向きに、局所的な微分を乗算する
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_6'>図5-6</a>に示すように、逆伝播の計算手順は、信号<span class='equation mathnoimage'><i>E</i></span>に対して、ノードの局所的な微分（<span class='equation mathimage'><img alt='\frac{\partial y}{\partial x}' src='images/math/98d9a041300da531d85f86ac249354dd.png' style='height: 1.5em'/></span>）を乗算し、それを次のノードへ伝達していきます。ここで言う局所的な微分とは、順伝播での<span class='equation mathnoimage'><i>y<span class='math-normal'>＝</span>f<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>という計算の微分を求めるということであり、これは、<span class='equation mathnoimage'><i>x</i></span>に関する<span class='equation mathnoimage'><i>y</i></span>の微分（<span class='equation mathimage'><img alt='\frac{\partial y}{\partial x}' src='images/math/98d9a041300da531d85f86ac249354dd.png' style='height: 1.5em'/></span>）を求めることを意味します。たとえば、<span class='equation mathnoimage'><i>y<span class='math-normal'>＝</span>f<span class='math-normal'>(</span>x<span class='math-normal'>)＝</span>x<sup><span class='math-normal'>2</span></sup></i></span>だとしたら、<span class='equation mathimage'><img alt='\frac{\partial y}{\partial x}=2x' src='images/math/32160448b249dc78957551b3e988cf64.png' style='height: 1.5em'/></span>になります。そして、その局所的な微分を上流から伝達された値（この例では<span class='equation mathnoimage'><i>E</i></span>）に乗算して、前のノードへと渡していくのです。</p>
+<p>これが逆伝播で行う計算手順ですが、この計算を行うことで、目的とする微分の値を効率良く求めることができるのが逆伝播のポイントです。なぜ、そのようなことが可能なのかというと、それは連鎖率の原理から説明できます。それでは続いて連鎖率について説明を行います。</p>
+
+<h3 id='h5-2-2'><span class='secno'>5.2.2　</span>連鎖率とは</h3>
+<p>連鎖率について説明するには、まず<!-- IDX:合成関数 --><b>合成関数</b>から話を始める必要があります。合成関数とは複数の関数によって構成される関数のことです。たとえば、<span class='equation mathimage'><img alt='z = {(x + y)^2}' src='images/math/f3861a415eb1c1b1662fd30eb37a737a.png' style='height: 1.26em'/></span>という式は、次の式(5.1)のように、2つの式で構成されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; z = {t^2}  \cr
+  &amp; t = x + y  \cr
+\end{aligned}
+%\qquad(5.1)' src='images/math/3eb585978de5ca1a850394337d05a764.png' style='height: 3.16em'/></div>
+<p class='eqno' id='eq1'>式(5.1)</p>
+</div>
+<p>連鎖率とは合成関数の微分についての性質であり、次のように定義されます。</p>
+<blockquote><p>ある関数が合成関数で表される場合、その合成関数の微分は、合成関数を構成するそれぞれの関数の微分の積によって表すことができる。</p></blockquote>
+<p>これを連鎖率の原理と言います。（一見難しそうに見えるかもしれませんが）とてもシンプルな性質です。式(5.1)の例で言うと、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>（<span class='equation mathnoimage'><i>x</i></span>に関する<span class='equation mathnoimage'><i>z</i></span>の微分）は、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial t}' src='images/math/3459ff30d6f24d9db127a3b814c13b7b.png' style='height: 1.42em'/></span>（<span class='equation mathnoimage'><i>t</i></span>に関する<span class='equation mathnoimage'><i>z</i></span>の微分）と<span class='equation mathimage'><img alt='\frac{\partial t}{\partial x}' src='images/math/f466f2d908a0b5dea6906487553d1dd6.png' style='height: 1.42em'/></span>（<span class='equation mathnoimage'><i>x</i></span>に関する<span class='equation mathnoimage'><i>t</i></span>の微分）の積によって表すことができる、ということです。数式で表すと、式(5.2)のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\frac{\partial z}{\partial x} = \frac{\partial z}{\partial t} \frac{\partial t}{\partial x} %\qquad(5.2)' src='images/math/4ccedf9e32416b471c3c0d9794868db5.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq2'>式(5.2)</p>
+</div>
+<p>式(5.2)は、ちょうど次のように<span class='equation mathimage'><img alt='\partial t' src='images/math/fbd6f8f323d737b12001120a5b9b47ee.png' style='height: 0.92em'/></span>が互いに“打ち消し合う”ことから、簡単に覚えることがでます。</p>
+<div class='image' id='fig05_6_tmp'>
+<img alt='' src='images/ch05/fig05_6_tmp.png'/>
+</div>
+<p>それでは、連鎖率を使って、式(5.2)の微分<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>を求めてみましょう。それには、式(5.1)の局所的な微分（偏微分）を先に求めます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial z}{\partial t} = 2t \\[4pt]
+\frac{\partial t}{\partial x} = 1
+\end{aligned}
+%\qquad(5.3)' src='images/math/abcad26fc1d70519340642814047352f.png' style='height: 5.5em'/></div>
+<p class='eqno' id='eq3'>式(5.3)</p>
+</div>
+<p>式(5.3)に示すように、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial t}' src='images/math/3459ff30d6f24d9db127a3b814c13b7b.png' style='height: 1.42em'/></span>は<span class='equation mathnoimage'><i><span class='math-normal'>2</span>t</i></span>であり、<span class='equation mathimage'><img alt='\frac{\partial t}{\partial x}' src='images/math/f466f2d908a0b5dea6906487553d1dd6.png' style='height: 1.42em'/></span>は1です。これは微分の公式から解析的に求められる結果です。そして、最終的に求めたい<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>は、式(5.3)で求めた微分の積によって計算できます。</p>
+<div class='equation'>
+<div class='math'><img alt='\frac{\partial z}{\partial x} = \frac{\partial z}{\partial t} \frac{\partial t}{\partial x} = 2t \cdot 1 = 2(x + y) %\qquad(5.4)' src='images/math/38c9d0478f640e20bf7005106f121e72.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq4'>式(5.4)</p>
+</div>
+
+<h3 id='h5-2-3'><span class='secno'>5.2.3　</span>連鎖率と計算グラフ</h3>
+<p>それでは、式(5.4)で行った連鎖率の計算を、計算グラフで表してみましょう。2乗の計算を「<code class='tt'>**2</code>」というノードで表すとすれば、<a href='./ch05.xhtml#fig05_7'>図5-7</a>のように書くことができます。</p>
+<div class='image' id='fig05_7'>
+<img alt='式(5.4)の計算グラフ：順方向とは逆向きの方向に、局所的な微分を乗算して渡していく' src='images/ch05/fig05_7.png'/>
+<p class='caption'>
+図5-7　式(5.4)の計算グラフ：順方向とは逆向きの方向に、局所的な微分を乗算して渡していく
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_7'>図5-7</a>に示すように、計算グラフの逆伝播は、右から左へと、信号を伝播していきます。逆伝播の計算手順では、ノードへの入力信号に対して、ノードの局所的な微分（偏微分）を乗算して次のノードへと伝達していきます。たとえば、「<code class='tt'>**2</code>」への逆伝播時の入力は<span class='equation mathimage'><img alt='\frac{\partial z}{\partial z}' src='images/math/e2bef684b77839e66b580568c7f87a5c.png' style='height: 1.42em'/></span>であり、これに局所的な微分である<span class='equation mathimage'><img alt='\frac{\partial z}{\partial t}' src='images/math/3459ff30d6f24d9db127a3b814c13b7b.png' style='height: 1.42em'/></span>——順伝播時には入力が<span class='equation mathnoimage'><i>t</i></span>で出力が<span class='equation mathnoimage'><i>z</i></span>のため、このノードにおける（局所的な）微分は<span class='equation mathimage'><img alt='\frac{\partial z}{\partial t}' src='images/math/3459ff30d6f24d9db127a3b814c13b7b.png' style='height: 1.42em'/></span>——を乗算して、次のノードへ渡していきます。なお、<a href='./ch05.xhtml#fig05_7'>図5-7</a>で逆伝播の最初の信号である<span class='equation mathimage'><img alt='\frac{\partial z}{\partial z}' src='images/math/e2bef684b77839e66b580568c7f87a5c.png' style='height: 1.42em'/></span>は、前の数式では登場しませんでしたが、これは<span class='equation mathimage'><img alt='\frac{\partial z}{\partial z} = 1' src='images/math/c542d18e40792063752a83118e1b1451.png' style='height: 1.42em'/></span>であるため先の数式では省略しました。</p>
+<p>さて、<a href='./ch05.xhtml#fig05_7'>図5-7</a>で注目すべきは、一番左の逆伝播の結果です。これは、連鎖率より、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial z} \frac{\partial z}{\partial t} \frac{\partial t}{\partial x} = \frac{\partial z}{\partial t} \frac{\partial t}{\partial x} = \frac{\partial z}{\partial x}' src='images/math/c0375e88d0a76bbdaac9812d054fbf9b.png' style='height: 1.42em'/></span>が成り立ち、「<span class='equation mathnoimage'><i>x</i></span>に関する<span class='equation mathnoimage'><i>z</i></span>の微分」に対応します。つまり、逆伝播が行っていることは、連鎖率の原理から構成されているのです。</p>
+<p>なお、<a href='./ch05.xhtml#fig05_7'>図5-7</a>に式(5.3)の結果を代入すると<a href='./ch05.xhtml#fig05_8'>図5-8</a>のような結果になり、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>は<span class='equation mathnoimage'><i><span class='math-normal'>2(</span>x<span class='math-normal'>＋</span>y<span class='math-normal'>)</span></i></span>として求めることができます。</p>
+<div class='image' id='fig05_8'>
+<img alt='計算グラフの逆伝播の結果より、&lt;span class=&quot;equation&quot;&gt;&lt;img src=&quot;images/math/7e80dd13d13e758b6fa3644e029003eb.png&quot; alt=&quot;\frac{\partial z}{\partial x}&quot; /&gt;&lt;/span&gt;は&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;&lt;span class=&apos;math-normal&apos;&gt;2(&lt;/span&gt;x&lt;span class=&apos;math-normal&apos;&gt;＋&lt;/span&gt;y&lt;span class=&apos;math-normal&apos;&gt;)&lt;/span&gt;&lt;/i&gt;&lt;/span&gt;となる' src='images/ch05/fig05_8.png'/>
+<p class='caption'>
+図5-8　計算グラフの逆伝播の結果より、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>は<span class='equation mathnoimage'><i><span class='math-normal'>2(</span>x<span class='math-normal'>＋</span>y<span class='math-normal'>)</span></i></span>となる
+</p>
+</div>
+
+<h2 id='h5-3'><span class='secno'>5.3　</span>逆伝播</h2>
+<p>前節では、計算グラフの逆伝播が連鎖率によって成り立つことを説明しました。ここでは、「+」や「×」などの演算を例に、逆伝播の仕組みについて説明します。</p>
+
+<h3 id='h5-3-1'><span class='secno'>5.3.1　</span>加算ノードの逆伝播</h3>
+<p>初めに加算ノードの逆伝播について考えましょう。ここでは、<span class='equation mathnoimage'><i>z<span class='math-normal'>＝</span>x<span class='math-normal'>＋</span>y</i></span>という数式を対象にして、その逆伝播を見ていきます。早速、<span class='equation mathnoimage'><i>z<span class='math-normal'>＝</span>x<span class='math-normal'>＋</span>y</i></span>の微分についてですが、これは次のように（解析的に）計算することができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial z}{\partial x} = 1  \\[4pt]
+\frac{\partial z}{\partial y} = 1
+\end{aligned}
+%\qquad(5.5)' src='images/math/a1ad4b15f6ded33b6dc3cfb56808c051.png' style='height: 5.66em'/></div>
+<p class='eqno' id='eq5'>式(5.5)</p>
+</div>
+<p>式(5.5)のとおり、<span class='equation mathimage'><img alt='\frac{\partial z}{\partial x}' src='images/math/7e80dd13d13e758b6fa3644e029003eb.png' style='height: 1.42em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial z}{\partial y}' src='images/math/bb9f620da12a0a94474441ea31c98887.png' style='height: 1.58em'/></span>は、ともに1になります。そのため、計算グラフで表すとすれば、<a href='./ch05.xhtml#fig05_9'>図5-9</a>のように書くことができます。</p>
+<div class='image' id='fig05_9'>
+<img alt='加算ノードの逆伝播：左図が順伝播、右図が逆伝播。右図の逆伝播が示すように、加算ノードの逆伝播は、上流の値をそのまま下流へ流す' src='images/ch05/fig05_9.png'/>
+<p class='caption'>
+図5-9　加算ノードの逆伝播：左図が順伝播、右図が逆伝播。右図の逆伝播が示すように、加算ノードの逆伝播は、上流の値をそのまま下流へ流す
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_9'>図5-9</a>に示すように、逆伝播の際には、上流から伝わった微分——この例では<span class='equation mathimage'><img alt='\frac{\partial L}{\partial z}' src='images/math/b51328bb81cd65e5af2fbe7352656bee.png' style='height: 1.42em'/></span>——に1を乗算して、下流に流します。つまり、加算ノードの逆伝播は1を乗算するだけなので、入力された値をそのまま次のノードへ流すだけになります。</p>
+<p>なお、この例では上流から伝わった微分の値を<span class='equation mathimage'><img alt='\frac{\partial L}{\partial z}' src='images/math/b51328bb81cd65e5af2fbe7352656bee.png' style='height: 1.42em'/></span>としましたが、これは<a href='./ch05.xhtml#fig05_10'>図5-10</a>に示すように、最終的に<span class='equation mathnoimage'><i>L</i></span>という値を出力する大きな計算グラフを想定しているためです。<span class='equation mathnoimage'><i>z<span class='math-normal'>＝</span>x<span class='math-normal'>＋</span>y</i></span>という計算は、その大きな計算グラフのどこかに存在し、上流から<span class='equation mathimage'><img alt='\frac{\partial L}{\partial z}' src='images/math/b51328bb81cd65e5af2fbe7352656bee.png' style='height: 1.42em'/></span>の値が伝わることになります。そして、下流にはそれぞれ<span class='equation mathimage'><img alt='\frac{\partial L}{\partial x}' src='images/math/c3196672f8a6fc5870b431a1e0ff7046.png' style='height: 1.42em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial y}' src='images/math/d9ca87417f6a64f61f38648492734964.png' style='height: 1.58em'/></span>の値を伝達していくのです。</p>
+<div class='image' id='fig05_10'>
+<img alt='最終的に出力する計算の一部に、今回の加算ノードが存在する。逆伝播の際には、一番右の出力からスタートして、局所的な微分がノードからノードへと逆方向に伝播されていく' src='images/ch05/fig05_10.png'/>
+<p class='caption'>
+図5-10　最終的に出力する計算の一部に、今回の加算ノードが存在する。逆伝播の際には、一番右の出力からスタートして、局所的な微分がノードからノードへと逆方向に伝播されていく
+</p>
+</div>
+<p>それでは、加算の逆伝播として、具体例をひとつ見てみましょう。たとえば、「<span class='equation mathnoimage'><i><span class='math-normal'>10＋5＝15</span></i></span>」という計算があるとして、逆伝播の際には、上流から1.3の値が流れてくるとします。これを計算グラフで書くと<a href='./ch05.xhtml#fig05_11'>図5-11</a>のようになります。</p>
+<div class='image' id='fig05_11'>
+<img alt='加算ノードの逆伝播の具体例' src='images/ch05/fig05_11.png'/>
+<p class='caption'>
+図5-11　加算ノードの逆伝播の具体例
+</p>
+</div>
+<p>加算ノードの逆伝播は入力信号を次のノードへ出力するだけなので、<a href='./ch05.xhtml#fig05_11'>図5-11</a>のように、1.3を次のノードへと流します。</p>
+
+<h3 id='h5-3-2'><span class='secno'>5.3.2　</span>乗算ノードの逆伝播</h3>
+<p>続いて、乗算ノードの逆伝播について説明します。ここでは、<span class='equation mathnoimage'><i>z<span class='math-normal'>＝</span>xy</i></span>という式を考えます。この式の微分は、次の式(5.6)で表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial z}{\partial x} = y  \\[4pt]
+\frac{\partial z}{\partial y} = x
+\end{aligned}
+%\qquad(5.6)' src='images/math/2ee4c0d8895131cdfc815dfd0ec7bc98.png' style='height: 5.66em'/></div>
+<p class='eqno' id='eq6'>式(5.6)</p>
+</div>
+<p>式(5.6)から、計算グラフは次のように書くことができます。</p>
+<div class='image' id='fig05_12'>
+<img alt='乗算の逆伝播：左図が順伝播、右図が逆伝播' src='images/ch05/fig05_12.png'/>
+<p class='caption'>
+図5-12　乗算の逆伝播：左図が順伝播、右図が逆伝播
+</p>
+</div>
+<p>乗算の逆伝播の場合は、上流の値に、順伝播の際の入力信号を“ひっくり返した値”を乗算して下流へ流します。ひっくり返した値とは、<a href='./ch05.xhtml#fig05_12'>図5-12</a>のように、順伝播の際に<span class='equation mathnoimage'><i>x</i></span>の信号であれば逆伝播では<span class='equation mathnoimage'><i>y</i></span>、順伝播の際に<span class='equation mathnoimage'><i>y</i></span>の信号であれば逆伝播では<span class='equation mathnoimage'><i>x</i></span>と、ひっくり返した関係になっていることを意味します。</p>
+<p>それでは具体例をひとつ見てみましょう。たとえば、「<span class='equation mathnoimage'><i><span class='math-normal'>10</span><span class='math-normal'>×</span><span class='math-normal'>5＝50</span></i></span>」という計算があるとして、逆伝播の際には、上流から1.3の値が流れてくるとします。これを計算グラフで書くと<a href='./ch05.xhtml#fig05_13'>図5-13</a>のようになります。</p>
+<div class='image' id='fig05_13'>
+<img alt='乗算ノードの逆伝播の具体例' src='images/ch05/fig05_13.png'/>
+<p class='caption'>
+図5-13　乗算ノードの逆伝播の具体例
+</p>
+</div>
+<p>乗算の逆伝播は、入力信号をひっくり返した値を乗算するので、<span class='equation mathnoimage'><i><span class='math-normal'>1.3</span><span class='math-normal'>×</span><span class='math-normal'>5＝6.5</span></i></span>、<span class='equation mathnoimage'><i><span class='math-normal'>1.3</span><span class='math-normal'>×</span><span class='math-normal'>10＝13</span></i></span>とそれぞれ計算できます。なお、加算の逆伝播では、上流の値をただ下流に流すだけだったので、順伝播の入力信号の値は必要ありませんでした。一方、乗算の逆伝播では、順伝播のときの入力信号の値が必要になります。そのため、乗算ノードの実装時には、順伝播の入力信号を保持します。</p>
+
+<h3 id='h5-3-3'><span class='secno'>5.3.3　</span>リンゴの例</h3>
+<p>改めて、本章の最初に見たリンゴの買い物の例——リンゴ2個と消費税——を考えてみます。ここで解きたい問題は、リンゴの値段、リンゴの個数、消費税の3つの変数それぞれが最終的な支払金額にどのように影響するか、ということです。これは、「リンゴの値段に関する支払金額の微分」、「リンゴの個数に関する支払金額の微分」、「消費税に関する支払金額の微分」を求めることに相当します。これを計算グラフの逆伝播を使って解くと、<a href='./ch05.xhtml#fig05_14'>図5-14</a>のようになります。</p>
+<div class='image' id='fig05_14'>
+<img alt='リンゴの買い物の逆伝播の例' src='images/ch05/fig05_14.png'/>
+<p class='caption'>
+図5-14　リンゴの買い物の逆伝播の例
+</p>
+</div>
+<p>これまで説明してきたとおり、乗算ノードの逆伝播では、入力信号がひっくり返って下流へと流れます。<a href='./ch05.xhtml#fig05_14'>図5-14</a>の結果より、リンゴの値段の微分は2.2、リンゴの個数の微分は110、消費税の微分は200となります。これは、たとえば、消費税とリンゴの値段が同じ量だけ増加したら、消費税は200の大きさで最終的な支払金額に影響を与え、リンゴの値段は2.2の大きさで影響を与えると解釈できます。ただし、この例での消費税とリンゴの値段はスケールが異なるので、このような結果になっています（消費税の1は100%、リンゴの値段の1は1円）。</p>
+<p>それでは、最後に練習問題として、「リンゴとみかんの買い物」の逆伝播を問いてみましょう。<a href='./ch05.xhtml#fig05_15'>図5-15</a>の四角に数字を入れて、それぞれの変数の微分を求めてみてください（答えは、数ページ先にあります）。</p>
+<div class='image' id='fig05_15'>
+<img alt='リンゴとみかんの買い物の逆伝播の例：四角に数字を入れて逆伝播を完成させよう' src='images/ch05/fig05_15.png'/>
+<p class='caption'>
+図5-15　リンゴとみかんの買い物の逆伝播の例：四角に数字を入れて逆伝播を完成させよう
+</p>
+</div>
+
+<h2 id='h5-4'><span class='secno'>5.4　</span>単純なレイヤの実装</h2>
+<p>本節では、これまで見てきた「リンゴの買い物」の例を、Pythonで実装していきます。ここでは、計算グラフの乗算ノードを「乗算レイヤ（<code class='tt'>MulLayer</code>）」、加算ノードを「加算レイヤ（<code class='tt'>AddLayer</code>）」という名前で実装することにします。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>次節では、ニューラルネットワークを構成する「層（レイヤ）」をひとつのクラスで実装することにします。ここで言う「レイヤ」とは、ニューラルネットワークにおける機能の単位です。たとえば、シグモイド関数のための<code class='tt'>Sigmoid</code>や、行列の内積のための<code class='tt'>Affine</code>など、レイヤ単位で実装を行います。そのため、ここでも「レイヤ」という単位で、乗算ノードと加算ノードを実装します。</p>
+</td></tr></table></div>
+
+<h3 id='h5-4-1'><span class='secno'>5.4.1　</span>乗算レイヤの実装</h3>
+<p><!-- IDX:乗算レイヤ -->レイヤは、<code class='tt'>forward()</code>と<code class='tt'>backward()</code>という共通のメソッド（インタフェース）を持つように実装します。<code class='tt'>forward()</code>は順伝播、<code class='tt'>backward()</code>は逆伝播に対応します。</p>
+<p>それでは乗算レイヤを実装しましょう。乗算レイヤは<code class='tt'>MulLayer</code>という名前のクラスとして、次のように実装することができます（ソースコードは<code class='tt'>ch05/layer_naive.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>MulLayer</span>:<!-- IDX:MulLayer（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>x <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x, y):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>x <span style='color: #666666'>=</span> x
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #666666'>=</span> y
+        out <span style='color: #666666'>=</span> x <span style='color: #666666'>*</span> y
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        dx <span style='color: #666666'>=</span> dout <span style='color: #666666'>*</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #408080; font-style: italic'># xとyをひっくり返す</span>
+        dy <span style='color: #666666'>=</span> dout <span style='color: #666666'>*</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>x
+
+        <span style='color: #008000; font-weight: bold'>return</span> dx, dy
+</pre>
+</div>
+<p><code class='tt'>__init__()</code>では、インスタンス変数である<code class='tt'>x</code>と<code class='tt'>y</code>の初期化を行いますが、これらは、順伝播時の入力値を保持するために用います。<code class='tt'>forward()</code>では、<code class='tt'>x</code>、<code class='tt'>y</code>の2つの引数を受け取り、それらを乗算して出力します。一方、<code class='tt'>backward()</code>では、上流から伝わってきた微分（<code class='tt'>dout</code>）に対して、順伝播の“ひっくり返した値”を乗算して下流に流します。</p>
+<p>以上が<code class='tt'>MulLayer</code>の実装になります。では、この<code class='tt'>MulLayer</code>を使って、これまで見てきた「リンゴの買い物」——リンゴ2個と消費税——を実装してみましょう。前節では、計算グラフの順伝播と逆伝播を使って、<a href='./ch05.xhtml#fig05_16'>図5-16</a>のように計算することができました。</p>
+<div class='image' id='fig05_16'>
+<img alt='リンゴ2個の買い物' src='images/ch05/fig05_16.png'/>
+<p class='caption'>
+図5-16　リンゴ2個の買い物
+</p>
+</div>
+<p>この乗算レイヤを使えば、<a href='./ch05.xhtml#fig05_16'>図5-16</a>の順伝播は次のように実装することができますソースコードは<code class='tt'>ch05/buy_apple.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>apple <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+apple_num <span style='color: #666666'>=</span> <span style='color: #666666'>2</span>
+tax <span style='color: #666666'>=</span> <span style='color: #666666'>1.1</span>
+
+<span style='color: #408080; font-style: italic'># layer</span>
+mul_apple_layer <span style='color: #666666'>=</span> MulLayer()
+mul_tax_layer <span style='color: #666666'>=</span> MulLayer()
+
+<span style='color: #408080; font-style: italic'># forward</span>
+apple_price <span style='color: #666666'>=</span> mul_apple_layer<span style='color: #666666'>.</span>forward(apple, apple_num)
+price <span style='color: #666666'>=</span> mul_tax_layer<span style='color: #666666'>.</span>forward(apple_price, tax)
+
+<span style='color: #008000; font-weight: bold'>print</span>(price) <span style='color: #408080; font-style: italic'># 220</span>
+</pre>
+</div>
+<p>また、各変数に関する微分は、<code class='tt'>backward()</code>で求めることができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #408080; font-style: italic'># backward</span>
+dprice <span style='color: #666666'>=</span> <span style='color: #666666'>1</span>
+dapple_price, dtax <span style='color: #666666'>=</span> mul_tax_layer<span style='color: #666666'>.</span>backward(dprice)
+dapple, dapple_num <span style='color: #666666'>=</span> mul_apple_layer<span style='color: #666666'>.</span>backward(dapple_price)
+
+<span style='color: #008000; font-weight: bold'>print</span>(dapple, dapple_num, dtax) <span style='color: #408080; font-style: italic'># 2.2 110 200</span>
+</pre>
+</div>
+<p>ここで、<code class='tt'>backward()</code>の呼び出す順番は、<code class='tt'>forward()</code>のときと逆の順番で行います。また、<code class='tt'>backward()</code>の引数は、「順伝播の際の出力変数に対する微分」を入力することに注意しましょう。たとえば、<code class='tt'>mul_apple_layer</code>という乗算レイヤは、順伝播時に<code class='tt'>apple_price</code>を出力しますが、逆伝播時には、<code class='tt'>apple_price</code>の微分値である<code class='tt'>dapple_price</code>を引数に設定します。なお、このプログラムの実行結果は、<a href='./ch05.xhtml#fig05_16'>図5-16</a>の結果と一致します。</p>
+
+<h3 id='h5-4-2'><span class='secno'>5.4.2　</span>加算レイヤの実装</h3>
+<p>続いて足し算ノードである加算レイヤを実装します。加算レイヤは次のように実装できます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>AddLayer</span>:<!-- IDX:AddLayer（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000; font-weight: bold'>pass</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x, y):
+        out <span style='color: #666666'>=</span> x <span style='color: #666666'>+</span> y
+        <span style='color: #008000; font-weight: bold'>return</span> out
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        dx <span style='color: #666666'>=</span> dout <span style='color: #666666'>*</span> <span style='color: #666666'>1</span>
+        dy <span style='color: #666666'>=</span> dout <span style='color: #666666'>*</span> <span style='color: #666666'>1</span>
+        <span style='color: #008000; font-weight: bold'>return</span> dx, dy
+</pre>
+</div>
+<p>加算レイヤでは特に初期化は必要ないので、<code class='tt'>__init__()</code>では何も行いません（<code class='tt'>pass</code>という記述は「何も行わない」という命令です）。加算レイヤの<code class='tt'>forward()</code>では、2つの引数<code class='tt'>x</code>、<code class='tt'>y</code>を受け取り、それらを加算して出力します。<code class='tt'>backward()</code>では上流から伝わってきた微分（<code class='tt'>dout</code>）を、そのまま下流に流すだけです。</p>
+<p>それでは、加算レイヤと乗算レイヤを使って、<a href='./ch05.xhtml#fig05_17'>図5-17</a>で示されるリンゴ2個とみかん3個の買い物を実装していきましょう。</p>
+<div class='image' id='fig05_17'>
+<img alt='リンゴ2個とみかん3個の買い物' src='images/ch05/fig05_17.png'/>
+<p class='caption'>
+図5-17　リンゴ2個とみかん3個の買い物
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_17'>図5-17</a>の計算グラフは、Pythonで実装すると次のようになります（ソースコードは<code class='tt'>ch05/buy_apple_orange.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>apple <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+apple_num <span style='color: #666666'>=</span> <span style='color: #666666'>2</span>
+orange <span style='color: #666666'>=</span> <span style='color: #666666'>150</span>
+orange_num <span style='color: #666666'>=</span> <span style='color: #666666'>3</span>
+tax <span style='color: #666666'>=</span> <span style='color: #666666'>1.1</span>
+
+<span style='color: #408080; font-style: italic'># layer</span>
+mul_apple_layer <span style='color: #666666'>=</span> MulLayer()
+mul_orange_layer <span style='color: #666666'>=</span> MulLayer()
+add_apple_orange_layer <span style='color: #666666'>=</span> AddLayer()
+mul_tax_layer <span style='color: #666666'>=</span> MulLayer()
+
+<span style='color: #408080; font-style: italic'># forward</span>
+apple_price <span style='color: #666666'>=</span> mul_apple_layer<span style='color: #666666'>.</span>forward(apple, apple_num) <span style='color: #408080; font-style: italic'>#(1)</span>
+orange_price <span style='color: #666666'>=</span> mul_orange_layer<span style='color: #666666'>.</span>forward(orange, orange_num) <span style='color: #408080; font-style: italic'>#(2)</span>
+all_price <span style='color: #666666'>=</span> add_apple_orange_layer<span style='color: #666666'>.</span>forward(apple_price, orange_price) <span style='color: #408080; font-style: italic'>#(3)</span>
+price <span style='color: #666666'>=</span> mul_tax_layer<span style='color: #666666'>.</span>forward(all_price, tax) <span style='color: #408080; font-style: italic'>#(4)</span>
+
+<span style='color: #408080; font-style: italic'># backward</span>
+dprice <span style='color: #666666'>=</span> <span style='color: #666666'>1</span>
+dall_price, dtax <span style='color: #666666'>=</span> mul_tax_layer<span style='color: #666666'>.</span>backward(dprice) <span style='color: #408080; font-style: italic'>#(4)</span>
+dapple_price, dorange_price <span style='color: #666666'>=</span> add_apple_orange_layer<span style='color: #666666'>.</span>backward(dall_price) <span style='color: #408080; font-style: italic'>#(3)</span>
+dorange, dorange_num <span style='color: #666666'>=</span> mul_orange_layer<span style='color: #666666'>.</span>backward(dorange_price) <span style='color: #408080; font-style: italic'>#(2)</span>
+dapple, dapple_num <span style='color: #666666'>=</span> mul_apple_layer<span style='color: #666666'>.</span>backward(dapple_price) <span style='color: #408080; font-style: italic'>#(1)</span>
+
+<span style='color: #008000; font-weight: bold'>print</span>(price) <span style='color: #408080; font-style: italic'># 715</span>
+<span style='color: #008000; font-weight: bold'>print</span>(dapple_num, dapple, dorange, dorange_num, dtax) <span style='color: #408080; font-style: italic'># 110 2.2 3.3 165 650</span>
+</pre>
+</div>
+<p>この実装は多少長くなりましたが、一つひとつの命令は単純です。必要なレイヤを作成し、順伝播のメソッド<code class='tt'>forward()</code>を適切な順番で呼び出します。そして、順伝播と逆の順番で逆伝播のメソッド<code class='tt'>backward()</code>を呼び出すと、求めたい微分が得られます。</p>
+<p>このように、計算グラフにおけるレイヤの実装——ここでは乗算と加算——は簡単に行うことができ、それらを使えば複雑な微分の計算を求めることができます。続いて、ニューラルネットワークで使われるレイヤを実装していきます。</p>
+
+<h2 id='h5-5'><span class='secno'>5.5　</span>活性化関数レイヤの実装</h2>
+<p>それでは、計算グラフの考え方をニューラルネットワークに適用したいと思います。ここでは、ニューラルネットワークを構成する「層（レイヤ）」をひとつのクラスとして実装することにします。まずは、活性化関数である<code class='tt'>ReLU</code>と<code class='tt'>Sigmoid</code>レイヤを実装していきます。</p>
+
+<h3 id='h5-5-1'><span class='secno'>5.5.1　</span>ReLUレイヤ</h3>
+<p>活性化関数として使われるReLU（Rectified Linear Unit）は、次の式(5.7)で表されました。</p>
+<div class='equation'>
+<div class='math'><img alt='y = \begin{cases}
+x &amp; (x  &gt;  0)\\[-3pt]
+0 &amp; (x \le 0) %\raisebox{.5\Cvs}{\qquad(5.7)}
+ \end{cases}' src='images/math/c5051a1fba37d0034af3cfd1604508fe.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq7'>式(5.7)</p>
+</div>
+<p>式(5.7)から、<span class='equation mathnoimage'><i>x</i></span>に関する<span class='equation mathnoimage'><i>y</i></span>の微分は式(5.8)のように求められます。</p>
+<div class='equation'>
+<div class='math'><img alt='\frac{\partial y}{\partial x} = \begin{cases}
+   1 &amp; (x  &gt;  0)  \\[-3pt]
+   0 &amp; (x \le 0) %\raisebox{.5\Cvs}{\qquad(5.8)}
+ \end{cases}' src='images/math/87e41fea41b4fd4e8a7f3a020de7a101.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq8'>式(5.8)</p>
+</div>
+<p>式(5.8)で表されるように、順伝播時の入力である<span class='equation mathnoimage'><i>x</i></span>が0より大きければ、逆伝播は上流の値をそのまま下流に流します。逆に、順伝播時に<span class='equation mathnoimage'><i>x</i></span>が0以下であれば、逆伝播では下流への信号はそこでストップします。計算グラフで表すと、<a href='./ch05.xhtml#fig05_18'>図5-18</a>のように書くことができます。</p>
+<div class='image' id='fig05_18'>
+<img alt='ReLUレイヤの計算グラフ' src='images/ch05/fig05_18.png'/>
+<p class='caption'>
+図5-18　ReLUレイヤの計算グラフ
+</p>
+</div>
+<p>それでは、この<code class='tt'>ReLU</code>レイヤの実装を行いましょう。ニューラルネットワークのレイヤの実装では、<code class='tt'>forward()</code>や<code class='tt'>backward()</code>の引数には、NumPyの配列が入力されることを想定します。なお、<code class='tt'>ReLU</code>レイヤの実装は、<code class='tt'>common/layers.py</code>にあります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Relu</span>:<!-- IDX:Relu（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask <span style='color: #666666'>=</span> (x <span style='color: #666666'>&lt;=</span> <span style='color: #666666'>0</span>)
+        out <span style='color: #666666'>=</span> x<span style='color: #666666'>.</span>copy()
+        out[<span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask] <span style='color: #666666'>=</span> <span style='color: #666666'>0</span>
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        dout[<span style='color: #008000'>self</span><span style='color: #666666'>.</span>mask] <span style='color: #666666'>=</span> <span style='color: #666666'>0</span>
+        dx <span style='color: #666666'>=</span> dout
+
+        <span style='color: #008000; font-weight: bold'>return</span> dx
+</pre>
+</div>
+<p><code class='tt'>Relu</code>クラスは、インスタンス変数として<code class='tt'>mask</code>という変数を持ちます。この<code class='tt'>mask</code>変数は<code class='tt'>True</code>/<code class='tt'>False</code>からなるNumPy配列で、順伝播の入力である<code class='tt'>x</code>の要素で0以下の場所を<code class='tt'>True</code>、それ以外（0より大きい要素）を<code class='tt'>False</code>として保持します。たとえば、次の例で示すように、<code class='tt'>True</code>/<code class='tt'>False</code>からなるNumPy配列を<code class='tt'>mask</code>変数は保持します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array( [[1.0, -0.5], [-2.0, 3.0]] )</b>
+&gt;&gt;&gt; <b>print(x)</b>
+[[ 1.  -0.5]
+ [-2.   3. ]]
+&gt;&gt;&gt; <b>mask = (x &lt;= 0)</b>
+&gt;&gt;&gt; <b>print(mask)</b>
+[[False  True]
+ [ True False]]
+</pre>
+</div>
+<p><a href='./ch05.xhtml#fig05_18'>図5-18</a>で示すように、順伝播時の入力の値が0以下ならば、逆伝播の値は0になります。そのため、逆伝播では、順伝播時に保持した<code class='tt'>mask</code>を使って、上流から伝播された<code class='tt'>dout</code>に対して、<code class='tt'>mask</code>の要素が<code class='tt'>True</code>の場所を0に設定します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ReLUレイヤは、回路における「スイッチ」のように機能します。順伝播時に電流が流れていればスイッチをONにし、電流が流れなければスイッチをOFFにします。逆伝播時には、スイッチがONであれば電流がそのまま流れ、OFFであればそれ以上電流は流れません。</p>
+</td></tr></table></div>
+
+<h3 id='h5-5-2'><span class='secno'>5.5.2　</span>Sigmoidレイヤ</h3>
+<p>続いて、シグモイド関数を実装しましょう。シグモイド関数は式(5.9)で表される関数でした。</p>
+<div class='equation'>
+<div class='math'><img alt='y = \frac{1}{1 + \exp(-x)}  %\qquad(5.9)' src='images/math/66c39eaa893df53d07667d43656fd4be.png' style='height: 2.58em'/></div>
+<p class='eqno' id='eq9'>式(5.9)</p>
+</div>
+<p>式(5.9)を計算グラフで表すと、次の<a href='./ch05.xhtml#fig05_19'>図5-19</a>のようになります。</p>
+<div class='image' id='fig05_19'>
+<img alt='Sigmoidレイヤの計算グラフ（順伝播のみ）' src='images/ch05/fig05_19.png'/>
+<p class='caption'>
+図5-19　Sigmoidレイヤの計算グラフ（順伝播のみ）
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_19'>図5-19</a>では「×」と「+」ノードの他に、「exp」と「/」ノードが新しく登場しています。「exp」ノードは<span class='equation mathimage'><img alt='y = \exp(x)' src='images/math/e993a49b2cba214576ba64fb00479b10.png' style='height: 1.16em'/></span>の計算を行い、「/」ノードは、<span class='equation mathimage'><img alt='y = \frac{1}{x}' src='images/math/3915613fd227f11ed8e6bb3d61c272fe.png' style='height: 1.42em'/></span>の計算を行います。</p>
+<p><a href='./ch05.xhtml#fig05_19'>図5-19</a>に示すように、式(5.9)の計算は、局所的な計算の伝播によって構成されます。それでは、<a href='./ch05.xhtml#fig05_19'>図5-19</a>の計算グラフの逆伝播を行います。ここでは、（これまでのまとめも兼ねて）逆伝播の流れを順を追って見ていきたいと思います。</p>
+
+<h4 id='h5-5-2-1'>ステップ1</h4>
+<p>「/」ノードは<span class='equation mathimage'><img alt='y = \frac{1}{x}' src='images/math/3915613fd227f11ed8e6bb3d61c272fe.png' style='height: 1.42em'/></span>を表しますが、この微分は解析的に次の式によって表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial y}{\partial x} &amp;= -\frac{1}{x^2} \\[4pt]
+                              &amp;= -y^2
+\end{aligned}
+%\qquad(5.10)' src='images/math/cf267cd7d028cb73d5cbd01c936d91f1.png' style='height: 4.58em'/></div>
+<p class='eqno' id='eq10'>式(5.10)</p>
+</div>
+<p>式(5.10)より、逆伝播のときは、上流の値に対して、<span class='equation mathnoimage'><i><span class='math-normal'>−</span>y<sup><span class='math-normal'>2</span></sup></i></span>（順伝播の出力の2乗にマイナスを付けた値）を乗算して下流へ伝播します。計算グラフでは次のようになります。</p>
+<div class='image' id='fig05_19_1'>
+<img alt='' src='images/ch05/fig05_19_1.png'/>
+</div>
+
+<h4 id='h5-5-2-2'>ステップ2</h4>
+<p>「＋」ノードは、上流の値を下流にそのまま流すだけです。計算グラフでは次のようになります。</p>
+<div class='image' id='fig05_19_2'>
+<img alt='' src='images/ch05/fig05_19_2.png'/>
+</div>
+
+<h4 id='h5-5-2-3'>ステップ3</h4>
+<p>「exp」ノードは<span class='equation mathimage'><img alt='y = \exp(x)' src='images/math/e993a49b2cba214576ba64fb00479b10.png' style='height: 1.16em'/></span>を表し、その微分は次の式で表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='\frac{\partial y}{\partial x} = \exp(x)  %\qquad(5.11)' src='images/math/18bc3dab1bb99f06eb761165454ab3a4.png' style='height: 2.34em'/></div>
+<p class='eqno' id='eq11'>式(5.11)</p>
+</div>
+<p>計算グラフでは、上流の値に対して、順伝播時の出力——この例では<span class='equation mathimage'><img alt='\exp(-x)' src='images/math/f401088e99706dc447b08fdb84579b7d.png' style='height: 1.16em'/></span>——を乗算して下流へ伝播します。</p>
+<div class='image' id='fig05_19_3'>
+<img alt='' src='images/ch05/fig05_19_3.png'/>
+</div>
+
+<h4 id='h5-5-2-4'>ステップ4</h4>
+<p>「×」ノードは、順伝播時の値を“ひっくり返して”乗算します。そのため、ここでは<span class='equation mathnoimage'><i><span class='math-normal'>−1</span></i></span>を乗算します。</p>
+<div class='image' id='fig05_20'>
+<img alt='Sigmoidレイヤの計算グラフ' src='images/ch05/fig05_20.png'/>
+<p class='caption'>
+図5-20　Sigmoidレイヤの計算グラフ
+</p>
+</div>
+<p>以上より、<a href='./ch05.xhtml#fig05_20'>図5-20</a>の計算グラフとしてSigmoidレイヤの逆伝播を行うことができました。<a href='./ch05.xhtml#fig05_20'>図5-20</a>の結果から逆伝播の出力は<span class='equation mathimage'><img alt='\frac{\partial L}{\partial y} y^2 \exp(-x)' src='images/math/ada22274ac148f4590a2799981f58f7c.png' style='height: 1.58em'/></span>となり、この値が下流にあるノードに伝播していきます。ここで<span class='equation mathimage'><img alt='\frac{\partial L}{\partial y} y^2 \exp(-x)' src='images/math/ada22274ac148f4590a2799981f58f7c.png' style='height: 1.58em'/></span>という値が順伝播の入力<span class='equation mathnoimage'><i>x</i></span>と出力<span class='equation mathnoimage'><i>y</i></span>だけから計算できる点に注目しましょう。そのため、<a href='./ch05.xhtml#fig05_20'>図5-20</a>の計算グラフは、次の<a href='./ch05.xhtml#fig05_21'>図5-21</a>のようなグループ化した「sigmoid」ノードとして書くことができます。</p>
+<div class='image' id='fig05_21'>
+<img alt='Sigmoidレイヤの計算グラフ（簡略版）' src='images/ch05/fig05_21.png'/>
+<p class='caption'>
+図5-21　Sigmoidレイヤの計算グラフ（簡略版）
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_20'>図5-20</a>の計算グラフと<a href='./ch05.xhtml#fig05_21'>図5-21</a>の簡略版の計算グラフは、計算の結果は同じになります。しかし、簡略版の計算グラフのほうが、逆伝播の際の途中の計算を省略することができるので、効率の良い計算と言えます。また、ノードをグループ化することによって、Sigmoidレイヤの細かい中身を気にすることなく、その入力と出力だけに集中することができる点も重要なポイントです。</p>
+<p>なお、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial y} y^2 \exp(-x)' src='images/math/ada22274ac148f4590a2799981f58f7c.png' style='height: 1.58em'/></span>は、さらに次のように整理して書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial L}{\partial y} y^2 \exp(-x) &amp;= \frac{\partial L}{\partial y} \frac{1}{(1 + \exp(-x))^2} \exp(-x) \\[4pt]
+&amp;= \frac{\partial L}{\partial y} \frac{1}{1 + \exp(-x)} \frac{\exp(-x)}{1 + \exp(-x)} \\[4pt]
+&amp;= \frac{\partial L}{\partial y} y(1 - y)
+\end{aligned}
+%\qquad(5.12)' src='images/math/1934d9cbb196b8fead549a616a712a3c.png' style='height: 9.34em'/></div>
+<p class='eqno' id='eq12'>式(5.12)</p>
+</div>
+<p>そのため、<a href='./ch05.xhtml#fig05_21'>図5-21</a>で表されるSigmoidレイヤの逆伝播は、順伝播の出力だけから計算することができるのです。</p>
+<div class='image' id='fig05_22'>
+<img alt='Sigmoidレイヤの計算グラフ：順伝播の出力&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;y&lt;/i&gt;&lt;/span&gt;によって、逆伝播の計算を行うことができる' src='images/ch05/fig05_22.png'/>
+<p class='caption'>
+図5-22　Sigmoidレイヤの計算グラフ：順伝播の出力<span class='equation mathnoimage'><i>y</i></span>によって、逆伝播の計算を行うことができる
+</p>
+</div>
+<p>それでは、SigmoidレイヤをPythonで実装します。<a href='./ch05.xhtml#fig05_22'>図5-22</a>を参考にすれば、次のように実装することができます（この実装は、<code class='tt'>common/layers.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Sigmoid</span>:<!-- IDX:Sigmoid（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>out <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x):
+        out <span style='color: #666666'>=</span> <span style='color: #666666'>1</span> <span style='color: #666666'>/</span> (<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> np<span style='color: #666666'>.</span>exp(<span style='color: #666666'>-</span>x))
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>out <span style='color: #666666'>=</span> out
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        dx <span style='color: #666666'>=</span> dout <span style='color: #666666'>*</span> (<span style='color: #666666'>1.0</span> <span style='color: #666666'>-</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>out) <span style='color: #666666'>*</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>out
+
+        <span style='color: #008000; font-weight: bold'>return</span> dx
+</pre>
+</div>
+<p>この実装では、順伝播時に出力をインスタンス変数の<code class='tt'>out</code>に保持しておきます。そして、逆伝播時に、その<code class='tt'>out</code>変数を使って計算を行います。</p>
+
+<h2 id='affine'><a id='h5-6'/><span class='secno'>5.6　</span>Affine／Softmaxレイヤの実装</h2>
+
+<h3 id='h5-6-1'><span class='secno'>5.6.1　</span>Affineレイヤ</h3>
+<p>ニューラルネットワークの順伝播では、重み付き信号の総和を計算するために、行列の内積（NumPyでは<code class='tt'>np.dot()</code>）を用いました（詳しくは<a href='ch03.xhtml#h3-3'>「3.3 多次元配列の計算」</a>参照）。たとえば、Pythonで次のような実装を行ったことを覚えているでしょうか？</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X = np.random.rand(2)</b>   # 入力
+&gt;&gt;&gt; <b>W = np.random.rand(2,3)</b> # 重み
+&gt;&gt;&gt; <b>B = np.random.rand(3)</b>   # バイアス
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>X.shape</b> # (2,)
+&gt;&gt;&gt; <b>W.shape</b> # (2, 3)
+&gt;&gt;&gt; <b>B.shape</b> # (3,)
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>Y = np.dot(X, W) + B</b>
+</pre>
+</div>
+<p>ここでは、<code class='tt'>X</code>、<code class='tt'>W</code>、<code class='tt'>B</code>は、それぞれ形状が、(2,)、(2, 3)、(3,)の多次元配列であるとします。そうすると、ニューロンの重み付き和は、<code class='tt'>Y = np.dot(X, W) + B</code>のように計算できます。そして、この<code class='tt'>Y</code>が活性化関数によって変換され、次の層へ伝播される、というのがニューラルネットワークの順伝播の流れでした。また、復習になりますが、行列の内積の計算は、対応する次元数を一致させるというのがポイントです。たとえば、<code class='tt'>X</code>と<code class='tt'>W</code>の内積は次の<a href='./ch05.xhtml#fig05_23'>図5-23</a>のように、対応する次元数を一致させる必要があります。 なお、ここでは、行列の形状は、(2, 3)のように括弧で表すことにします（これは、NumPyの<code class='tt'>shape</code>の出力に対応させるためです）。</p>
+<div class='image' id='fig05_23'>
+<img alt='行列の内積では、対応させる次元数を一致させる' src='images/ch05/fig05_23.png'/>
+<p class='caption'>
+図5-23　行列の内積では、対応させる次元数を一致させる
+</p>
+</div>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ニューラルネットワークの順伝播で行う行列の内積は、幾何学の分野では「<!-- IDX:アフィン変換 -->アフィン変換」と呼ばれます。そのため、ここでは、アフィン変換を行う処理を「Affineレイヤ」という名前で実装していきます。</p>
+</td></tr></table></div>
+<p>それでは、ここで行った計算——行列の内積とバイアスの和——を計算グラフで表しましょう。内積を計算するノードを「dot」として表すことにすると、<code class='tt'>np.dot(X, W) + B</code>の計算は、<a href='./ch05.xhtml#fig05_24'>図5-24</a>の計算グラフで表すことができます。なお、各変数の上部に、その変数の形状も表記します（たとえば、<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>の形状は(2,)、<span class='equation mathimage'><img alt='\mathbf{X} \cdot \mathbf{W}' src='images/math/b4f964934b251d740b58dd9201278654.png' style='height: 0.92em'/></span>の形状は(3,)ということを計算グラフ上に示しています）。</p>
+<div class='image' id='fig05_24'>
+<img alt='Affineレイヤの計算グラフ：変数が行列であることに注意。各変数の上部に、その変数の形状を示す' src='images/ch05/fig05_24.png'/>
+<p class='caption'>
+図5-24　Affineレイヤの計算グラフ：変数が行列であることに注意。各変数の上部に、その変数の形状を示す
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_24'>図5-24</a>は比較的単純な計算グラフです。ただし<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>、<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>は行列（多次元配列）であるということに注意しましょう。これまで見てきた計算グラフは「スカラ値」がノード間を流れましたが、この例では「行列」がノード間を伝播します。</p>
+<p>それでは、<a href='./ch05.xhtml#fig05_24'>図5-24</a>で表される計算グラフの逆伝播について考えます。行列を対象とした逆伝播を求める場合は、行列の要素ごとに書き下すことで、これまでのスカラ値を対象とした計算グラフと同じ手順で考えることができます。実際に書き下してみると、次の式が得られます（式(5.13)が導かれる過程はここでは省略します）。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\frac{\partial L}{\partial \mathbf{X}} = \frac{\partial L}{\partial \mathbf{Y}} \cdot \mathbf{W^{\mathrm{T}}} \\[4pt]
+\frac{\partial L}{\partial \mathbf{W}} = \mathbf{X^{\mathrm{T}}} \cdot  \frac{\partial L}{\partial \mathbf{Y}}
+\end{aligned}
+%\qquad(5.13)' src='images/math/30289e03abaa55f20acd07f9bd83a1e6.png' style='height: 5.5em'/></div>
+<p class='eqno' id='eq13'>式(5.13)</p>
+</div>
+<p>式(5.13)の<span class='equation mathimage'><img alt='\mathbf{W^{\mathrm{T}}}' src='images/math/72d5cef7f17ec6e397f5b0c5c4a89e65.png' style='height: 1.0em'/></span>の<span class='equation mathimage'><img alt='\mathrm{T}' src='images/math/f261c0242716bc13ba256cc83a1ca1a4.png' style='height: 0.76em'/></span>は転置を表します。転置とは、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の<span class='equation mathnoimage'><i><span class='math-normal'>(</span>i<span class='math-normal'>,</span> j<span class='math-normal'>)</span></i></span>の要素を<span class='equation mathnoimage'><i><span class='math-normal'>(</span>j<span class='math-normal'>,</span> i<span class='math-normal'>)</span></i></span>の要素に入れ変えることを言います。実際に数式で表すと、次のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+\mathbf{W} = \left(
+ \begin{matrix}
+   w_{11}^{} &amp; w_{21}^{} &amp; w_{31}^{} \\
+   w_{12}^{} &amp; w_{22}^{} &amp; w_{32}^{}
+ \end{matrix}
+ \right)  \\[4pt]
+\mathbf{W^{\mathrm{T}}} = \left(
+ \begin{matrix}
+   w_{11}^{} &amp; w_{12}^{} \\
+   w_{21}^{} &amp; w_{22}^{} \\
+   w_{31}^{} &amp; w_{32}^{}
+ \end{matrix}
+ \right)
+\end{aligned}
+%\qquad(5.14)' src='images/math/9d624d74fdd0f1129327b4f77965465c.png' style='height: 8.84em'/></div>
+<p class='eqno' id='eq14'>式(5.14)</p>
+</div>
+<p>式(5.14)に示すように、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の形状が(2, 3)であるとすると、<span class='equation mathimage'><img alt='\mathbf{W^{\mathrm{T}}}' src='images/math/72d5cef7f17ec6e397f5b0c5c4a89e65.png' style='height: 1.0em'/></span>の形状は(3, 2)になります。</p>
+<p>それでは、式(5.13)を元に、計算グラフの逆伝播を書いてみましょう。結果は<a href='./ch05.xhtml#fig05_25'>図5-25</a>のようになります。</p>
+<div class='image' id='fig05_25'>
+<img alt='Affineレイヤの逆伝播：変数が多次元配列であることに注意。逆伝播の際の各変数の下部に、その変数の形状を示す' src='images/ch05/fig05_25.png'/>
+<p class='caption'>
+図5-25　Affineレイヤの逆伝播：変数が多次元配列であることに注意。逆伝播の際の各変数の下部に、その変数の形状を示す
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_25'>図5-25</a>の計算グラフでは、各変数の形状に注意して見ていきましょう。特に、<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{X}}' src='images/math/baa3d1ccc183dcd7d65143d0aa33c902.png' style='height: 1.42em'/></span>は同じ形状であり、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>は同じ形状であるということに注意してください。なお、<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{X}}' src='images/math/baa3d1ccc183dcd7d65143d0aa33c902.png' style='height: 1.42em'/></span>が同じ形状になることは、次の数式で表されることから明らかでしょう。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+&amp;\mathbf{X} = (x_0, x_1, \cdots , x_n)  \\
+&amp;\frac{\partial L}{\partial \mathbf{X}} = \left(\frac{\partial L}{\partial x_0}, \frac{\partial L}{\partial x_1}, \cdots, \frac{\partial L}{\partial x_n}\right)
+\end{aligned}
+%\qquad(5.15)' src='images/math/af90c8345e502979fed8fdbb3b835942.png' style='height: 4.34em'/></div>
+<p class='eqno' id='eq15'>式(5.15)</p>
+</div>
+<p>なぜ行列の形状に注意するかというと、行列の内積では、対応する次元数を一致させる必要があり、その一致を確認することで、式(5.13)を導くことができるからです。たとえば、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{Y}}' src='images/math/653f3e9f243a17edc5d36df770572663.png' style='height: 1.42em'/></span>の形状が(3,)、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の形状が(2,3)であるとき、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{X}}' src='images/math/baa3d1ccc183dcd7d65143d0aa33c902.png' style='height: 1.42em'/></span>の形状が(2,)になるように、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{Y}}' src='images/math/653f3e9f243a17edc5d36df770572663.png' style='height: 1.42em'/></span>と<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の内積を考えます（<a href='./ch05.xhtml#fig05_26'>図5-26</a>）。そうすれば、おのずと、式(5.13)が導かれるというわけです。</p>
+<div class='image' id='fig05_26'>
+<img alt='行列の内積（「dot」ノード）の逆伝播は、行列の対応する次元数を一致させるように内積を組み立てることで導くことができる' src='images/ch05/fig05_26.png'/>
+<p class='caption'>
+図5-26　行列の内積（「dot」ノード）の逆伝播は、行列の対応する次元数を一致させるように内積を組み立てることで導くことができる
+</p>
+</div>
+
+<h3 id='h5-6-2'><span class='secno'>5.6.2　</span>バッチ版Affineレイヤ</h3>
+<p>これまで説明してきたAffineレイヤは、入力である<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>はひとつのデータを対象としたものでした。ここではN個のデータをまとめて順伝播する場合、つまり、バッチ版のAffineレイヤを考えます（データのまとまりは「バッチ」と呼ぶのでした）。</p>
+<p>それでは早速、バッチ版のAffineレイヤの計算グラフを示しましょう。バッチ版のAffineレイヤは<a href='./ch05.xhtml#fig05_27'>図5-27</a>のようになります。</p>
+<div class='image' id='fig05_27'>
+<img alt='バッチ版Affineレイヤの計算グラフ' src='images/ch05/fig05_27.png'/>
+<p class='caption'>
+図5-27　バッチ版Affineレイヤの計算グラフ
+</p>
+</div>
+<p>先ほどの説明と異なる点は、入力である<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>の形状が(N, 2)になっただけです。後は、前と同じように計算グラフ上で、素直に行列の計算をするだけになります。また、逆伝播の際は、行列の形状に注意すれば、<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{X}}' src='images/math/baa3d1ccc183dcd7d65143d0aa33c902.png' style='height: 1.42em'/></span>と<span class='equation mathimage'><img alt='\frac{\partial L}{\partial \mathbf{W}}' src='images/math/19044a3d61270d1cc82c07fa0d9b5c99.png' style='height: 1.42em'/></span>は前と同じように導出することができます。</p>
+<p>バイアスの加算に際しては、注意が必要です。順伝播の際のバイアスの加算は、<span class='equation mathimage'><img alt='\mathbf{X} \cdot \mathbf{W}' src='images/math/b4f964934b251d740b58dd9201278654.png' style='height: 0.92em'/></span>に対して、バイアスがそれぞれのデータに加算されます。たとえば、<span class='equation mathimage'><img alt='\mathrm{N}=2' src='images/math/e1cdeb2f2ae54400874300d4bc67173b.png' style='height: 0.76em'/></span>（データが2個）とした場合、バイアスは、その2個のデータそれぞれに対して（それぞれの計算結果に対して）加算されることになるのです。具体例を示すと次ようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X_dot_W = np.array([[0, 0, 0], [10, 10, 10]])</b>
+&gt;&gt;&gt; <b>B = np.array([1, 2, 3])</b>
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>X_dot_W</b>
+array([[ 0,  0,  0],
+       [ 10, 10, 10]])
+&gt;&gt;&gt; <b>X_dot_W + B</b>
+array([[ 1,  2,  3],
+       [11, 12, 13]])
+</pre>
+</div>
+<p>順伝播でのバイアスの加算は、それぞれのデータ（1個目のデータ、2個目のデータ、…）に対して加算が行われます。そのため、逆伝播の際には、それぞれのデータの逆伝播の値がバイアスの要素に集約される必要があります。これをコードで表すと、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>dY = np.array([[1, 2, 3,], [4, 5, 6]])</b>
+&gt;&gt;&gt; <b>dY</b>
+array([[1, 2, 3],
+       [4, 5, 6]])
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>dB = np.sum(dY, axis=0)</b>
+&gt;&gt;&gt; <b>dB</b>
+array([5, 7, 9])
+</pre>
+</div>
+<p>この例では、データが2個（<span class='equation mathimage'><img alt='\mathrm{N}=2' src='images/math/e1cdeb2f2ae54400874300d4bc67173b.png' style='height: 0.76em'/></span>）あるものと仮定します。バイアスの逆伝播は、その2個のデータに対しての微分を、データごとに合算して求めます。そのため、<code class='tt'>np.sum()</code>で、0番目の軸（データを単位とした軸）に対して（<code class='tt'>axis=0</code>）の総和を求めるのです。</p>
+<p>以上から、Affineの実装は次のようになります。なお、<code class='tt'>common/layers.py</code>にあるAffineの実装は、入力データがテンソル（4次元のデータ）の場合も考慮した実装であり、ここで説明する実装と若干の違いがあります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Affine</span>:<!-- IDX:Affine（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, W, b):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W <span style='color: #666666'>=</span> W
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>b <span style='color: #666666'>=</span> b
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>x <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>dW <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>db <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>x <span style='color: #666666'>=</span> x
+        out <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(x, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W) <span style='color: #666666'>+</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>b
+
+        <span style='color: #008000; font-weight: bold'>return</span> out
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout):
+        dx <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(dout, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>W<span style='color: #666666'>.</span>T)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>dW <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>x<span style='color: #666666'>.</span>T, dout)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>db <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(dout, axis<span style='color: #666666'>=0</span>)
+
+        <span style='color: #008000; font-weight: bold'>return</span> dx
+</pre>
+</div>
+
+<h3 id='h5-6-3'><span class='secno'>5.6.3　</span>Softmax-with-Lossレイヤ</h3>
+<p><!-- IDX:Softmax&#45;with&#45;Loss -->最後に、出力層であるソフトマックス関数について説明します。ソフトマックス関数は、（復習になりますが）入力された値を正規化して出力します。たとえば、手書き数字認識の場合、Softmaxレイヤの出力は<a href='./ch05.xhtml#fig05_28'>図5-28</a>のようになります。</p>
+<div class='image' id='fig05_28'>
+<img alt='入力画像が、AffineレイヤとReLUレイヤによって変換され、Softmaxレイヤによって10個の入力が正規化される。この例では、「0」であるスコアは5.3であり、これがSoftmaxレイヤによって0.008（0.8%）に変換される。また、「2」であるスコアは10.1であり、これは0.991（99.1%）に変換される' src='images/ch05/fig05_28.png'/>
+<p class='caption'>
+図5-28　入力画像が、AffineレイヤとReLUレイヤによって変換され、Softmaxレイヤによって10個の入力が正規化される。この例では、「0」であるスコアは5.3であり、これがSoftmaxレイヤによって0.008（0.8%）に変換される。また、「2」であるスコアは10.1であり、これは0.991（99.1%）に変換される
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_28'>図5-28</a>に示すように、Softmaxレイヤは、入力された値を正規化——出力の和が1になるように変形——して出力します。なお、手書き数字認識は、10クラス分類を行うため、Softmaxレイヤへの入力は10個あることになります。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>ニューラルネットワークで行う処理には、<b>推論</b>（inference）と<b>学習</b>の2つのフェーズがあります。ニューラルネットワークの推論では、通常、Softmaxレイヤは使用しません。たとえば、<a href='./ch05.xhtml#fig05_28'>図5-28</a>のネットワークで推論を行う場合、最後のAffineレイヤの出力を認識結果として用います。なお、ニューラルネットワークの正規化しない出力結果（<a href='./ch05.xhtml#fig05_28'>図5-28</a>ではSoftmaxの前層のAffineレイヤの出力）は、「スコア」と呼ぶことがあります。つまり、ニューラルネットワークの推論で答えをひとつだけ出す場合は、スコアの最大値だけに興味があるため、Softmaxレイヤは必要ない、ということです。一方、ニューラルネットワークの学習時には、Softmaxレイヤが必要になります。</p>
+</td></tr></table></div>
+<p>これからSoftmaxレイヤを実装していきますが、ここでは、損失関数である交差エントロピー誤差（cross entropy error）も含めて、「Softmax-with-Lossレイヤ」という名前のレイヤで実装します。早速、<a href='./ch05.xhtml#fig05_29'>図5-29</a>にSoftmax-with-Lossレイヤ（ソフトマックス関数と交差エントロピー誤差）の計算グラフを示します。</p>
+<div class='image' id='fig05_29'>
+<img alt='Softmax-with-Lossレイヤの計算グラフ' src='images/ch05/fig05_29.png'/>
+<p class='caption'>
+図5-29　Softmax-with-Lossレイヤの計算グラフ
+</p>
+</div>
+<p>見てのとおり、Softmax-with-Lossレイヤはやや複雑です。ここでは結果だけを示しますが、Softmax-with-Lossレイヤの導出過程に興味のある方は、<a href='./ch11a.xhtml'>「付録A Softmax-with-Lossレイヤの計算グラフ」</a>を参照してください。</p>
+<p>さて、<a href='./ch05.xhtml#fig05_29'>図5-29</a>の計算グラフですが、これは簡略化して書くと<a href='./ch05.xhtml#fig05_30'>図5-30</a>のように書くことができます。</p>
+<div class='image' id='fig05_30'>
+<img alt='「簡易版」Softmax-with-Lossレイヤの計算グラフ' src='images/ch05/fig05_30.png'/>
+<p class='caption'>
+図5-30　「簡易版」Softmax-with-Lossレイヤの計算グラフ
+</p>
+</div>
+<p><a href='./ch05.xhtml#fig05_30'>図5-30</a>の計算グラフでは、ソフトマックス関数はSoftmaxレイヤとして、交差エントロピー誤差はCross Entropy Errorレイヤとして表記します。ここでは、3クラス分類を行う場合を想定し、前レイヤから3つの入力（スコア）を受け取るものとします。<a href='./ch05.xhtml#fig05_30'>図5-30</a>に示すように、Softmaxレイヤは、入力である<span class='equation mathnoimage'><i><span class='math-normal'>(</span>a<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> a<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> a<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>を正規化して、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>を出力します。Cross Entropy Errorレイヤは、Softmaxの出力<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>と、教師ラベルの<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>を受け取り、それらのデータから損失<span class='equation mathnoimage'><i>L</i></span>を出力します。</p>
+<p><a href='./ch05.xhtml#fig05_30'>図5-30</a>で注目すべきは、逆伝播の結果です。Softmaxレイヤからの逆伝播は、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>という“キレイ”な結果になっています。<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>はSoftmaxレイヤの出力、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>は教師データなので、<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>は、Softmaxレイヤの出力と教師ラベルの差分になります。ニューラルネットワークの逆伝播では、この差分である誤差が前レイヤへ伝わっていくのです。これはニューラルネットワークの学習における重要な性質です。</p>
+<p>ところで、ニューラルネットワークの学習の目的は、ニューラルネットワークの出力（Softmaxの出力）を教師ラベルに近づけるように、重みパラメータを調整することでした。そのため、ニューラルネットワークの出力と教師ラベルとの誤差を効率良く、前レイヤに伝える必要があります。先ほどの<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>という結果は、まさにSoftmaxレイヤの出力と教師ラベルの差であり、現在のニューラルネットワークの出力と教師ラベルの誤差を素直に表しているのです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>「ソフトマックス関数」の損失関数として「交差エントロピー誤差」を用いると、逆伝播が<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>という“キレイ”な結果になりました。実は、そのような“キレイ”な結果は偶然ではなく、そうなるように交差エントロピー誤差という関数が設計されたのです。また、回帰問題では出力層に「恒等関数」を用い、損失関数として「2乗和誤差」を用いますが（<a href='ch03.xhtml#h3-5'>「3.5 出力層の設計」</a>参照）、これも同様の理由によります。つまり、「恒等関数」の損失関数として「2乗和誤差」を用いると、逆伝播が<span class='equation mathnoimage'><i><span class='math-normal'>(</span>y<sub><span class='math-normal'>1</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>1</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>2</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>2</span></sub><span class='math-normal'>,</span> y<sub><span class='math-normal'>3</span></sub><span class='math-normal'>−</span>t<sub><span class='math-normal'>3</span></sub><span class='math-normal'>)</span></i></span>という“キレイ”な結果になるのです。</p>
+</td></tr></table></div>
+<p>ここで具体例をひとつ考えてみましょう。たとえば、教師ラベルが<span class='equation mathnoimage'><i><span class='math-normal'>(0,</span> <span class='math-normal'>1,</span> <span class='math-normal'>0)</span></i></span>であるデータに対して、Softmaxレイヤの出力が<span class='equation mathnoimage'><i><span class='math-normal'>(0.3,</span> <span class='math-normal'>0.2,</span> <span class='math-normal'>0.5)</span></i></span>であった場合を考えます。正解ラベルに対する確率は0.2（20%）ですので、この時点のニューラルネットワークは正しい認識ができていません。この場合、Softmaxレイヤからの逆伝播は、<span class='equation mathnoimage'><i><span class='math-normal'>(0.3,</span> <span class='math-normal'>−0.8,</span> <span class='math-normal'>0.5)</span></i></span>という大きな誤差を伝播することになります。この大きな誤差が前レイヤに伝播していくので、Softmaxレイヤよりも前のレイヤは、その大きな誤差から大きな内容を学習することになります。</p>
+<p>また、別の例として、教師ラベルが<span class='equation mathnoimage'><i><span class='math-normal'>(0,</span> <span class='math-normal'>1,</span> <span class='math-normal'>0)</span></i></span>であるデータに対して、Softmaxレイヤの出力が<span class='equation mathnoimage'><i><span class='math-normal'>(0.01,</span> <span class='math-normal'>0.99,</span> <span class='math-normal'>0)</span></i></span>の場合を考えましょう（このニューラルネットワークは、かなり正確に認識しています）。この場合、Softmaxレイヤからの逆伝播は、<span class='equation mathnoimage'><i><span class='math-normal'>(0.01,</span> <span class='math-normal'>−0.01,</span> <span class='math-normal'>0)</span></i></span>という小さな誤差になります。この小さな誤差が前レイヤに伝播していきますが、その誤差は小さいため、Softmaxレイヤより前にあるレイヤが学習する内容も小さくなります。</p>
+<p>それでは、Softmax-with-Lossレイヤの実装を行います。Softmax-with-Lossレイヤは次のように実装することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>SoftmaxWithLoss</span>:<!-- IDX:SoftmaxWithLoss（class） -->
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss <span style='color: #666666'>=</span> <span style='color: #008000'>None</span> <span style='color: #408080; font-style: italic'># 損失</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>    <span style='color: #408080; font-style: italic'># softmaxの出力</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>t <span style='color: #666666'>=</span> <span style='color: #008000'>None</span>    <span style='color: #408080; font-style: italic'># 教師データ（one-hot vector）</span>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(<span style='color: #008000'>self</span>, x, t):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>t <span style='color: #666666'>=</span> t
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #666666'>=</span> softmax(x)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss <span style='color: #666666'>=</span> cross_entropy_error(<span style='color: #008000'>self</span><span style='color: #666666'>.</span>y, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>t)
+
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>backward</span>(<span style='color: #008000'>self</span>, dout<span style='color: #666666'>=1</span>):
+        batch_size <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>t<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+        dx <span style='color: #666666'>=</span> (<span style='color: #008000'>self</span><span style='color: #666666'>.</span>y <span style='color: #666666'>-</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>t) <span style='color: #666666'>/</span> batch_size
+
+        <span style='color: #008000; font-weight: bold'>return</span> dx
+</pre>
+</div>
+<p>この実装では、<a href='ch03.xhtml#h3-5-2'>「3.5.2 ソフトマックス関数の実装上の注意」</a>と<a href='ch04.xhtml#h4-2-2'>「4.2.2 交差エントロピー誤差」</a>で実装した関数——<code class='tt'>softmax()</code>と<code class='tt'>cross_entropy_error()</code>——を利用しています。そのため、ここでの実装はとても簡単です。また、逆伝播の際には、伝播する値をバッチの個数（<code class='tt'>batch_size</code>）で割ることで、データ1個あたりの誤差が前レイヤへ伝播する点に注意しましょう。</p>
+
+<h2 id='h5-7'><span class='secno'>5.7　</span>誤差逆伝播法の実装</h2>
+<p>前節で実装したレイヤを組み合わせることで、まるでレゴブロックを組み合わせて作るように、ニューラルネットワークを構築することができます。ここでは、これまで実装してきたレイヤを組み合わせながら、ニューラルネットワークを構築していきます。</p>
+
+<h3 id='h5-7-1'><span class='secno'>5.7.1　</span>ニューラルネットワークの学習の全体図</h3>
+<p>話が少し長くなったので、具体的な実装に入る前に、ニューラルネットワークの学習の全体図をもう一度確認しましょう。次に、ニューラルネットワークの学習手順を示します。</p>
+<dl>
+<dt><strong>前提</strong></dt>
+<dd>ニューラルネットワークは、適応可能な重みとバイアスがあり、この重みとバイアスを訓練データに適応するように調整することを「学習」と呼ぶ。ニューラルネットワークの学習は次の4つの手順で行う。</dd>
+<dt><strong>ステップ1（ミニバッチ）</strong></dt>
+<dd>訓練データの中からランダムに一部のデータを選び出す。</dd>
+<dt><strong>ステップ2（勾配の算出）</strong></dt>
+<dd>各重みパラメータに関する損失関数の勾配を求める。</dd>
+<dt><strong>ステップ3（パラメータの更新）</strong></dt>
+<dd>重みパラメータを勾配方向に微小量だけ更新する。</dd>
+<dt><strong>ステップ4（繰り返す）</strong></dt>
+<dd>ステップ1、ステップ2、ステップ3を繰り返す。</dd>
+</dl>
+<p>これまで説明した誤差逆伝播法が登場するのは、ステップ2の「勾配の算出」です。前章では、この勾配を求めるために数値微分を利用しましたが、数値微分は簡単に実装できる反面、計算に多くの時間がかかりました。誤差逆伝播法を用いれば、時間を要する数値微分とは違い、高速に効率良く勾配を求めることができます。</p>
+
+<h3 id='h5-7-2'><span class='secno'>5.7.2　</span>誤差逆伝播法に対応したニューラルネットワークの実装</h3>
+<p>それでは、実装を行います。ここでは、2層のニューラルネットワークを<code class='tt'>TwoLayerNet</code>として実装していきます。まずはこのクラスのインスタンス変数とメソッドを整理して<a href='./ch05.xhtml#tbl05-1'>表5-1</a>と<a href='./ch05.xhtml#tbl05-2'>表5-2</a>に示します。</p>
+<div class='table' id='tbl05-1'>
+<p class='caption'>表5-1　TwoLayerNetクラスのインスタンス変数</p>
+<table>
+<tr><th>インスタンス変数</th><th>説明</th></tr>
+<tr><td><code class='tt'>params</code></td><td>ニューラルネットワークのパラメータを保持するディクショナリ変数。<br/><code class='tt'>params['W1']</code>は1層目の重み、<code class='tt'>params['b1']</code>は1層目のバイアス。<br/><code class='tt'>params['W2']</code>は2層目の重み、<code class='tt'>params['b2']</code>は2層目のバイアス。</td></tr>
+<tr><td><code class='tt'>layers</code></td><td>ニューラルネットワークのレイヤを保持する<b>順番付きディクショナリ</b>変数。<br/><code class='tt'>layers['Affine1']</code>、<code class='tt'>layers['Relu1']</code>、<code class='tt'>layers['Affine2']</code>といったように<b>順番付きディクショナリ</b>で各レイヤを保持する。</td></tr>
+<tr><td><code class='tt'>lastLayer</code></td><td>ニューラルネットワークの最後のレイヤ。<br/>この例では、<code class='tt'>SoftmaxWithLoss</code>レイヤ。</td></tr>
+</table>
+</div>
+<div class='table' id='tbl05-2'>
+<p class='caption'>表5-2　TwoLayerNetクラスのメソッド</p>
+<table>
+<tr><th>メソッド</th><th>説明</th></tr>
+<tr><td><code class='tt'>__init__(self, input_size, </code><code class='tt'>hidden_size, output_size, </code><code class='tt'>weight_init_std)</code></td><td>初期化を行う。<br/>引数は頭から順に、入力層のニューロンの数、隠れ層のニューロンの数、出力層のニューロンの数、重み初期化時のガウス分布のスケール。</td></tr>
+<tr><td><code class='tt'>predict(self, x)</code></td><td>認識（推論）を行う。<br/>引数の<code class='tt'>x</code>は画像データ。</td></tr>
+<tr><td><code class='tt'>loss(self, x, t)</code></td><td>損失関数の値を求める。<br/>引数の<code class='tt'>x</code>は画像データ、<code class='tt'>t</code>は正解ラベル。</td></tr>
+<tr><td><code class='tt'>accuracy(self, x, t)</code></td><td>認識精度を求める。</td></tr>
+<tr><td><code class='tt'>numerical_gradient(self, x, t)</code></td><td>重みパラメータに対する勾配を数値微分によって求める（前章と同じ）。</td></tr>
+<tr><td><code class='tt'>gradient(self, x, t)</code></td><td>重みパラメータに対する勾配を誤差逆伝播法によって求める。</td></tr>
+</table>
+</div>
+<p>このクラスの実装は少々長くなりますが、実装の中身は、前章の<a href='ch04.xhtml#h4-5'>「4.5 学習アルゴリズムの実装」</a>と共通する部分が多くあります。前章からの主な変更箇所は、レイヤを使用していることです。レイヤを使用することによって、認識結果を得る処理（<code class='tt'>predict()</code>）や勾配を求める処理（<code class='tt'>gradient()</code>）がレイヤの伝播だけで達成できます。それでは、<!-- IDX:TwoLayerNet --><code class='tt'>TwoLayerNet</code>の実装です。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.layers</span> <span style='color: #008000; font-weight: bold'>import</span> <span style='color: #666666'>*</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>common.gradient</span> <span style='color: #008000; font-weight: bold'>import</span> numerical_gradient
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>collections</span> <span style='color: #008000; font-weight: bold'>import</span> OrderedDict
+
+<span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>TwoLayerNet</span>:
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, input_size, hidden_size, output_size,
+                 weight_init_std<span style='color: #666666'>=0.01</span>):
+        <span style='color: #408080; font-style: italic'># 重みの初期化</span>
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params <span style='color: #666666'>=</span> {}
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(input_size, hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(hidden_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> weight_init_std <span style='color: #666666'>*</span> \
+                            np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>randn(hidden_size, output_size)
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>zeros(output_size)
+
+        <span style='color: #408080; font-style: italic'># レイヤの生成</span>
+        <b>self.layers = OrderedDict()</b>
+        <b>self.layers['Affine1'] = \ </b>
+            <b>Affine(self.params['W1'], self.params['b1'])</b>
+        <b>self.layers['Relu1'] = Relu()</b>
+        <b>self.layers['Affine2'] = \ </b>
+            <b>Affine(self.params['W2'], self.params['b2'])</b>
+
+        <b>self.lastLayer = SoftmaxWithLoss()</b>
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>predict</span>(<span style='color: #008000'>self</span>, x):
+        <b>for layer in self.layers.values():</b>
+            <b>x = layer.forward(x)</b>
+
+        <span style='color: #008000; font-weight: bold'>return</span> x
+
+    <span style='color: #408080; font-style: italic'># x:入力データ, t:教師データ</span>
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>loss</span>(<span style='color: #008000'>self</span>, x, t):
+        y <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>predict(x)
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>lastLayer<span style='color: #666666'>.</span>forward(y, t)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>accuracy</span>(<span style='color: #008000'>self</span>, x, t):
+        y <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>predict(x)
+        y <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>argmax(y, axis<span style='color: #666666'>=1</span>)
+        <span style='color: #008000; font-weight: bold'>if</span> t<span style='color: #666666'>.</span>ndim <span style='color: #666666'>!=</span> <span style='color: #666666'>1</span> : t <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>argmax(t, axis<span style='color: #666666'>=1</span>)
+
+        accuracy <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(y <span style='color: #666666'>==</span> t) <span style='color: #666666'>/</span> <span style='color: #008000'>float</span>(x<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>])
+        <span style='color: #008000; font-weight: bold'>return</span> accuracy
+
+    <span style='color: #408080; font-style: italic'># x:入力データ, t:教師データ</span>
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>numerical_gradient</span>(<span style='color: #008000'>self</span>, x, t):
+        loss_W <span style='color: #666666'>=</span> <span style='color: #008000; font-weight: bold'>lambda</span> W: <span style='color: #008000'>self</span><span style='color: #666666'>.</span>loss(x, t)
+
+        grads <span style='color: #666666'>=</span> {}
+        grads[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W1&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b1&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;W2&#39;</span>])
+        grads[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> numerical_gradient(loss_W, <span style='color: #008000'>self</span><span style='color: #666666'>.</span>params[<span style='color: #BA2121'>&#39;b2&#39;</span>])
+
+        <span style='color: #008000; font-weight: bold'>return</span> grads
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>gradient</span>(<span style='color: #008000'>self</span>, x, t):
+        <b># forward</b>
+        <b>self.loss(x, t)</b>
+
+        <b># backward</b>
+        <b>dout = 1</b>
+        <b>dout = self.lastLayer.backward(dout)</b>
+
+        <b>layers = list(self.layers.values())</b>
+        <b>layers.reverse()</b>
+        <b>for layer in layers:</b>
+            <b>dout = layer.backward(dout)</b>
+
+        <span style='color: #408080; font-style: italic'># 設定</span>
+        grads <span style='color: #666666'>=</span> {}
+        grads[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine1&#39;</span>]<span style='color: #666666'>.</span>dW
+        grads[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine1&#39;</span>]<span style='color: #666666'>.</span>db
+        grads[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine2&#39;</span>]<span style='color: #666666'>.</span>dW
+        grads[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>layers[<span style='color: #BA2121'>&#39;Affine2&#39;</span>]<span style='color: #666666'>.</span>db
+
+        <span style='color: #008000; font-weight: bold'>return</span> grads
+</pre>
+</div>
+<p>この実装では、太字のコードに注意して見てください。特にニューラルネットワークのレイヤを<!-- IDX:OrderedDict --><code class='tt'>OrderedDict</code>として保持する点が重要です。<code class='tt'>OrderedDict</code>は、<!-- IDX:順番付きのディクショナリ -->順番付きのディクショナリです。「順番付き」とは、ディクショナリに追加した要素の順番を覚えることができる、ということです。そのため、ニューラルネットワークの順伝播では、追加した順にレイヤの<code class='tt'>forward()</code>メソッドを呼び出すだけで処理が完了します。また、逆伝播では、逆の順番でレイヤを呼び出すだけです。AffineレイヤやReLUレイヤが、それぞれの内部で順伝播と逆伝播を正しく処理してくれるので、ここで行うことは、レイヤを正しい順番で連結し、順番に（もしくは逆順に）レイヤを呼び出すだけなのです。</p>
+<p>このようにニューラルネットワークの構成要素を「レイヤ」として実装したことで、ニューラルネットワークを簡単に構築することができました。この「レイヤ」としてモジュール化する実装の利点は絶大です。なぜなら、もし別のネットワーク——たとえば、5層、10層、20層、…と大きなネットワーク——を作りたいなら、単に必要なレイヤを追加するだけでニューラルネットワークを作ることができるのです（まるでレゴブロックを組み立てるように）。後は、各レイヤの内部で実装された順伝播と逆伝播によって、認識処理や学習に必要な勾配が正しく求められます。</p>
+
+<h3 id='h5-7-3'><span class='secno'>5.7.3　</span>誤差逆伝播法の勾配確認</h3>
+<p>これまで勾配を求める方法を2つ説明してきました。ひとつは数値微分によって求める方法、もうひとつは解析的に数式を解いて求める方法です。後者の解析的に求める方法について言えば、誤差逆伝播法を用いることで、大量のパラメータが存在しても効率的に計算できました。そのため、これからは、計算に時間のかかる数値微分ではなく、誤差逆伝播法によって勾配を求めることにしましょう。</p>
+<p>さて、数値微分は計算に時間がかかります。そして、誤差逆伝播法の（正しい）実装があれば、数値微分の実装は必要ありません。そうであれば、数値微分は何の役に立つのでしょうか？ 実は、数値微分が実践的に必要とされるのは、誤差逆伝播法の実装の正しさを確認する場面なのです。</p>
+<p>数値微分の利点は、実装が簡単であるということです。そのため、数値微分の実装はミスが起きにくく、一方、誤差逆伝播法の実装は複雑になるためミスが起きやすいのが一般的です。そこで、数値微分の結果と誤差逆伝播法の結果を比較して、誤差逆伝播法の実装の正しさを確認することがよく行われます。なお、数値微分で勾配を求めた結果と、誤差逆伝播法で求めた勾配の結果が一致すること——正確には、ほとんど近い値にあること——を確認する作業を<!-- IDX:勾配確認 --><b>勾配確認</b>（gradient check）と言います。それでは、勾配確認の実装を次に示します（ソースコードは<code class='tt'>ch05/gradient_check.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>two_layer_net</span> <span style='color: #008000; font-weight: bold'>import</span> TwoLayerNet
+
+<span style='color: #408080; font-style: italic'># データの読み込み</span>
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+
+network <span style='color: #666666'>=</span> TwoLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size<span style='color: #666666'>=50</span>, output_size<span style='color: #666666'>=10</span>)
+
+x_batch <span style='color: #666666'>=</span> x_train[:<span style='color: #666666'>3</span>]
+t_batch <span style='color: #666666'>=</span> t_train[:<span style='color: #666666'>3</span>]
+
+grad_numerical <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>numerical_gradient(x_batch, t_batch)
+grad_backprop <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>gradient(x_batch, t_batch)
+
+<span style='color: #408080; font-style: italic'># 各重みの絶対誤差の平均を求める</span>
+<span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> grad_numerical<span style='color: #666666'>.</span>keys():
+    diff <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>average( np<span style='color: #666666'>.</span>abs(grad_backprop[key] <span style='color: #666666'>-</span> grad_numerical[key]) )
+    <span style='color: #008000; font-weight: bold'>print</span>(key <span style='color: #666666'>+</span> <span style='color: #BA2121'>&quot;:&quot;</span> <span style='color: #666666'>+</span> <span style='color: #008000'>str</span>(diff))
+</pre>
+</div>
+<p>いつものように、MNISTデータセットを読み込みます。そして、訓練データの一部を使って、数値微分で求めた勾配と誤差逆伝播法で求めた勾配の誤差を確認します。ここでは誤差として、各重みパラメータにおける要素の差の絶対値を求め、その平均を算出します。上のコードを実行すると、次のような結果が出力されます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>b1:9.70418809871e-13
+W2:8.41139039497e-13
+b2:1.1945999745e-10
+W1:2.2232446644e-13
+</pre>
+</div>
+<p>この結果から、数値微分と誤差逆伝播法でそれぞれ求めた勾配の差はかなり小さいことが分かります。たとえば、1層目のバイアスの誤差は<code class='tt'>9.7e-13</code>（<code class='tt'>0.00000000000097</code>）という値です。これにより、誤差逆伝播法で求めた勾配も正しい結果であることが分かり、誤差逆伝播法の実装に誤りがないことの信頼性が増します。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>数値微分と誤差逆伝播法の計算結果の誤差が0になることは稀です。これは、コンピュータの計算は有限の精度（たとえば、32ビットの浮動小数点数）で行われることに起因します。数値精度の限界によって、先の誤差は通常0にはなりませんが、正しい実装がされていれば、その誤差は0に近い小さな値になることが期待されます。もし、その値が大きければ、誤差逆伝播法の実装に誤りがあるということです。</p>
+</td></tr></table></div>
+
+<h3 id='h5-7-4'><span class='secno'>5.7.4　</span>誤差逆伝播法を使った学習</h3>
+<p>それでは最後に、誤差逆伝播法を使ったニューラルネットワークの学習の実装を掲載します。これまでと異なる点は、誤差逆伝播法で勾配を求めるという点だけです。ここでは、コードだけを示して説明は省略します（ソースコードは<code class='tt'>ch05/train_neuralnet.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>two_layer_net</span> <span style='color: #008000; font-weight: bold'>import</span> TwoLayerNet
+
+<span style='color: #408080; font-style: italic'># データの読み込み</span>
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> \
+    load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, one_hot_label<span style='color: #666666'>=</span><span style='color: #008000'>True</span>)
+
+network <span style='color: #666666'>=</span> TwoLayerNet(input_size<span style='color: #666666'>=784</span>, hidden_size<span style='color: #666666'>=50</span>, output_size<span style='color: #666666'>=10</span>)
+
+iters_num <span style='color: #666666'>=</span> <span style='color: #666666'>10000</span>
+train_size <span style='color: #666666'>=</span> x_train<span style='color: #666666'>.</span>shape[<span style='color: #666666'>0</span>]
+batch_size <span style='color: #666666'>=</span> <span style='color: #666666'>100</span>
+learning_rate <span style='color: #666666'>=</span> <span style='color: #666666'>0.1</span>
+
+train_loss_list <span style='color: #666666'>=</span> []
+train_acc_list <span style='color: #666666'>=</span> []
+test_acc_list <span style='color: #666666'>=</span> []
+
+iter_per_epoch <span style='color: #666666'>=</span> <span style='color: #008000'>max</span>(train_size <span style='color: #666666'>/</span> batch_size, <span style='color: #666666'>1</span>)
+
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(iters_num):
+    batch_mask <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>random<span style='color: #666666'>.</span>choice(train_size, batch_size)
+    x_batch <span style='color: #666666'>=</span> x_train[batch_mask]
+    t_batch <span style='color: #666666'>=</span> t_train[batch_mask]
+
+    <b># 誤差逆伝播法によって勾配を求める</b>
+    <b>grad = network.gradient(x_batch, t_batch)</b>
+
+    <span style='color: #408080; font-style: italic'># 更新</span>
+    <span style='color: #008000; font-weight: bold'>for</span> key <span style='color: #AA22FF; font-weight: bold'>in</span> (<span style='color: #BA2121'>&#39;W1&#39;</span>, <span style='color: #BA2121'>&#39;b1&#39;</span>, <span style='color: #BA2121'>&#39;W2&#39;</span>, <span style='color: #BA2121'>&#39;b2&#39;</span>):
+        network<span style='color: #666666'>.</span>params[key] <span style='color: #666666'>-=</span> learning_rate <span style='color: #666666'>*</span> grad[key]
+
+    loss <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>loss(x_batch, t_batch)
+    train_loss_list<span style='color: #666666'>.</span>append(loss)
+
+    <span style='color: #008000; font-weight: bold'>if</span> i <span style='color: #666666'>%</span> iter_per_epoch <span style='color: #666666'>==</span> <span style='color: #666666'>0</span>:
+        train_acc <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>accuracy(x_train, t_train)
+        test_acc <span style='color: #666666'>=</span> network<span style='color: #666666'>.</span>accuracy(x_test, t_test)
+        train_acc_list<span style='color: #666666'>.</span>append(train_acc)
+        test_acc_list<span style='color: #666666'>.</span>append(test_acc)
+        <span style='color: #008000; font-weight: bold'>print</span>(train_acc, test_acc)
+</pre>
+</div>
+
+<h2 id='h5-8'><span class='secno'>5.8　</span>まとめ</h2>
+<p>本章では、視覚的に計算の過程を表す計算グラフという方法を学びました。この計算グラフを用いて、ニューラルネットワークで行う誤差逆伝播法を説明し、また、ニューラルネットワークで行う処理をレイヤという単位で実装しました。たとえば、ReLUレイヤやSoftmax-with-Lossレイヤ、AffineレイヤやSoftmaxレイヤなどです。これらのレイヤには、<code class='tt'>forward</code>と<code class='tt'>backward</code>というメソッドが実装されており、データを順方向と逆方向に伝播することで、重みパラメータの勾配を効率的に求めることができます。このレイヤによるモジュール化によって、ニューラルネットワークでは、レイヤを自由に組み合わせることができ、自分の好きなネットワークを簡単に作ることができるようになるのです。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>計算グラフを用いれば、計算過程を視覚的に把握することができる。</li>
+<li>計算グラフのノードは局所的な計算によって構成される。局所的な計算が全体の計算を構成する。</li>
+<li>計算グラフの順伝播は、通常の計算を行う。一方、計算グラフの逆伝播によって、各ノードの微分を求めることができる。</li>
+<li>ニューラルネットワークの構成要素をレイヤとして実装することで、勾配の計算を効率的に求めることができる（誤差逆伝播法）。</li>
+<li>数値微分と誤差逆伝播法の結果を比較することで、誤差逆伝播法の実装に誤りがないことを確認できる（勾配確認）。</li>
+</ul>
+</div>
+</body>
+</html>

@@ -1,0 +1,931 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>ニューラルネットワーク</title>
+</head>
+<body>
+<h1 id='h3'><span class='chapno'>3章</span><br/>ニューラルネットワーク</h1>
+<p>前章ではパーセプトロンについて学びましたが、パーセプトロンについては良いニュースと悪いニュースがありました。良いニュースとは、パーセプトロンは複雑な関数であっても、それを表現できるだけの可能性を秘めているということです。たとえば、コンピュータが行うような複雑そうな処理であっても、パーセプトロンは（理論上）表現できることを前章で説明しました。悪いニュースは、重みを設定する作業——期待する入力と出力を満たすように適切な重みを決める作業——は、今のところ人の手によって行われているということです。前章では、ANDやORゲートの真理値表を見ながら、私たち人間が適切な重みを決めました。</p>
+<p>ニューラルネットワークは、先の悪いニュースを解決するためにあります。具体的に言うと、適切な重みパラメータをデータから自動で学習できるというのがニューラルネットワークの重要な性質のひとつです。本章では、ニューラルネットワークの概要を説明し、ニューラルネットワークが識別を行う際の処理に焦点を当てます。そして、次章にて、データから重みパラメータを学習する方法を学びます。</p>
+
+<h2 id='h3-1'><span class='secno'>3.1　</span>パーセプトロンからニューラルネットワークへ</h2>
+<p>ニューラルネットワークは、前章で説明したパーセプトロンと共通する点が多くあります。ここでは、前章のパーセプトロンと異なる点を中心に、ニューラルネットワークの仕組みを解説していきます。</p>
+
+<h3 id='h3-1-1'><span class='secno'>3.1.1　</span>ニューラルネットワークの例</h3>
+<p>ニューラルネットワークを図で表すと、<a href='./ch03.xhtml#fig03_1'>図3-1</a>のようになります。ここで、一番左の列を<!-- IDX:入力層 --><b>入力層</b>、一番右の列を<!-- IDX:出力層 --><b>出力層</b>、中間の列を<!-- IDX:中間層 --><b>中間層</b>と呼びます。中間層は<!-- IDX:隠れ層 --><b>隠れ層</b>と呼ぶこともあります。「隠れ」という言葉は、隠れ層のニューロンが（入力層や出力層とは違って）人の目には見えない、ということを表しています。なお、本書では、入力層から出力層へ向かって、順に第0層、第1層、第2層と呼ぶことにします（層の番号を0から開始する理由は、後ほどPythonで実装する際に都合が良いためです）。<a href='./ch03.xhtml#fig03_1'>図3-1</a>では、第0層が入力層、第1層が中間層、第2層が出力層に対応することになります。</p>
+<div class='image' id='fig03_1'>
+<img alt='ニューラルネットワークの例' src='images/ch03/fig03_1.png'/>
+<p class='caption'>
+図3-1　ニューラルネットワークの例
+</p>
+</div>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p><a href='./ch03.xhtml#fig03_1'>図3-1</a>のネットワークは全部で3層から構成されますが、重みを持つ層は実質2層であるため「2層ネットワーク」と呼ぶことにします。書籍によっては、ネットワークを構成する層の数に従って、<a href='./ch03.xhtml#fig03_1'>図3-1</a>を「3層ネットワーク」と呼ぶ場合があるので注意が必要です。本書では、実質的に重みを持つ層の数——入力層、隠れ層、出力層の合計数から1を引いた数——によって、ネットワーク名を表すことにします。</p>
+</td></tr></table></div>
+<p><a href='./ch03.xhtml#fig03_1'>図3-1</a>を見るかぎり、前章で見たパーセプトロンと同じような形をしています。実際、ニューロンの<span class='bou'>つながり方</span>に関して言えば、前章で見たパーセプトロンと何ら変わりありません。それでは、ニューラルネットワークではどのように信号を伝達するのでしょうか？</p>
+
+<h3 id='h3-1-2'><span class='secno'>3.1.2　</span>パーセプトロンの復習</h3>
+<p>これからニューラルネットワークにおける信号の伝達方法を見ていきますが、それに先立ち、ここではパーセプトロンの復習から始めたいと思います。それでは初めに、<a href='./ch03.xhtml#fig03_2'>図3-2</a>の構造のネットワークを考えましょう。</p>
+<div class='image' id='fig03_2'>
+<img alt='パーセプトロンの復習' src='images/ch03/fig03_2.png'/>
+<p class='caption'>
+図3-2　パーセプトロンの復習
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_2'>図3-2</a>は、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>の2つの入力信号を受け取り、<span class='equation mathnoimage'><i>y</i></span>を出力するパーセプトロンです。<a href='./ch03.xhtml#fig03_2'>図3-2</a>のパーセプトロンを数式で表すと、次の式(3.1)で表されるのでした。</p>
+<div class='equation'>
+<div class='math'><img alt='y =  \begin{cases}
+  0 &amp; ( b + {w_1}{x_1} + {w_2}{x_2} \le 0 )\\[-3pt]
+  1 &amp; ( b + {w_1}{x_1} + {w_2}{x_2} &gt;   0 )%\raisebox{.5\Cvs}{\qquad(3.1)}
+ \end{cases}' src='images/math/dab65a23e13930cbe06c92ce0ace3770.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq1'>式(3.1)</p>
+</div>
+<p>ここで、<span class='equation mathnoimage'><i>b</i></span>は「バイアス」と呼ばれるパラメータで、これはニューロンの発火のしやすさをコントロールします。一方、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>1</span></sub></i></span>や<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>2</span></sub></i></span>は各信号の「重み」を表すパラメータで、これらは各信号の重要性をコントロールします。</p>
+<p>ところで、<a href='./ch03.xhtml#fig03_2'>図3-2</a>のネットワークにはバイアス<span class='equation mathnoimage'><i>b</i></span>が図示されていません。もしバイアスを明示するならば、<a href='./ch03.xhtml#fig03_3'>図3-3</a>のように表すことができます。<a href='./ch03.xhtml#fig03_3'>図3-3</a>では、重みが<span class='equation mathnoimage'><i>b</i></span>で入力が1の信号が追加されています。このパーセプトロンの動作は、<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>1</span></sub></i></span>と<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>と1の3つの信号がニューロンの入力となり、それら3つの信号にそれぞれの重みが乗算され、次のニューロンに送信されます。次のニューロンでは、それらの重み付けされた信号の和が計算され、その和が0を超えたら1を出力し、そうでなければ0を出力します。ちなみに、バイアスの入力信号は常に1であるため、図で表す際には、ニューロンを灰色で塗りつぶし、他のニューロンと差別化することにします。</p>
+<div class='image' id='fig03_3'>
+<img alt='バイアスを明示的に示す' src='images/ch03/fig03_3.png'/>
+<p class='caption'>
+図3-3　バイアスを明示的に示す
+</p>
+</div>
+<p>それでは、式(3.1)をよりシンプルな形に書き換えたいと思います。式(3.1)を簡略化するためには、場合分けの動作——0を超えたら1を出力し、そうでなければ0を出力するという動作——をひとつの関数で表します。ここでは<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>という新しい関数を導入し、式(3.1)を次の式(3.2)、(3.3)のように書き換えます。</p>
+<div class='equation'>
+<div class='math'><img alt='y = h(b + {w_1}{x_1} + {w_2}{x_2}) %\qquad(3.2)' src='images/math/5264fafdc40212566fa3893d35c8b0f4.png' style='height: 1.16em'/></div>
+<p class='eqno' id='eq2'>式(3.2)</p>
+</div>
+<div class='equation'>
+<div class='math'><img alt='h(x) = \begin{cases}
+  0 &amp; (x \le 0) \\[-3pt]
+  1 &amp; (x &gt; 0) %\raisebox{.5\Cvs}{\qquad(3.3)}
+ \end{cases}' src='images/math/a483e7699bac1999475c203256bdcfba.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq3'>式(3.3)</p>
+</div>
+<p>式(3.2)は、入力信号の総和が<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>という関数によって変換され、その変換された値が出力<span class='equation mathnoimage'><i>y</i></span>になるということを表しています。そして、式(3.3)で表される<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>関数は、入力が0を超えたら1を返し、そうでなければ0を返します。そのため、式(3.1)と式(3.2)、(3.3)は同じことを行っているのです。</p>
+
+<h3 id='h3-1-3'><span class='secno'>3.1.3　</span>活性化関数の登場</h3>
+<p>さて、ここで登場した<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)</span></i></span>という関数ですが、このような関数——入力信号の総和を出力信号に変換する関数——は、一般に<!-- IDX:活性化関数 --><b>活性化関数</b>（<!-- IDX:activation function -->activation function）と呼ばれます。「活性化」という名前が意味するように、活性化関数は入力信号の総和がどのように活性化するか（どのように発火するか）ということを決定する役割があります。</p>
+<p>それではさらに式(3.2)を書き換えていきます。式(3.2)では、重み付きの入力信号の総和を計算し、そして、その和が活性化関数によって変換される、という2段階の処理を行っています。そのため、式(3.2)を丁寧に書くとすれば、次の2つの式に分けて書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='a = b + {w_1}{x_1} + {w_2}{x_2}  %\qquad(3.4)' src='images/math/ee8bcfbbcb86d4e24a7ac0d0457e842b.png' style='height: 1.0em'/></div>
+<p class='eqno' id='eq4'>式(3.4)</p>
+</div>
+<div class='equation'>
+<div class='math'><img alt='y = h(a)  %\qquad(3.5)' src='images/math/ed8a30d7323aa1def91d7898d456e307.png' style='height: 1.16em'/></div>
+<p class='eqno' id='eq5'>式(3.5)</p>
+</div>
+<p>式(3.4)では、重み付き入力信号とバイアスの総和を計算し、それを<span class='equation mathnoimage'><i>a</i></span>とします。そして、式(3.5)において、<span class='equation mathnoimage'><i>a</i></span>が<span class='equation mathnoimage'><i>h<span class='math-normal'>()</span></i></span>で変換され<span class='equation mathnoimage'><i>y</i></span>が出力される、という流れになります。</p>
+<p>さて、これまでニューロンはひとつの○で図示してきましたが、式(3.4)と(3.5)を明示的に示すとすれば、次の<a href='./ch03.xhtml#fig03_4'>図3-4</a>のように表すことができます。</p>
+<div class='image' id='fig03_4'>
+<img alt='活性化関数によるプロセスを明示的に図示する' src='images/ch03/fig03_4.png'/>
+<p class='caption'>
+図3-4　活性化関数によるプロセスを明示的に図示する
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_4'>図3-4</a>で表されるように、これまでのニューロンの○の中に、活性化関数によるプロセスを明示的に図示しています。つまり、重み付き信号の和の結果が<span class='equation mathnoimage'><i>a</i></span>というノードになり、そして、活性化関数<span class='equation mathnoimage'><i>h<span class='math-normal'>()</span></i></span>によって<span class='equation mathnoimage'><i>y</i></span>というノードに変換される、ということがはっきりと示されているわけです。なお、本書では、「ニューロン」と「ノード」という用語を同じ意味で用います。ここで、<span class='equation mathnoimage'><i>a</i></span>と<span class='equation mathnoimage'><i>y</i></span>の○を「ノード」と呼んでいますが、これは、これまでの「ニューロン」と同じ意味で用いています。</p>
+<p>また、ニューロンの図示方法についてですが、通常はこれまでどおり<a href='./ch03.xhtml#fig03_5'>図3-5</a>の左図のように、ひとつの○で表します。本書では、ニューラルネットワークの動作が明瞭化できる場合は、<a href='./ch03.xhtml#fig03_5'>図3-5</a>の右図のように、活性化のプロセスも含めて図示することにします。</p>
+<div class='image' id='fig03_5'>
+<img alt='左図は一般的なニューロンの図、右図は活性化によるプロセスをニューロン内部に明示的に表した図（入力信号の総和を&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;a&lt;/i&gt;&lt;/span&gt;、活性化関数を&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;h&lt;span class=&apos;math-normal&apos;&gt;()&lt;/span&gt;&lt;/i&gt;&lt;/span&gt;、出力を&lt;span class=&quot;equation&quot;&gt;&lt;i&gt;y&lt;/i&gt;&lt;/span&gt;で表記）' src='images/ch03/fig03_5.png'/>
+<p class='caption'>
+図3-5　左図は一般的なニューロンの図、右図は活性化によるプロセスをニューロン内部に明示的に表した図（入力信号の総和を<span class='equation mathnoimage'><i>a</i></span>、活性化関数を<span class='equation mathnoimage'><i>h<span class='math-normal'>()</span></i></span>、出力を<span class='equation mathnoimage'><i>y</i></span>で表記）
+</p>
+</div>
+<p>それでは続いて活性化関数について詳しく見ていくことにします。この活性化関数が、パーセプトロンからニューラルネットワークへ進むための架け橋になります。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>「パーセプトロン」という言葉が指すアルゴリズムは、本書では厳密な統一がなされずに使われています。一般的に、「<!-- IDX:単純パーセプトロン -->単純パーセプトロン」といえば、それは単層のネットワークで、活性化関数にステップ関数（閾値を境にして出力が切り替わる関数）を使用したモデルを指します。「<!-- IDX:多層パーセプトロン -->多層パーセプトロン」というと、それはニューラルネットワーク——多層で、シグモイド関数などの滑らかな活性化関数を使用するネットワーク——を指すのが一般的です。</p>
+</td></tr></table></div>
+
+<h2 id='h3-2'><span class='secno'>3.2　</span>活性化関数</h2>
+<p>式(3.3)で表される活性化関数は、閾値を境にして出力が切り替わる関数で、それは「<!-- IDX:ステップ関数 -->ステップ関数」や「<!-- IDX:階段関数 -->階段関数」と呼ばれます。そのため、「パーセプトロンでは、活性化関数にステップ関数を利用している」と言うことができます。つまり、活性化関数の候補としてたくさんある関数の中で、パーセプトロンは「ステップ関数」を採用しているのです。パーセプトロンでは活性化関数にステップ関数を用いているならば、活性化関数にステップ関数以外の関数を使ったらどうなるのでしょうか？ 実は、活性化関数をステップ関数から別の関数に変更することで、ニューラルネットワークの世界へと進むことができるのです！ それでは早速、ニューラルネットワークで利用される活性化関数を紹介しましょう。</p>
+
+<h3 id='h3-2-1'><span class='secno'>3.2.1　</span>シグモイド関数</h3>
+<p><!-- IDX:シグモイド関数 -->ニューラルネットワークでよく用いられる活性化関数のひとつは、式(3.6)で表される<b>シグモイド関数</b>（sigmoid function）です。</p>
+<div class='equation'>
+<div class='math'><img alt='h(x) = \frac{1}{1 + \exp (-x)}  %\qquad(3.6)' src='images/math/60f0e79574f781791b7b152adf2a8085.png' style='height: 2.58em'/></div>
+<p class='eqno' id='eq6'>式(3.6)</p>
+</div>
+<p>式(3.6)の<span class='equation mathimage'><img alt='\exp(-x)' src='images/math/f401088e99706dc447b08fdb84579b7d.png' style='height: 1.16em'/></span>は<span class='equation mathimage'><img alt='{e^{-x}}' src='images/math/120cf5eda561cec774a02601cf23c7c9.png' style='height: 0.84em'/></span>を意味します。<span class='equation mathnoimage'><i>e</i></span>は<!-- IDX:ネイピア数 -->ネイピア数の2.7182…の実数を表します。式(3.6)で表されるシグモイド関数は一見複雑そうですが、シグモイド関数も単なる「関数」です——関数は、何か入力を与えれば、何らかの出力が返される変換器です。たとえば、シグモイド関数に1.0や2.0を入力すると、<span class='equation mathnoimage'><i>h<span class='math-normal'>(1.0)</span><span class='math-normal'>＝</span><span class='math-normal'>0.731</span></i></span>…、<span class='equation mathnoimage'><i>h<span class='math-normal'>(2.0)</span><span class='math-normal'>＝</span><span class='math-normal'>0.880</span></i></span>…のように、ある値が出力されます。</p>
+<p>ニューラルネットワークでは活性化関数にシグモイド関数を用いて信号の変換を行い、その変換された信号が次のニューロンに伝えられます。実は、前章で見たパーセプトロンとこれから見ていくニューラルネットワークの主な違いは、この活性化関数だけなのです。その他の点——ニューロンが多層につながる構造や、信号の伝達方法——は基本的に前章のパーセプトロンと同じです。それでは、活性化関数として利用されるシグモイド関数について、ステップ関数と比較しながら詳しく見ていくことにしましょう。</p>
+
+<h3 id='h3-2-2'><span class='secno'>3.2.2　</span>ステップ関数の実装</h3>
+<p><!-- IDX:ステップ関数 -->ここではPythonを使ってステップ関数をグラフで表します（関数の形を視覚的に確認することは、関数を理解する上で重要です）。ステップ関数は、式(3.3)で表されるように、入力が0を超えたら1を出力し、それ以外は0を出力する関数でした。ステップ関数を単純に実装するとすれば、次のようになるでしょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>step_function</span>(x):<!-- IDX:step_function() -->
+    <span style='color: #008000; font-weight: bold'>if</span> x <span style='color: #666666'>&gt;</span> <span style='color: #666666'>0</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span>
+    <span style='color: #008000; font-weight: bold'>else</span>:
+        <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>0</span>
+</pre>
+</div>
+<p>この実装は単純で分かりやすいのですが、引数の<code class='tt'>x</code>は実数（浮動小数点数）しか入力することができません。つまり、<code class='tt'>step_function(3.0)</code>といった使い方はできますが、NumPyの配列を引数に取るような使い方——たとえば、<code class='tt'>step_function(np.array([1.0, 2.0]))</code>のような使い方——はできないのです。ここでは今後のことを考え、NumPy配列に対応した実装に修正したいと思います。そのためには、たとえば、次のような実装が考えられるでしょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>step_function</span>(x):
+    y <span style='color: #666666'>=</span> x <span style='color: #666666'>&gt;</span> <span style='color: #666666'>0</span>
+    <span style='color: #008000; font-weight: bold'>return</span> y<span style='color: #666666'>.</span>astype(np<span style='color: #666666'>.</span>int)
+</pre>
+</div>
+<p>上の関数の中身はたった2行ですが、NumPyの便利な“トリック”を使っているため、少し分かりにくいかもしれません。ここでは、どのようなトリックを使っているのか、次のPythonインタプリタの例を見ながら説明します。次の例では、<code class='tt'>x</code>というNumPy配列を用意し、そのNumPy配列に対して不等号による演算を行います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>import numpy as np</b>
+&gt;&gt;&gt; <b>x = np.array([-1.0, 1.0, 2.0])</b>
+&gt;&gt;&gt; <b>x</b>
+array([-1.,  1.,  2.])
+&gt;&gt;&gt; <b>y = x &gt; 0</b>
+&gt;&gt;&gt; <b>y</b>
+array([False,  True,  True], dtype=bool)
+</pre>
+</div>
+<p>NumPy配列に対して不等号の演算を行うと、配列の各要素に対して不等号の演算が行われ、ブーリアンの配列が生成されます。ここでは、<code class='tt'>x</code>という配列の要素に対し0より大きい要素は<code class='tt'>True</code>に、0以下の要素は<code class='tt'>False</code>に変換され、新しい配列<code class='tt'>y</code>が生成されます。</p>
+<p>さて、先の<code class='tt'>y</code>という配列はブーリアンの配列でしたが、私たちの望むステップ関数は、0か1の「<code class='tt'>int</code>型」を出力する関数です。そのため、配列<code class='tt'>y</code>の要素の型をブーリアンから<code class='tt'>int</code>型に変換します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>y = y.astype(np.int)</b><!-- IDX:y.astype() -->
+&gt;&gt;&gt; <b>y</b>
+array([0, 1, 1])
+</pre>
+</div>
+<p>ここで示したように、NumPy配列の型の変換には<code class='tt'>astype()</code>メソッドを用います。<code class='tt'>astype()</code>メソッドでは、引数に希望する型——この例では、<!-- IDX:np.int --><code class='tt'>np.int</code>——を指定します。なお、Pythonではブーリアン型から<code class='tt'>int</code>型に変換すると、<code class='tt'>True</code>が1に、<code class='tt'>False</code>が0に変換されます。以上が、ステップ関数の実装で使われるNumPyの“トリック”の説明でした。</p>
+
+<h3 id='h3-2-3'><span class='secno'>3.2.3　</span>ステップ関数のグラフ</h3>
+<p>それでは、上で定義したステップ関数をグラフで表してみましょう。そのために、ライブラリとして<code class='tt'>matplotlib</code>を使用します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pylab</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>step_function</span>(x):
+    <span style='color: #008000; font-weight: bold'>return</span> np<span style='color: #666666'>.</span>array(x <span style='color: #666666'>&gt;</span> <span style='color: #666666'>0</span>, dtype<span style='color: #666666'>=</span>np<span style='color: #666666'>.</span>int)
+
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>arange(<span style='color: #666666'>-5.0</span>, <span style='color: #666666'>5.0</span>, <span style='color: #666666'>0.1</span>)
+y <span style='color: #666666'>=</span> step_function(x)
+plt<span style='color: #666666'>.</span>plot(x, y)
+plt<span style='color: #666666'>.</span>ylim(<span style='color: #666666'>-0.1</span>, <span style='color: #666666'>1.1</span>) <span style='color: #408080; font-style: italic'># y軸の範囲を指定</span>
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p><!-- IDX:np.arange() --><code class='tt'>np.arange(-5.0, 5.0, 0.1)</code>は、<span class='equation mathnoimage'><i><span class='math-normal'>−5.0</span></i></span>から5.0までの範囲を0.1刻みでNumPy配列を生成します（<code class='tt'>[-5.0, -4.9, …, 4.9]</code>を生成します）。<code class='tt'>step_function()</code>は、NumPy配列を引数に取り、配列の各要素に対してステップ関数を実行し、結果を配列として返します。この<code class='tt'>x</code>、<code class='tt'>y</code>配列をプロットすると、結果は次の<a href='./ch03.xhtml#fig03_6'>図3-6</a>のようになります。</p>
+<div class='image' id='fig03_6'>
+<img alt='ステップ関数のグラフ' src='images/ch03/fig03_6.png'/>
+<p class='caption'>
+図3-6　ステップ関数のグラフ
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_6'>図3-6</a>で表されるように、ステップ関数は0を境にして、出力が0から1（または1から0）へ切り替わります。なお、<a href='./ch03.xhtml#fig03_6'>図3-6</a>のように階段状に値が切り替わる形から、ステップ関数は「階段関数」と呼ばれることもあります。</p>
+
+<h3 id='h3-2-4'><span class='secno'>3.2.4　</span>シグモイド関数の実装</h3>
+<p>続いてシグモイド関数を実装しましょう。式(3.6)のシグモイド関数は、Pythonで次のように書くことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>sigmoid</span>(x):<!-- IDX:sigmoid() -->
+    <span style='color: #008000; font-weight: bold'>return</span> <span style='color: #666666'>1</span> <span style='color: #666666'>/</span> (<span style='color: #666666'>1</span> <span style='color: #666666'>+</span> np<span style='color: #666666'>.</span>exp(<span style='color: #666666'>-</span>x))
+</pre>
+</div>
+<p>ここで<!-- IDX:np.exp() --><code class='tt'>np.exp(-x)</code>は数式の<span class='equation mathimage'><img alt='\exp(-x)' src='images/math/f401088e99706dc447b08fdb84579b7d.png' style='height: 1.16em'/></span>に対応します。この実装は特に難しいことはありませんが、引数の<code class='tt'>x</code>にNumPy配列を入力しても、結果は正しく計算されることに注意しましょう。実際、この<code class='tt'>sigmoid</code>関数にNumPy配列を入力すると、次のように正しく計算されます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array([-1.0, 1.0, 2.0])</b>
+&gt;&gt;&gt; <b>sigmoid(x)</b>
+array([ 0.26894142,  0.73105858,  0.88079708])
+</pre>
+</div>
+<p>シグモイド関数の実装がNumPy配列に対応していることは、NumPyのブロードキャストに秘密があります（詳しくは<a href='ch01.xhtml#h1-5-5'>「1.5.5 ブロードキャスト」</a>を参照）。ブロードキャストの機能により、スカラ値とNumPy配列での演算が行われると、スカラ値とNumPy配列の各要素どうしで演算が行われます。ここでもひとつ具体例を示しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>t = np.array([1.0, 2.0, 3.0])</b>
+&gt;&gt;&gt; <b>1.0 + t</b>
+array([ 2.,  3.,  4.])
+&gt;&gt;&gt; <b>1.0 / t</b>
+array([ 1.        ,  0.5       ,  0.33333333])
+</pre>
+</div>
+<p>上の例では、スカラ値（例では<code class='tt'>1.0</code>）とNumPy配列の間で数値演算（<code class='tt'>+</code>や<code class='tt'>/</code>など）が行われています。結果として、スカラ値とNumPy配列の各要素の間で演算が行われ、演算の結果がNumPy配列として出力されています。先のシグモイド関数の実装でも、<code class='tt'>np.exp(-x)</code>はNumPy配列を生成するため、<code class='tt'>1 / (1 + np.exp(-x))</code>の結果は、NumPy配列の各要素の間で計算されることになります。</p>
+<p>それでは、シグモイド関数をグラフに描画します。描画のためのコードは、先のステップ関数のコードとほとんど同じです。唯一異なる箇所は、<code class='tt'>y</code>を出力する関数を<code class='tt'>sigmoid</code>関数に変更する点です。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>arange(<span style='color: #666666'>-5.0</span>, <span style='color: #666666'>5.0</span>, <span style='color: #666666'>0.1</span>)
+<b>y = sigmoid(x)</b>
+plt<span style='color: #666666'>.</span>plot(x, y)
+plt<span style='color: #666666'>.</span>ylim(<span style='color: #666666'>-0.1</span>, <span style='color: #666666'>1.1</span>) <span style='color: #408080; font-style: italic'># y軸の範囲を指定</span>
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p>上のコードを実行すると、<a href='./ch03.xhtml#fig03_7'>図3-7</a>のグラフが得られます。</p>
+<div class='image' id='fig03_7'>
+<img alt='シグモイド関数のグラフ' src='images/ch03/fig03_7.png'/>
+<p class='caption'>
+図3-7　シグモイド関数のグラフ
+</p>
+</div>
+
+<h3 id='h3-2-5'><span class='secno'>3.2.5　</span>シグモイド関数とステップ関数の比較</h3>
+<p>シグモイド関数とステップ関数を見比べてみましょう。ステップ関数とシグモイド関数を<a href='./ch03.xhtml#fig03_8'>図3-8</a>に示します。2つの関数の異なっている点はどこでしょうか？ また、どのような点が共通する性質と言えるでしょうか？ <a href='./ch03.xhtml#fig03_8'>図3-8</a>を観察して考えてみましょう。</p>
+<div class='image' id='fig03_8'>
+<img alt='ステップ関数とシグモイド関数（破線はステップ関数）' src='images/ch03/fig03_8.png'/>
+<p class='caption'>
+図3-8　ステップ関数とシグモイド関数（破線はステップ関数）
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_8'>図3-8</a>を見てまず気づく点は「滑らかさ」の違いだと思います。シグモイド関数は滑らかな曲線であり、入力に対して連続的に出力が変化します。一方、ステップ関数は0を境に急に出力を変えています。このシグモイド関数の滑らかさが、ニューラルネットワークの学習において重要な意味を持ちます。</p>
+<p>また、（先の滑らかさに関連していますが）ステップ関数が0か1のどちらかの値しか返さないのに対して、シグモイド関数は実数——0.731…や0.880…など——を返すという点も異なります。つまり、パーセプトロンではニューロン間を0か1の二値の信号が流れていたのに対して、ニューラルネットワークでは連続的な実数値の信号が流れます。</p>
+<p>ところで、このような2つの関数の動作を“水”に関連づけて語るとすれば、ステップ関数は「ししおどし」に、シグモイド関数は「水車」にたとえられるでしょう——ステップ関数が「ししおどし」のように、水を次へ流すか流さないか（0か1か）の2つの動きをするのに対して、シグモイド関数は「水車」のように流れてきた水の量に比例して、次へ流す水の量を調整します。</p>
+<p>続いて、ステップ関数とシグモイド関数の共通する性質についてです。ステップ関数とシグモイド関数では、“滑らかさ”という点では異なりますが、<a href='./ch03.xhtml#fig03_8'>図3-8</a>を大きな視点で見ると同じような形をしていることが分かります。実際、両者とも入力が小さいときに出力は0に近く（0であり）、入力が大きくなるに従い出力が1に近づく（1になる）という構造をしています。つまり、ステップ関数とシグモイド関数は、入力信号が重要な情報であれば大きな値を出力し、入力信号が重要でなければ小さな値を出力するのです。そして、どんなに入力信号の値が小さくても、またどんなに入力信号の値が大きくても、出力信号の値を0から1の間に押し込めるのも両者の共通点です。</p>
+
+<h3 id='h3-2-6'><span class='secno'>3.2.6　</span>非線形関数</h3>
+<p><!-- IDX:非線形関数 -->ステップ関数とシグモイド関数の共通点は他にもあります。重要な共通点は、両者はともに<b>非線形関数</b>であるということです。シグモイド関数は曲線、ステップ関数は階段のような折れ曲がった直線で表され、ともに非線形な関数に分類されます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>活性化関数の説明では、「非線形関数」「線形関数」という用語がよく登場します。そもそも関数は、何かの値を入力すれば何かの値を返す「変換器」です。この変換器に何か入力したとき、出力が入力の定数倍になるような関数を線形関数と言います（数式で表すと<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)</span><span class='math-normal'>＝</span>cx</i></span>。<span class='equation mathnoimage'><i>c</i></span>は定数）。そのため、線形関数はまっすぐな1本の直線になります。一方、非線形関数は、読んで字のごとく（「線形関数に非ず」）、線形関数のように単純な1本の直線ではない関数を指します。</p>
+</td></tr></table></div>
+<p>ニューラルネットワークでは、活性化関数に非線形関数を用いる必要があります。これは言い換えると、活性化関数には線形関数を用いてはならない、ということです。なぜ線形関数を用いてはならないのでしょうか。それは、線形関数を用いると、ニューラルネットワークで層を深くすることの意味がなくなってしまうからです。</p>
+<p>線形関数の問題点は、どんなに層を深くしても、それと同じことを行う「隠れ層のないネットワーク」が必ず存在する、という事実に起因します。このことを具体的に（やや直感的に）理解するために、次の簡単な例を考えてみましょう。ここでは、線形関数である<span class='equation mathnoimage'><i>h<span class='math-normal'>(</span>x<span class='math-normal'>)＝</span>cx</i></span>を活性化関数として、<span class='equation mathnoimage'><i>y<span class='math-normal'>(</span>x<span class='math-normal'>)</span><span class='math-normal'>＝</span>h<span class='math-normal'>(</span>h<span class='math-normal'>(</span>h<span class='math-normal'>(</span>x<span class='math-normal'>)))</span></i></span>を行う計算を3層のネットワークに対応させて考えることにします。この計算は、<span class='equation mathnoimage'><i>y<span class='math-normal'>(</span>x<span class='math-normal'>)</span><span class='math-normal'>＝</span>c<span class='math-normal'>×</span>c<span class='math-normal'>×</span>c<span class='math-normal'>×</span>x</i></span>の掛け算を行いますが、同じことは<span class='equation mathnoimage'><i>y<span class='math-normal'>(</span>x<span class='math-normal'>)</span><span class='math-normal'>＝</span>ax</i></span>（ただし、<span class='equation mathnoimage'><i>a<span class='math-normal'>＝</span>c<sup><span class='math-normal'>3</span></sup></i></span>）の1回の掛け算で、つまり、隠れ層のないネットワークで表現できるのです。この例のように、線形関数を用いた場合、多層にすることの利点を生かすことができません。そのため、層を重ねることの恩恵を得るためには、活性化関数に非線形関数を使う必要があるのです。</p>
+
+<h3 id='h3-2-7'><span class='secno'>3.2.7　</span>ReLU関数</h3>
+<p><!-- IDX:ReLU関数 -->これまでに、活性化関数としてステップ関数とシグモイド関数を紹介しました。シグモイド関数は、ニューラルネットワークの歴史において、古くから利用されてきましたが、最近では<b>ReLU</b>（Rectified Linear Unit）という関数が主に用いられます。</p>
+<p>ReLUは、入力が0を超えていれば、その入力をそのまま出力し、0以下ならば0を出力する関数です（<a href='./ch03.xhtml#fig03_9'>図3-9</a>参照）。</p>
+<div class='image' id='fig03_9'>
+<img alt='ReLU関数' src='images/ch03/fig03_9.png'/>
+<p class='caption'>
+図3-9　ReLU関数
+</p>
+</div>
+<p>ReLU関数を数式で表すと、次の式(3.7)のように書くことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='h(x) = \begin{cases}
+  x &amp; (x &gt; 0)\\[-3pt]
+  0 &amp; (x \le 0) %\raisebox{.5\Cvs}{\qquad(3.7)}
+ \end{cases}' src='images/math/3cef42a43bbbd6cc8ccbea546f9b4cef.png' style='height: 3.34em'/></div>
+<p class='eqno' id='eq7'>式(3.7)</p>
+</div>
+<p>グラフや数式のとおり、ReLU関数はとてもシンプルな関数です。そのため、ReLU関数の実装も簡単で、次のように書くことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>relu</span>(x):<!-- IDX:relu() -->
+    <span style='color: #008000; font-weight: bold'>return</span> np<span style='color: #666666'>.</span>maximum(<span style='color: #666666'>0</span>, x)<!-- IDX:np.maximum() -->
+</pre>
+</div>
+<p>ここでは、NumPyの<code class='tt'>maximum</code>という関数を使っています。この<code class='tt'>maximum</code>は、入力された値から大きいほうの値を選んで出力する関数です。</p>
+<p>さて、本章の残りでは、活性化関数にシグモイド関数を使用していきますが、本書の後半では、主にReLU関数を使っていきます。</p>
+
+<h2 id='multicalc'><a id='h3-3'/><span class='secno'>3.3　</span>多次元配列の計算</h2>
+<p>NumPyの多次元配列を使った計算をマスターすれば、ニューラルネットワークの実装を効率的に進めることができます。そのため、ここではNumPyによる多次元配列の計算について説明し、その後にニューラルネットワークの実装を行っていきます。</p>
+
+<h3 id='h3-3-1'><span class='secno'>3.3.1　</span>多次元配列</h3>
+<p><!-- IDX:多次元配列 -->多次元配列とは、簡単に言うと「数字の集合」です。数字が1列に並んだものや長方形状に並べたもの、3次元状に並べたものや（より一般化した）N次元状に並べたものを多次元配列と言います。それではNumPyを使って、多次元配列を作成します。まずは、これまで見てきた1次元の配列からです。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>import numpy as np</b>
+&gt;&gt;&gt; <b>A = np.array([1, 2, 3, 4])</b>
+&gt;&gt;&gt; <b>print(A)</b>
+[1 2 3 4]
+&gt;&gt;&gt; <b>np.ndim(A)</b><!-- IDX:np.ndim() -->
+1
+&gt;&gt;&gt; <b>A.shape</b>
+(4,)
+&gt;&gt;&gt; <b>A.shape[0]</b>
+4
+</pre>
+</div>
+<p>ここで示すように、配列の次元数は<code class='tt'>np.ndim()</code>関数で取得できます。また、配列の形状はインスタンス変数の<code class='tt'>shape</code>から取得できます。上の例では、<code class='tt'>A</code>は1次元の配列であり、4つの要素から構成されていることが分かります。なお、ここでは<code class='tt'>A.shape</code>の結果がタプルになっていることに注意しましょう。これは、1次元配列の場合であっても、多次元配列の場合と同じ統一された結果を返すからです。たとえば、2次元配列のときは<code class='tt'>(4,3)</code>、3次元配列のときは<code class='tt'>(4,3,2)</code>といったタプルが返されるため、次元数が1の1次元配列のときも同様にタプルとして結果が返されます。それでは続いて、2次元の配列を作成します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>B = np.array([[1,2], [3,4], [5,6]])</b>
+&gt;&gt;&gt; <b>print(B)</b>
+[[1 2]
+ [3 4]
+ [5 6]]
+&gt;&gt;&gt; <b>np.ndim(B)</b>
+2
+&gt;&gt;&gt; <b>B.shape</b>
+(3, 2)
+</pre>
+</div>
+<p>ここでは「3×2の配列」である<code class='tt'>B</code>を作成しています。3×2の配列とは、最初の次元に3つの要素があり、次の次元に2つの要素があるという意味です。なお、最初の次元は0番目の次元、次の次元は1番目の次元に対応します（Pythonのインデックスは0から始まります）。また、2次元配列は<!-- IDX:行列 --><b>行列</b>（<!-- IDX:matrix -->matrix）と呼びます。<a href='./ch03.xhtml#fig03_10'>図3-10</a>に示すように、配列の横方向の並びを<!-- IDX:行 --><b>行</b>（<!-- IDX:row -->row）、縦方向の並びを<!-- IDX:列 --><b>列</b>（<!-- IDX:column -->column）と呼びます。</p>
+<div class='image' id='fig03_10'>
+<img alt='横方向の並びを「行」、縦方向の並びを「列」と言う' src='images/ch03/fig03_10.png'/>
+<p class='caption'>
+図3-10　横方向の並びを「行」、縦方向の並びを「列」と言う
+</p>
+</div>
+
+<h3 id='h3-3-2'><span class='secno'>3.3.2　</span>行列の内積</h3>
+<p><!-- IDX:内積 -->続いて、行列（2次元配列）の内積について説明します。行列の内積は、たとえば、2×2の行列の場合、<a href='./ch03.xhtml#fig03_11'>図3-11</a>のように計算します（次の手順で計算することが定義されています）。</p>
+<div class='image' id='fig03_11'>
+<img alt='行列の積の計算方法' src='images/ch03/fig03_11.png'/>
+<p class='caption'>
+図3-11　行列の積の計算方法
+</p>
+</div>
+<p>この例で示すように、行列の内積は、左側の行列の行（横方向）と右側の行列の列（縦方向）の間の要素ごとの積とその和によって計算が行われます。そして、その計算の結果は新しい多次元配列の要素として格納されます。たとえば、<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>の1行目と<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>の1列目の内積の結果は1行1列目の要素、<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>の2行目と<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>の1列目は2行1列目の要素といったようになります。なお、本書では数式の表記において、行列は太字で表すことにします。たとえば、行列は<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>のように表記し、要素がひとつのスカラ値（たとえば、<span class='equation mathnoimage'><i>a</i></span>や<span class='equation mathnoimage'><i>b</i></span>）とは区別します。さて、この計算をPythonで実装すると次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>A = np.array([[1,2], [3,4]])</b>
+&gt;&gt;&gt; <b>A.shape</b>
+(2, 2)
+&gt;&gt;&gt; <b>B = np.array([[5,6], [7,8]])</b>
+&gt;&gt;&gt; <b>B.shape</b>
+(2, 2)
+&gt;&gt;&gt; <b>np.dot(A, B)</b>
+array([[19, 22],
+       [43, 50]])
+</pre>
+</div>
+<p>ここで、<code class='tt'>A</code>と<code class='tt'>B</code>は2×2の行列であり、<code class='tt'>A</code>と<code class='tt'>B</code>の行列の積をNumPyの関数<code class='tt'>np.dot()</code>で計算します（内積は「<!-- IDX:ドット積 -->ドット積」とも呼ばれます）。<!-- IDX:np.dot() --><code class='tt'>np.dot()</code>は引数としてNumPy配列を2つ取り、それらの配列の内積を結果として返します。ここで注意が必要なのは、<code class='tt'>np.dot(A, B)</code>と<code class='tt'>np.dot(B, A)</code>は異なる値になりえるということです。通常の演算（<code class='tt'>+</code>や<code class='tt'>*</code>など）と違って、行列の積では、被演算子（<code class='tt'>A</code>、<code class='tt'>B</code>）の順番が異なると、結果も異なります。</p>
+<p>さて、ここでは2×2の形状の行列について、その積を求める例を示しましたが、別の形状の行列の積についても、同様に計算することができます。たとえば、2×3の行列と3×2の行列の積をPythonで実装すると次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>A = np.array([[1,2,3], [4,5,6]])</b>
+&gt;&gt;&gt; <b>A.shape</b>
+(2, 3)
+&gt;&gt;&gt; <b>B = np.array([[1,2], [3,4], [5,6]])</b>
+&gt;&gt;&gt; <b>B.shape</b>
+(3, 2)
+&gt;&gt;&gt; <b>np.dot(A, B)</b>
+array([[22, 28],
+       [49, 64]])
+</pre>
+</div>
+<p>2×3の行列<code class='tt'>A</code>と3×2の行列<code class='tt'>B</code>の内積は上のように実装できます。ここで注意すべき点は「行列の形状（<code class='tt'>shape</code>）」についてです。具体的に言うと、行列<code class='tt'>A</code>の1次元目の要素数（列数）と行列<code class='tt'>B</code>の0次元目の要素数（行数）を同じ値にする必要があります。実際に上の例では、行列<code class='tt'>A</code>は2×3、行列<code class='tt'>B</code>は3×2であり、行列<code class='tt'>A</code>の1次元目の要素数（3）と行列<code class='tt'>B</code>の0次元目の要素数（3）は同じ値です。もしこの値が異なれば、行列の内積は計算できません。たとえば、2×3の行列<code class='tt'>A</code>と2×2の行列<code class='tt'>C</code>の積をPythonで行うとすれば、次のようなエラーが出力されます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>C = np.array([[1,2], [3,4]])</b>
+&gt;&gt;&gt; <b>C.shape</b>
+(2, 2)
+&gt;&gt;&gt; <b>A.shape</b>
+(2, 3)
+&gt;&gt;&gt; <b>np.dot(A, C)</b>
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+ValueError: shapes (2,3) and (2,2) not aligned: 3 (dim 1) != 2 (dim 0)
+</pre>
+</div>
+<p>このエラーが述べていることは、行列<code class='tt'>A</code>の1次元目と行列<code class='tt'>C</code>の0次元目の次元数が一致していない、ということです（次元のインデックスは0番目から始まります）。つまり、多次元配列の積では、2つの行列で対応する次元を一致させる必要があるということです。これは大切な点なので、<a href='./ch03.xhtml#fig03_12'>図3-12</a>でもう一度確認しましょう。</p>
+<div class='image' id='fig03_12'>
+<img alt='行列の積では、対応する次元の要素数を一致させる' src='images/ch03/fig03_12.png'/>
+<p class='caption'>
+図3-12　行列の積では、対応する次元の要素数を一致させる
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_12'>図3-12</a>には、3×2の行列<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>と2×4の行列<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>の積によって、3×4の行列<span class='equation mathimage'><img alt='\mathbf{C}' src='images/math/cbd7205c548a3a1d2109026e1ad26c53.png' style='height: 0.92em'/></span>が生成される例が示されています。この図が示すように、行列<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>と<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>の対応する次元の要素数は一致させる必要があります。そして、計算結果である行列<span class='equation mathimage'><img alt='\mathbf{C}' src='images/math/cbd7205c548a3a1d2109026e1ad26c53.png' style='height: 0.92em'/></span>は、行列<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>の行数と行列<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>の列数から構成されます——これも重要な点です。</p>
+<p>なお、<span class='equation mathimage'><img alt='\mathbf{A}' src='images/math/72cf4e451ea639d0557cac9c493659fa.png' style='height: 0.84em'/></span>が2次元の行列で、<span class='equation mathimage'><img alt='\mathbf{B}' src='images/math/12c7667b6fe66d9d910c6c02acb84b77.png' style='height: 0.84em'/></span>が1次元の配列の場合でも、次の<a href='./ch03.xhtml#fig03_13'>図3-13</a>で示すように、「対応する次元の要素数を一致させる」という同じ原則が成り立ちます。</p>
+<div class='image' id='fig03_13'>
+<img alt='Aが2次元の行列、Bが1次元の配列でも、対応する次元の要素数を一致させる' src='images/ch03/fig03_13.png'/>
+<p class='caption'>
+図3-13　Aが2次元の行列、Bが1次元の配列でも、対応する次元の要素数を一致させる
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_13'>図3-13</a>の例をPythonで実装すると次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>A = np.array([[1,2], [3, 4], [5,6]])</b>
+&gt;&gt;&gt; <b>A.shape</b>
+(3, 2)
+&gt;&gt;&gt; <b>B = np.array([7,8])</b>
+&gt;&gt;&gt; <b>B.shape</b>
+(2,)
+&gt;&gt;&gt; <b>np.dot(A, B)</b>
+array([23, 53, 83])
+</pre>
+</div>
+
+<h3 id='h3-3-3'><span class='secno'>3.3.3　</span>ニューラルネットワークの内積</h3>
+<p>それでは、NumPy行列を使ってニューラルネットワークの実装を行いましょう。ここでは<a href='./ch03.xhtml#fig03_14'>図3-14</a>の簡単なニューラルネットワークを対象とします。このニューラルネットワークは、バイアスと活性化関数は省略し、重みだけがあるものとします。</p>
+<div class='image' id='fig03_14'>
+<img alt='ニューラルネットワークの計算を行列の積で行う' src='images/ch03/fig03_14.png'/>
+<p class='caption'>
+図3-14　ニューラルネットワークの計算を行列の積で行う
+</p>
+</div>
+<p>実装に関しては、<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>、<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>、<span class='equation mathimage'><img alt='\mathbf{Y}' src='images/math/ea36de0de6d48c7e4e54905593314533.png' style='height: 0.84em'/></span>の形状に注意しましょう。特に、<span class='equation mathimage'><img alt='\mathbf{X}' src='images/math/3cee42f75385b0cda53013a802908d80.png' style='height: 0.84em'/></span>と<span class='equation mathimage'><img alt='\mathbf{W}' src='images/math/cb47f3865f512031d3ec7f66d4da9c72.png' style='height: 0.92em'/></span>の対応する次元の要素数が一致していることが重要な点です。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X = np.array([1, 2])</b>
+&gt;&gt;&gt; <b>X.shape</b>
+(2,)
+&gt;&gt;&gt; <b>W = np.array([[1, 3, 5], [2, 4, 6]])</b>
+&gt;&gt;&gt; <b>print(W)</b>
+[[1 3 5]
+ [2 4 6]]
+&gt;&gt;&gt; <b>W.shape</b>
+(2, 3)
+&gt;&gt;&gt; <b>Y = np.dot(X, W)</b>
+&gt;&gt;&gt; <b>print(Y)</b>
+[ 5  11  17]
+</pre>
+</div>
+<p>ここで示したように、<code class='tt'>np.dot</code>（多次元配列のドット積）を使えば、<code class='tt'>Y</code>の結果を一度に計算することができます。これが意味することは、もし<code class='tt'>Y</code>の要素数が<code class='tt'>100</code>や<code class='tt'>1000</code>であったとしても、一度の演算で計算できるということです！ もし<code class='tt'>np.dot</code>を使わなければ、<code class='tt'>Y</code>の要素をひとつずつ取り出して計算しなければならない（または、<code class='tt'>for</code>文を使って計算をしなければならない）ので、とても面倒です。そのため、行列の内積によって一度で計算ができるというテクニックは、実装上とても重要であると言えます。</p>
+
+<h2 id='h3-4'><span class='secno'>3.4　</span>3層ニューラルネットワークの実装</h2>
+<p>それでは“実践的”なニューラルネットワークの実装を行いましょう。ここでは<a href='./ch03.xhtml#fig03_15'>図3-15</a>に示す3層ニューラルネットワークを対象として、その入力から出力への処理（フォワード方向への処理）を実装します。実装に関しては、前節で説明したNumPyの多次元配列を使います。NumPy配列をうまく使うことで、ほんの少しのコードでニューラルネットワークのフォワード処理を完成させることができます。</p>
+<div class='image' id='fig03_15'>
+<img alt='3層ニューラルネットワーク：入力層（第0層）は2つ、ひとつ目の隠れ層（第1層）は3つ、2つ目の隠れ層（第2層）は2つ、出力層（第3層）2つのニューロンから構成される' src='images/ch03/fig03_15.png'/>
+<p class='caption'>
+図3-15　3層ニューラルネットワーク：入力層（第0層）は2つ、ひとつ目の隠れ層（第1層）は3つ、2つ目の隠れ層（第2層）は2つ、出力層（第3層）2つのニューロンから構成される
+</p>
+</div>
+
+<h3 id='h3-4-1'><span class='secno'>3.4.1　</span>記号の確認</h3>
+<p>ここではニューラルネットワークで行う処理を説明するにあたって、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>12</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>や<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>などの記号を導入します。やや込み入った印象を受けるかもしれませんが、これらの記号は本節だけで使用するものなので、軽く読み飛ばしてもらっても問題ありません。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>本節での重要な点は、ニューラルネットワークの計算は、行列の計算としてまとめて行えるということです。ニューラルネットワークの各層の計算は、行列の内積でまとめて行える（より大きな視点で考えることができる）ので、細かい記号の規則について忘れてしまっても（覚えなくても）、以降の説明を理解するにあたってまったく問題はありません。</p>
+</td></tr></table></div>
+<p>それでは初めに記号の定義から始めます。次の<a href='./ch03.xhtml#fig03_16'>図3-16</a>を見てください。<a href='./ch03.xhtml#fig03_16'>図3-16</a>は入力層の<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>のニューロンから、次層のニューロン<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>への重みだけをピックアップして図示しています。</p>
+<div class='image' id='fig03_16'>
+<img alt='重みの記号' src='images/ch03/fig03_16.png'/>
+<p class='caption'>
+図3-16　重みの記号
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_16'>図3-16</a>に示すとおり、重みや隠れ層のニューロンの右上には「(1)」とあります。これは、第1層の重み、第1層のニューロン、ということを意味する番号です。また、重みの右下には2つ数字が並びますが、これは、次層のニューロンと前層のニューロンのインデックス番号から構成されます。たとえば、<span class='equation mathnoimage'><i>w<sub><span class='math-normal'>12</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>は前層の2番目のニューロン（<span class='equation mathnoimage'><i>x<sub><span class='math-normal'>2</span></sub></i></span>）から次層の1番目のニューロン（<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>）への重みであることを意味します。重み右下のインデックス番号は「次層の番号、前層の番号」の順に並ぶことにします。</p>
+
+<h3 id='h3-4-2'><span class='secno'>3.4.2　</span>各層における信号伝達の実装</h3>
+<p>それでは、入力層から「第1層目の1番目のニューロン」への信号の伝達を見ていきます。図で表すと<a href='./ch03.xhtml#fig03_17'>図3-17</a>のようになります。</p>
+<div class='image' id='fig03_17'>
+<img alt='入力層から第1層目への信号の伝達' src='images/ch03/fig03_17.png'/>
+<p class='caption'>
+図3-17　入力層から第1層目への信号の伝達
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_17'>図3-17</a>に示すとおり、バイアスのためのニューロンである①が追加されています。ここでは、バイアスの右下のインデックスがひとつしかないことに注意しましょう。これは、前層のバイアスニューロン（①ニューロン）がひとつだけしか存在しないためです。</p>
+<p>それではこれまでの確認も含めて、<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>を数式で表しましょう。<span class='equation mathnoimage'><i>a<sub><span class='math-normal'>1</span></sub><sup><span class='math-normal'>(1)</span></sup></i></span>は重み付き信号とバイアスの和で次のように計算されます。</p>
+<div class='equation'>
+<div class='math'><img alt='a_1^{(1)} = w_{11}^{(1)}{x_1} + w_{12}^{(1)}{x_2} + b_1^{(1)}  %\qquad(3.8)' src='images/math/5aab445f522f8d8b271e35de2c28abb4.png' style='height: 1.5em'/></div>
+<p class='eqno' id='eq8'>式(3.8)</p>
+</div>
+<p>また、行列の内積を用いると、第1層目の「<!-- IDX:重み付き和 -->重み付き和」は次の式でまとめて表すことができます。</p>
+<div class='equation'>
+<div class='math'><img alt='{\mathbf{A}}_{}^{(1)} = {\mathbf{XW}}_{}^{(1)} + {\mathbf{B}}_{}^{(1)} %\qquad(3.9)' src='images/math/0d6f03f2d98bf1c785de1fe14d8beb04.png' style='height: 1.26em'/></div>
+<p class='eqno' id='eq9'>式(3.9)</p>
+</div>
+<p>ただし、<span class='equation mathimage'><img alt='{\mathbf{A}^{(1)}}' src='images/math/71a9c2393e897933dc70f83bcb6949fa.png' style='height: 1.08em'/></span>、<span class='equation mathimage'><img alt='{\mathbf{X}}' src='images/math/a1329174eaa4253c0543dfc7d6d6d550.png' style='height: 0.84em'/></span>、<span class='equation mathimage'><img alt='{\mathbf{B}^{(1)}}' src='images/math/f044154c0723f0305fd3803a9bbdee42.png' style='height: 1.08em'/></span>、<span class='equation mathimage'><img alt='{\mathbf{W}^{(1)}}' src='images/math/189968d31546e635cdfd9d10b9e726b3.png' style='height: 1.08em'/></span>は下記のとおりです。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  &amp; {{\mathbf{A}}^{(1)}} = \left(
+ \begin{matrix}
+   {a_1^{(1)}} &amp; {a_2^{(1)}} &amp; {a_3^{(1)}}  \cr
+ \end{matrix}
+ \right), \; {\mathbf{  X}} = \left(
+ \begin{matrix}
+   {{x_1}} &amp; {{x_2}}  \cr
+ \end{matrix}
+ \right), \; {\mathbf{B}^{(1)}} = \left(
+ \begin{matrix}
+   {{b_{1}^{(1)}}} &amp; {{b_{2}^{(1)}}} &amp; {{b_{3}^{(1)}}}  \cr
+ \end{matrix}
+ \right)  \cr
+  &amp; {\mathbf{W}}_{}^{(1)} = \left(
+ \begin{matrix}
+   {w_{11}^{(1)}} &amp; {w_{21}^{(1)}} &amp; {w_{31}^{(1)}}  \cr
+   {w_{12}^{(1)}} &amp; {w_{22}^{(1)}} &amp; {w_{32}^{(1)}}  \cr
+ \end{matrix}
+ \right) \cr
+\end{aligned}' src='images/math/3f4ccc451c4fcc7cfa373d24f78711a1.png' style='height: 5.66em'/></div>
+</div>
+<p>それでは、NumPyの多次元配列を使って、式(3.9)を実装しましょう（ここでは入力信号、重み、バイアスは適当な値に設定しています）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>X <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>1.0</span>, <span style='color: #666666'>0.5</span>])
+W1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.3</span>, <span style='color: #666666'>0.5</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.4</span>, <span style='color: #666666'>0.6</span>]])
+B1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.3</span>])
+
+<span style='color: #008000; font-weight: bold'>print</span>(W1<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (2, 3)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(X<span style='color: #666666'>.</span>shape)  <span style='color: #408080; font-style: italic'># (2,)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(B1<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (3,)</span>
+
+<b>A1 = np.dot(X, W1) + B1</b>
+</pre>
+</div>
+<p>この計算は前節で行った計算と同じです。<code class='tt'>W1</code>は2×3の配列、<code class='tt'>X</code>は要素数が2の1次元配列です。ここでもやはり、<code class='tt'>W1</code>と<code class='tt'>X</code>の対応する次元の要素数が一致していますね。</p>
+<p>続いて、第1層目の活性化関数によるプロセスを見ていきます。この活性化関数によるプロセスを図で表すと、次の<a href='./ch03.xhtml#fig03_18'>図3-18</a>のようになります。</p>
+<div class='image' id='fig03_18'>
+<img alt='入力層から第1層への信号の伝達' src='images/ch03/fig03_18.png'/>
+<p class='caption'>
+図3-18　入力層から第1層への信号の伝達
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_18'>図3-18</a>に示すとおり、隠れ層での重み付き和（重み付き信号とバイアスの総和）を<span class='equation mathnoimage'><i>a</i></span>で表し、活性化関数で変換された信号を<span class='equation mathnoimage'><i>z</i></span>で表すことにします。また、図では活性化関数を<span class='equation mathnoimage'><i>h<span class='math-normal'>()</span></i></span>で表し、ここではシグモイド関数を使うことにします。これをPythonで実装すると、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><b>Z1 = sigmoid(A1)</b>
+
+<span style='color: #008000; font-weight: bold'>print</span>(A1) <span style='color: #408080; font-style: italic'># [0.3, 0.7, 1.1]</span>
+<span style='color: #008000; font-weight: bold'>print</span>(Z1) <span style='color: #408080; font-style: italic'># [0.57444252, 0.66818777, 0.75026011]</span>
+</pre>
+</div>
+<p>この<code class='tt'>sigmoid()</code>関数は、前に定義した関数です。この関数は、NumPy配列を受け取り、同じ要素数からなるNumPy配列を返します。</p>
+<p>それでは続いて、第1層から第2層目までの実装を行います（<a href='./ch03.xhtml#fig03_19'>図3-19</a>）。</p>
+<div class='image' id='fig03_19'>
+<img alt='第1層から第2層への信号の伝達' src='images/ch03/fig03_19.png'/>
+<p class='caption'>
+図3-19　第1層から第2層への信号の伝達
+</p>
+</div>
+<div class='emlist-code'>
+<pre class='emlist language-py'>W2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.4</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.5</span>], [<span style='color: #666666'>0.3</span>, <span style='color: #666666'>0.6</span>]])
+B2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>])
+
+<span style='color: #008000; font-weight: bold'>print</span>(Z1<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (3,)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(W2<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (3, 2)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(B2<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (2,)</span>
+
+<b>A2 = np.dot(Z1, W2) + B2</b>
+<b>Z2 = sigmoid(A2)</b>
+</pre>
+</div>
+<p>この実装は、第1層の出力（<code class='tt'>Z1</code>）が第2層への入力になっている点を除けば、先ほどの実装とまったく同じです。NumPy配列を使うことで、層から層への信号の伝達が簡単に書けることが分かります。</p>
+<p>最後に、第2層目から出力層への信号の伝達です（<a href='./ch03.xhtml#fig03_20'>図3-20</a>）。出力層の実装も、これまでの実装とほとんど同じです。ただし、最後の活性化関数だけが、これまでの隠れ層とは異なります。</p>
+<div class='image' id='fig03_20'>
+<img alt='第2層から出力層への信号の伝達' src='images/ch03/fig03_20.png'/>
+<p class='caption'>
+図3-20　第2層から出力層への信号の伝達
+</p>
+</div>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>identity_function</span>(x):
+    <span style='color: #008000; font-weight: bold'>return</span> x
+
+W3 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.3</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.4</span>]])
+B3 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>])
+
+<b>A3 = np.dot(Z2, W3) + B3</b>
+<b>Y = identity_function(A3)</b> <span style='color: #408080; font-style: italic'># もしくは Y = A3</span>
+</pre>
+</div>
+<p>ここでは、<!-- IDX:identity_function() --><code class='tt'>identity_function()</code>という関数を定義して、この関数——これを「<!-- IDX:恒等関数 -->恒等関数」と言います——を出力層の活性化関数として利用します。恒等関数は、入力をそのまま出力する関数です。そのため、この例では、わざわざ<code class='tt'>identity_function()</code>を定義する必要はないのですが、これまでの流れと統一するため、このような実装にしています。なお、<a href='./ch03.xhtml#fig03_20'>図3-20</a>の表記では、出力層の活性化関数は<span class='equation mathnoimage'><i>σ<span class='math-normal'>()</span></i></span>で表し、隠れ層の活性化関数<span class='equation mathnoimage'><i>h<span class='math-normal'>()</span></i></span>とは異なることを示しています（<span class='equation mathnoimage'><i>σ</i></span>は「シグマ」と言います）。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>出力層で利用する活性化関数は、解く問題の性質に応じて決めます。たとえば、回帰問題では恒等関数、2クラス分類問題ではシグモイド関数、多クラス分類ではソフトマックス関数を使うのが一般的です。出力層の活性化関数については、次節で詳しく説明します。</p>
+</td></tr></table></div>
+
+<h3 id='h3-4-3'><span class='secno'>3.4.3　</span>実装のまとめ</h3>
+<p>これで3層ニューラルネットワークの説明は終わりです。それでは、ここまで行ってきた実装をまとめて書いてみることにします。なお、ここでは、ニューラルネットワークの実装の慣例として、重みだけを<code class='tt'>W1</code>といったように大文字で表記し、それ以外（バイアスや中間結果など）は小文字で表記します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>init_network</span>():
+    network <span style='color: #666666'>=</span> {}
+    network[<span style='color: #BA2121'>&#39;W1&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.3</span>, <span style='color: #666666'>0.5</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.4</span>, <span style='color: #666666'>0.6</span>]])
+    network[<span style='color: #BA2121'>&#39;b1&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.3</span>])
+    network[<span style='color: #BA2121'>&#39;W2&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.4</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.5</span>], [<span style='color: #666666'>0.3</span>, <span style='color: #666666'>0.6</span>]])
+    network[<span style='color: #BA2121'>&#39;b2&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>])
+    network[<span style='color: #BA2121'>&#39;W3&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([[<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.3</span>], [<span style='color: #666666'>0.2</span>, <span style='color: #666666'>0.4</span>]])
+    network[<span style='color: #BA2121'>&#39;b3&#39;</span>] <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>0.1</span>, <span style='color: #666666'>0.2</span>])
+
+    <span style='color: #008000; font-weight: bold'>return</span> network
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>forward</span>(network, x):
+    W1, W2, W3 <span style='color: #666666'>=</span> network[<span style='color: #BA2121'>&#39;W1&#39;</span>], network[<span style='color: #BA2121'>&#39;W2&#39;</span>], network[<span style='color: #BA2121'>&#39;W3&#39;</span>]
+    b1, b2, b3 <span style='color: #666666'>=</span> network[<span style='color: #BA2121'>&#39;b1&#39;</span>], network[<span style='color: #BA2121'>&#39;b2&#39;</span>], network[<span style='color: #BA2121'>&#39;b3&#39;</span>]
+
+    a1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(x, W1) <span style='color: #666666'>+</span> b1
+    z1 <span style='color: #666666'>=</span> sigmoid(a1)
+    a2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(z1, W2) <span style='color: #666666'>+</span> b2
+    z2 <span style='color: #666666'>=</span> sigmoid(a2)
+    a3 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(z2, W3) <span style='color: #666666'>+</span> b3
+    y <span style='color: #666666'>=</span> identity_function(a3)
+
+    <span style='color: #008000; font-weight: bold'>return</span> y
+
+network <span style='color: #666666'>=</span> init_network()
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>array([<span style='color: #666666'>1.0</span>, <span style='color: #666666'>0.5</span>])
+y <span style='color: #666666'>=</span> forward(network, x)
+<span style='color: #008000; font-weight: bold'>print</span>(y) <span style='color: #408080; font-style: italic'># [ 0.31682708  0.69627909]</span>
+</pre>
+</div>
+<p>ここでは、<code class='tt'>init_network()</code>、<code class='tt'>forward()</code>という関数を定義しています。<code class='tt'>init_network()</code>関数で、重みとバイアスの初期化を行い、それらをディクショナリ型の変数<code class='tt'>network</code>に格納します。このディクショナリ型の変数<code class='tt'>network</code>には、それぞれの層で必要なパラメータ——重みとバイアス——が格納されています。そして、<code class='tt'>forward()</code>関数では、入力信号が出力へと変換されるプロセスがまとめて実装されています。</p>
+<p>なお、ここでforwardという単語が出てきましたが、これは入力から出力方向への伝達処理を表しています。後ほど、ニューラルネットワークの学習を行う際に、バックワード（backward）方向——出力から入力方向——の処理について見ていく予定です。</p>
+<p>これで、ニューラルネットワークのフォワード方向の実装は終わりです。NumPyの多次元配列をうまく使うことで、ニューラルネットワークの実装を効率的に行うことができました！</p>
+
+<h2 id='outputdesign'><a id='h3-5'/><span class='secno'>3.5　</span>出力層の設計</h2>
+<p>ニューラルネットワークは、分類問題と回帰問題の両方に用いることができます。ただし、分類問題と回帰問題のどちらに用いるかで、出力層の活性化関数を変更する必要があります。一般的に、回帰問題では恒等関数を、分類問題ではソフトマックス関数を使います。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>機械学習の問題は、「<!-- IDX:分類問題 -->分類問題」と「<!-- IDX:回帰問題 -->回帰問題」に大別できます。分類問題とは、データがどのクラスに属するか、という問題です。たとえば、人の写った画像から、その人が男性か女性のどちらであるかを分類するような問題が分類問題に相当します。一方、回帰問題は、ある入力データから、（連続的な）数値の予測を行う問題です。たとえば、人の写った画像から、その人の体重を予測するような問題が、回帰問題の例です（たとえば、「57.4kg」といったように予測します）。</p>
+</td></tr></table></div>
+
+<h3 id='h3-5-1'><span class='secno'>3.5.1　</span>恒等関数とソフトマックス関数</h3>
+<p><!-- IDX:ソフトマックス関数 -->恒等関数は、入力をそのまま出力します。入ってきたものに対して何も手を加えずに出力する関数——それが恒等関数です。そのため、出力層で恒等関数を用いるときは、入力信号をそのまま出力するだけになります。なお、恒等関数によるプロセスをこれまで見てきたニューラルネットワークの図で表すとすれば、<a href='./ch03.xhtml#fig03_21'>図3-21</a>のように書くことができます。恒等関数によって変換されるプロセスは、これまでの隠れ層での活性化関数と同じで、1本の矢印で描画します。</p>
+<div class='image' id='fig03_21'>
+<img alt='恒等関数' src='images/ch03/fig03_21.png'/>
+<p class='caption'>
+図3-21　恒等関数
+</p>
+</div>
+<p>一方、分類問題で使われるソフトマックス関数は、次の式で表されます。</p>
+<div class='equation'>
+<div class='math'><img alt='{y_k} = \frac{\exp ({a_k})}{\sum\limits_{i = 1}^n \exp ({a_i})}  %\qquad(3.10)' src='images/math/08506673ebfd8ca460664e687f40c413.png' style='height: 3.92em'/></div>
+<p class='eqno' id='eq10'>式(3.10)</p>
+</div>
+<p><span class='equation mathimage'><img alt='\exp(x)' src='images/math/54c58f50da8b240a5304bdc1d2f1a32e.png' style='height: 1.16em'/></span>は<span class='equation mathnoimage'><i>e<sup>x</sup></i></span>を表す指数関数です（<span class='equation mathnoimage'><i>e</i></span>は2.7182…のネイピア数）。ここでは出力層が全部で<span class='equation mathnoimage'><i>n</i></span>個あるとして、<span class='equation mathnoimage'><i>k</i></span>番目の出力<span class='equation mathnoimage'><i>y<sub>k</sub></i></span>を求める計算式を表しています。式(3.10)に示すように、ソフトマックス関数の分子は入力信号<span class='equation mathnoimage'><i>a<sub>k</sub></i></span>の指数関数、分母はすべての入力信号の指数関数の和から構成されます。</p>
+<p>なお、ソフトマックス関数を図で表すと、次の<a href='./ch03.xhtml#fig03_22'>図3-22</a>のようになります。図に示すように、ソフトマックスの出力は、すべての入力信号から矢印による結びつきがあります。式(3.10)の分母から分かるように、出力の各ニューロンが、すべての入力信号から影響を受けることになるからです。</p>
+<div class='image' id='fig03_22'>
+<img alt='ソフトマックス関数' src='images/ch03/fig03_22.png'/>
+<p class='caption'>
+図3-22　ソフトマックス関数
+</p>
+</div>
+<p>それでは、ソフトマックス関数を実装しましょう。ここではPythonインタプリタを使って、ひとつずつ結果を確認しながら進みたいと思います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>a = np.array([0.3, 2.9, 4.0])</b>
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>exp_a = np.exp(a)</b> # 指数関数
+&gt;&gt;&gt; <b>print(exp_a)</b>
+[  1.34985881  18.17414537  54.59815003]
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>sum_exp_a = np.sum(exp_a)</b> # 指数関数の和
+&gt;&gt;&gt; <b>print(sum_exp_a)</b>
+74.1221542102
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>y = exp_a / sum_exp_a</b>
+&gt;&gt;&gt; <b>print(y)</b>
+[ 0.01821127  0.24519181  0.73659691]
+</pre>
+</div>
+<p>この実装は、式(3.10)のソフトマックス関数をそのままPythonで表現したものです。そのため、特に解説は必要ないでしょう。ここでは、後ほどソフトマックス関数を使うことを考えて、Pythonの関数として次のように定義することにします。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>softmax</span>(a):
+    exp_a <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>exp(a)
+    sum_exp_a <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(exp_a)
+    y <span style='color: #666666'>=</span> exp_a <span style='color: #666666'>/</span> sum_exp_a
+
+    <span style='color: #008000; font-weight: bold'>return</span> y
+</pre>
+</div>
+
+<h3 id='softmaxnote'><a id='h3-5-2'/><span class='secno'>3.5.2　</span>ソフトマックス関数の実装上の注意</h3>
+<p>上の<code class='tt'>softmax</code>関数の実装は、式(3.10)を正しく表現できていますが、コンピュータで計算を行う上では欠陥があります。その欠陥とは、<!-- IDX:オーバーフロー -->オーバーフローに関する問題です。ソフトマックス関数の実装では、指数関数の計算を行うことになりますが、その際、指数関数の値が容易に大きな値になりえます。たとえば、<span class='equation mathnoimage'><i>e<sup><span class='math-normal'>10</span></sup></i></span>は20,000を超え、<span class='equation mathnoimage'><i>e<sup><span class='math-normal'>100</span></sup></i></span>は0が40個以上も並ぶ大きな値になり、<span class='equation mathnoimage'><i>e<sup><span class='math-normal'>1000</span></sup></i></span>の結果は無限大を表す<!-- IDX:inf --><code class='tt'>inf</code>が返ってきます。そして、このような大きな値どうしで割り算を行うと、数値が“不安定”な結果になってしまうのです。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>コンピュータで「数」を扱う場合、その数値は4バイトや8バイトといった有限のデータ幅に収められることになります。これが意味することは、数には有効桁数があるということ、つまり、表現できる数値の範囲に制限があるということです。そのため、とても大きな値は表現できないという問題が発生します。これをオーバーフローと言い、コンピュータで計算を行う際には（時々）注意しなければなりません。</p>
+</td></tr></table></div>
+<p>ソフトマックス関数の実装の改善案は、次の式(3.11)から導かれます。</p>
+<div class='equation'>
+<div class='math'><img alt='\begin{aligned}
+  y_k = \frac{\exp ({a_k})}{\sum\limits_{i = 1}^n \exp ({a_i})} &amp;= \frac{C\exp ({a_k})}{C\sum\limits_{i = 1}^n \exp ({a_i})}\\
+  &amp;= \frac{\exp ({a_k} + \log C)}{\sum\limits_{i = 1}^n \exp ({a_i} + \log C)}\\
+  &amp;= \frac{\exp ({a_k} + C&apos;)}{\sum\limits_{i = 1}^n \exp ({a_i} + C&apos;)}
+\end{aligned}
+%\qquad(3.11)' src='images/math/87fd68c32ab13c489d8f39fc54ed0701.png' style='height: 12.66em'/></div>
+<p class='eqno' id='eq11'>式(3.11)</p>
+</div>
+<p>式(3.11)の最初の変形では、<span class='equation mathnoimage'><i>C</i></span>という任意の定数を分子と分母の両方に掛けています（分母と分子の両方に同じ定数を乗算しているため、同じ計算を行っていることになります）。そして、その<span class='equation mathnoimage'><i>C</i></span>を指数関数（<span class='equation mathimage'><img alt='\exp' src='images/math/484216aaa4e741015f4fbe45135ddfe4.png' style='height: 0.76em'/></span>）の中に移動させ、<span class='equation mathnoimage'><i><span class='math-normal'>log</span>C</i></span>とします。最後に<span class='equation mathnoimage'><i><span class='math-normal'>log</span>C</i></span>を<span class='equation mathnoimage'><i>C'</i></span>という別の記号に置き換えます。</p>
+<p>式(3.11)で述べていることは、ソフトマックスの指数関数の計算を行う際には、何らかの定数を足し算（もしくは、引き算）しても結果は変わらない、ということです。ここで<span class='equation mathnoimage'><i>C'</i></span>にはどのような値を用いることもできますが、オーバーフローの対策としては、入力信号の中で最大の値を用いることが一般的です。それでは、ひとつ具体例を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>a = np.array([1010, 1000, 990])</b>
+&gt;&gt;&gt; <b>np.exp(a) / np.sum(np.exp(a))</b> # ソフトマックス関数の計算
+array([ nan,  nan,  nan])         # 正しく計算されない
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>c = np.max(a)</b> # 1010
+&gt;&gt;&gt; <b>a - c </b>
+array([  0, -10, -20])
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>np.exp(a - c) / np.sum(np.exp(a - c))</b>
+array([  9.99954600e-01,   4.53978686e-05,   2.06106005e-09])
+</pre>
+</div>
+<p>この例で示すように、普通に計算していたら<!-- IDX:nan --><code class='tt'>nan</code>（not a number：不定）であったところを、入力信号の最大値（上の例では<code class='tt'>c</code>）を引くことで、正しく計算できることが分かります。以上のことを踏まえて、ソフトマックス関数を実装すると、次のようになります。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>softmax</span>(a):<!-- IDX:softmax() -->
+    c <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>max(a)
+    exp_a <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>exp(a <span style='color: #666666'>-</span> c) <span style='color: #408080; font-style: italic'># オーバーフロー対策</span>
+    sum_exp_a <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sum(exp_a)
+    y <span style='color: #666666'>=</span> exp_a <span style='color: #666666'>/</span> sum_exp_a
+
+    <span style='color: #008000; font-weight: bold'>return</span> y
+</pre>
+</div>
+
+<h3 id='h3-5-3'><span class='secno'>3.5.3　</span>ソフトマックス関数の特徴</h3>
+<p><code class='tt'>softmax()</code>関数を使えば、ニューラルネットワークの出力は次のように計算することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>a = np.array([0.3, 2.9, 4.0])</b>
+&gt;&gt;&gt; <b>y = softmax(a)</b>
+&gt;&gt;&gt; <b>print(y)</b>
+[ 0.01821127  0.24519181  0.73659691]
+&gt;&gt;&gt; <b>np.sum(y)</b>
+1.0
+</pre>
+</div>
+<p>ここで示したように、ソフトマックス関数の出力は、0から1.0の間の実数になります。また、ソフトマックス関数の出力の総和は1になります。さて、この総和が1になるという性質ですが、これはソフトマックス関数の重要な性質です。この性質のおかげでソフトマックス関数の出力を「確率」として解釈することができます。</p>
+<p>たとえば、上の例では、<code class='tt'>y[0]</code>の確率が0.018（1.8%）、<code class='tt'>y[1]</code>の確率が0.245（24.5%）、<code class='tt'>y[2]</code>の確率が0.737（73.7%）のように解釈できます。そして、この確率の結果から、「2番目の要素が最も確率が高いため、答えは2番目のクラスだ」と言うことができます。さらに、「74%の確率で2番目のクラス、25%の確率で1番目のクラス、1%の確率で0番目のクラス」というような確率的な答え方をすることもできます。つまり、ソフトマックス関数を用いることで、問題に対して確率的（統計的）な対応ができるようになるのです。</p>
+<p>ここで注意点としては、ソフトマックス関数を適用しても各要素の大小関係は変わらないということです。これは、指数関数（<span class='equation mathimage'><img alt='y = \exp (x)' src='images/math/a0bdf965d0a844fca07b07e24f09dac1.png' style='height: 1.16em'/></span>）が<!-- IDX:単調増加 -->単調増加する関数であることに起因します。実際、上の例では<code class='tt'>a</code>の要素の大小関係と<code class='tt'>y</code>の要素の大小関係は変わっていません。たとえば、<code class='tt'>a</code>の最大値は2番目の要素ですが、<code class='tt'>y</code>の最大値も2番目の要素です。</p>
+<p>ニューラルネットワークのクラス分類では、一般的に、出力の一番大きいニューロンに相当するクラスだけを認識結果とします。そして、ソフトマックス関数を適用しても、出力の一番大きいニューロンの場所は変わりません。そのため、ニューラルネットワークが分類を行う際には、出力層のソフトマックス関数を省略することができます。実際の問題では、指数関数の計算は、それなりにコンピュータの計算が必要になるので、出力層のソフトマックス関数は省略するのが一般的です。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>機械学習の問題を解く手順は「<!-- IDX:学習 -->学習」と「<!-- IDX:推論 -->推論」の2つのフェーズに分けられます。最初に学習フェーズでモデルの学習を行い、推論フェーズで、学習したモデルを使って未知のデータに対して推論（分類）を行います。先ほど述べたとおり、推論フェーズでは、出力層のソフトマックス関数は省略するのが一般的です。出力層にソフトマックス関数を用いる理由は、ニューラルネットワークの学習時に関係してきます（詳しくは次章参照）。</p>
+</td></tr></table></div>
+
+<h3 id='h3-5-4'><span class='secno'>3.5.4　</span>出力層のニューロンの数</h3>
+<p>出力層のニューロンの数は、解くべき問題に応じて、適宜決める必要があります。クラス分類を行う問題では、出力層のニューロンの数は分類したいクラスの数に設定するのが一般的です。たとえば、ある入力画像に対して、その画像が数字の0から9のどれかを予測する問題——10クラス分類問題——では、次の<a href='./ch03.xhtml#fig03_23'>図3-23</a>のように、出力層のニューロンは10個に設定します。</p>
+<div class='image' id='fig03_23'>
+<img alt='出力層のニューロンは各数字に対応する' src='images/ch03/fig03_23.png'/>
+<p class='caption'>
+図3-23　出力層のニューロンは各数字に対応する
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_23'>図3-23</a>に示すように、この例では、出力層のニューロンは上から順に数字の0、1、…、9に対応するとします。また、図では出力層のニューロンの値をグレーの濃淡で表現しています。この例では<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>2</span></sub></i></span>が一番濃く描画されており、<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>2</span></sub></i></span>のニューロンが一番高い値を出力しています。これは、<span class='equation mathnoimage'><i>y<sub><span class='math-normal'>2</span></sub></i></span>に該当するクラス、つまり「2」であることを、このニューラルネットワークが予測していることを意味します。</p>
+
+<h2 id='handnumber'><a id='h3-6'/><span class='secno'>3.6　</span>手書き数字認識</h2>
+<p>ニューラルネットワークの仕組みを学んだところで、実践的な問題に取り組みましょう。ここでは、手書き数字画像の分類を行いたいと思います。学習はすでに完了したものとして、学習済みのパラメータを使って、ニューラルネットワークの「<!-- IDX:推論処理 -->推論処理」だけを実装していきます。なお、この推論処理は、ニューラルネットワークの<!-- IDX:順方向伝播 -->順方向伝播（<!-- IDX:forward propagation -->forward propagation）とも言います。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>機械学習の問題を解く手順（「学習」と「推論」の2つのフェーズで行う）と同様、ニューラルネットワークを使って問題を解く場合も、初めに訓練データ（学習データ）を使って重みパラメータの学習を行い、推論時には、先に学習したパラメータを使って、入力データの分類を行います。</p>
+</td></tr></table></div>
+
+<h3 id='h3-6-1'><span class='secno'>3.6.1　</span>MNISTデータセット</h3>
+<p>ここで使用するデータセットは<!-- IDX:MNIST -->MNISTという手書き数字の画像セットです。MNISTは機械学習の分野で最も有名なデータセットのひとつであり、簡単な実験から論文として発表される研究まで、さまざまな場所で利用されています。実際、画像認識や機械学習の論文を読んでいると実験用のデータとしてよく登場するのが、このMNISTデータセットだったりします。</p>
+<p>MNISTデータセットは、0から9までの数字画像から構成されます（<a href='./ch03.xhtml#fig03_24'>図3-24</a>）。訓練画像が60,000枚、テスト画像が10,000枚用意されており、それらの画像を使用して、学習と推論を行います。一般的なMNISTデータセットの使い方では、訓練画像を使って学習を行い、学習したモデルでテスト画像に対してどれだけ正しく分類できるかを計測します。</p>
+<div class='image' id='fig03_24'>
+<img alt='MNIST画像データセットの例' src='images/ch03/fig03_24.png'/>
+<p class='caption'>
+図3-24　MNIST画像データセットの例
+</p>
+</div>
+<p>MNISTの画像データは28×28のグレー画像（1チャンネル）で、各ピクセルは0から255までの値を取ります。それぞれの画像データに対しては、「7」「2」「1」といったように、対応するラベルが与えられています。</p>
+<p>本書では、MNISTデータセットのダウンロードから画像データのNumPy配列への変換までをサポートする便利なPythonスクリプトである<code class='tt'>mnist.py</code>を提供します（<code class='tt'>mnist.py</code>は、<code class='tt'>dataset</code>ディレクトリに存在します）。この<code class='tt'>mnist.py</code>の利用に際しては、カレントディレクトリが<code class='tt'>ch01</code>、<code class='tt'>ch02</code>、<code class='tt'>ch03</code>、...、<code class='tt'>ch08</code>ディレクトリのいずれかである必要があります。この<code class='tt'>mnist.py</code>の関数<code class='tt'>load_mnist()</code>を用いれば、MNISTデータを次のように簡単に読み込むことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)  <span style='color: #408080; font-style: italic'># 親ディレクトリのファイルをインポートするための設定</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+
+<span style='color: #408080; font-style: italic'># 最初の呼び出しは数分待ちます…</span>
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(flatten<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, normalize<span style='color: #666666'>=</span><span style='color: #008000'>False</span>)
+
+<span style='color: #408080; font-style: italic'># それぞれのデータの形状を出力</span>
+<span style='color: #008000; font-weight: bold'>print</span>(x_train<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (60000, 784)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(t_train<span style='color: #666666'>.</span>shape) <span style='color: #408080; font-style: italic'># (60000,)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(x_test<span style='color: #666666'>.</span>shape)  <span style='color: #408080; font-style: italic'># (10000, 784)</span>
+<span style='color: #008000; font-weight: bold'>print</span>(t_test<span style='color: #666666'>.</span>shape)  <span style='color: #408080; font-style: italic'># (10000,)</span>
+</pre>
+</div>
+<p>ここでは最初に、親ディレクトリのファイルをインポートするための設定を行います。そして、<code class='tt'>dataset/mnist.py</code>の<code class='tt'>load_mnist</code>関数のインポートを行います。最後に、そのインポートした<code class='tt'>load_mnist</code>関数によって、MNISTデータセットの読み込みを行います。<code class='tt'>load_mnist</code>の初回呼び出し時には、MNISTデータのダウンロードを行うため、ネット接続が必要です。2回目以降の呼び出しは、ローカルに保存したファイル（pickleファイル）の読み込みだけを行うため、すぐに処理が終了します。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>MNIST画像を読み込むためのファイルは、本書が提供するソースコードの<code class='tt'>dataset</code>ディレクトリに存在します。そして、このMNSITデータセットは、<code class='tt'>ch01</code>、<code class='tt'>ch02</code>、<code class='tt'>ch03</code>、...、<code class='tt'>ch08</code>ディレクトリだけから利用することを想定しています。そのため、利用に際しては、<!-- IDX:親ディレクトリ -->親ディレクトリ（<code class='tt'>dataset</code>ディレクトリ）にあるファイルをインポートする必要があり、<!-- IDX:sys.path.append() --><code class='tt'>sys.path.append(os.pardir)</code>という一文が必要になります。</p>
+</td></tr></table></div>
+<p><code class='tt'>load_mnist</code>関数は、「<code class='tt'>(訓練画像, 訓練ラベル), (テスト画像, テストラベル)</code>」という形式で、読み込んだMNISTデータを返します。また、引数として、<!-- IDX:load_mnist() --><code class='tt'>load_mnist(normalize=True, flatten=True, one_hot_label=False)</code>のように、3つの引数を設定することができます。ひとつ目の引数である<code class='tt'>normalize</code>は、入力画像を0.0〜1.0の値に正規化するかどうかを設定します。これを<code class='tt'>False</code>にすれば、入力画像のピクセルは元の0〜255のままです。2つ目の引数の<code class='tt'>flatten</code>は、入力画像を平らにする（1次元配列にする）かどうかを設定します。<code class='tt'>False</code>に設定すると、入力画像は1×28×28の3次元配列として、<code class='tt'>True</code>にすると784個の要素からなる1次元配列として格納されます。3つ目の引数の<code class='tt'>one_hot_label</code>は、ラベルをone-hot表現として格納するかどうかを設定します。<!-- IDX:one&#45;hot表現 -->one-hot表現とは、たとえば<code class='tt'>[0,0,1,0,0,0,0,0,0,0]</code>のように、正解となるラベルだけが1で、それ以外は0の配列です。<code class='tt'>one_hot_label</code>が<code class='tt'>False</code>のときは、<code class='tt'>7</code>、<code class='tt'>2</code>といったように単純に正解となるラベルが格納されますが、<code class='tt'>one_hot_label</code>が<code class='tt'>True</code>のときは、ラベルはone-hot表現として格納されます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>Pythonには、<!-- IDX:pickle -->pickleという便利な機能があります。これは、プログラムの実行中のオブジェクトをファイルとして保存する機能です。一度保存したpickleファイルをロードすると、プログラムの実行中だったときのオブジェクトを即座に復元することができます。なお、MNISTデータセットを読み込む<code class='tt'>load_mnist()</code>関数の内部でも、（2回目以降の読み込み時に）pickleを利用しています。pickleの機能を利用することによって、MNISTのデータの準備を高速に行うことができます。</p>
+</td></tr></table></div>
+<p>それでは、データの確認も兼ねて、MNIST画像を表示させてみることにします。画像の表示には<!-- IDX:PIL -->PIL（Python Image Library）モジュールを使用します。次のコードを実行すると、訓練画像の1枚目が<a href='./ch03.xhtml#fig03_25'>図3-25</a>のように表示されます（ソースコードは<code class='tt'>ch03/mnist_show.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>sys</span><span style='color: #666666'>,</span> <span style='color: #0000FF; font-weight: bold'>os</span>
+sys<span style='color: #666666'>.</span>path<span style='color: #666666'>.</span>append(os<span style='color: #666666'>.</span>pardir)
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>dataset.mnist</span> <span style='color: #008000; font-weight: bold'>import</span> load_mnist
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>PIL</span> <span style='color: #008000; font-weight: bold'>import</span> Image
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>img_show</span>(img):
+    pil_img <span style='color: #666666'>=</span> Image<span style='color: #666666'>.</span>fromarray(np<span style='color: #666666'>.</span>uint8(img))
+    pil_img<span style='color: #666666'>.</span>show()
+
+(x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> load_mnist(flatten<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, normalize<span style='color: #666666'>=</span><span style='color: #008000'>False</span>)
+
+img <span style='color: #666666'>=</span> x_train[<span style='color: #666666'>0</span>]
+label <span style='color: #666666'>=</span> t_train[<span style='color: #666666'>0</span>]
+<span style='color: #008000; font-weight: bold'>print</span>(label) <span style='color: #408080; font-style: italic'># 5</span>
+
+<span style='color: #008000; font-weight: bold'>print</span>(img<span style='color: #666666'>.</span>shape)          <span style='color: #408080; font-style: italic'># (784,)</span>
+img <span style='color: #666666'>=</span> img<span style='color: #666666'>.</span>reshape(<span style='color: #666666'>28</span>, <span style='color: #666666'>28</span>) <span style='color: #408080; font-style: italic'># 形状を元の画像サイズに変形</span>
+<span style='color: #008000; font-weight: bold'>print</span>(img<span style='color: #666666'>.</span>shape)          <span style='color: #408080; font-style: italic'># (28, 28)</span>
+
+img_show(img)
+</pre>
+</div>
+<div class='image' id='fig03_25'>
+<img alt='MNIST画像の表示' src='images/ch03/fig03_25.png'/>
+<p class='caption'>
+図3-25　MNIST画像の表示
+</p>
+</div>
+<p>ここでの注意点としては、<code class='tt'>flatten=True</code>として読み込んだ画像はNumPy配列として1列（1次元）で格納されているということです。そのため、画像の表示に際しては、元の形状である28×28のサイズに再変形（reshape）する必要があります。NumPy配列の形状の変形は<!-- IDX:reshape() --><code class='tt'>reshape()</code>メソッドによって行い、希望する形状を引数で指定します。また、NumPyとして格納された画像データを、PIL用のデータオブジェクトに変換する必要がありますが、この変換は、<!-- IDX:Image.fromarray() --><code class='tt'>Image.fromarray()</code>によって行います。</p>
+
+<h3 id='h3-6-2'><span class='secno'>3.6.2　</span>ニューラルネットワークの推論処理</h3>
+<p>それでは、このMNISTデータセットに対して、推論処理を行うニューラルネットワークを実装しましょう。ネットワークは、入力層を784個、出力層を10個のニューロンで構成します。入力層の784という数字は、画像サイズの<span class='equation mathnoimage'><i><span class='math-normal'>28</span>×<span class='math-normal'>28＝784</span></i></span>から、また、出力層の10という数字は、10クラス分類（数字の0から9の10クラス）から来ています。また、隠れ層が2つあり、ひとつ目の隠れ層が50個、2つ目の層が100個のニューロンを持つものとします。この50と100という数字は、任意の値に設定できます。それでは初めに、3つの関数——<code class='tt'>get_data()</code>、<code class='tt'>init_network()</code>、<code class='tt'>predict()</code>——を定義します（ここで示すコードは<code class='tt'>ch03/neuralnet_mnist.py</code>にあります）。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>get_data</span>():
+    (x_train, t_train), (x_test, t_test) <span style='color: #666666'>=</span> \
+        load_mnist(normalize<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, flatten<span style='color: #666666'>=</span><span style='color: #008000'>True</span>, one_hot_label<span style='color: #666666'>=</span><span style='color: #008000'>False</span>)
+    <span style='color: #008000; font-weight: bold'>return</span> x_test, t_test
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>init_network</span>():
+    <span style='color: #008000; font-weight: bold'>with</span> <span style='color: #008000'>open</span>(<span style='color: #BA2121'>&quot;sample_weight.pkl&quot;</span>, <span style='color: #BA2121'>&#39;rb&#39;</span>) <span style='color: #008000; font-weight: bold'>as</span> f:
+        network <span style='color: #666666'>=</span> pickle<span style='color: #666666'>.</span>load(f)
+
+    <span style='color: #008000; font-weight: bold'>return</span> network
+
+<span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>predict</span>(network, x):
+    W1, W2, W3 <span style='color: #666666'>=</span> network[<span style='color: #BA2121'>&#39;W1&#39;</span>], network[<span style='color: #BA2121'>&#39;W2&#39;</span>], network[<span style='color: #BA2121'>&#39;W3&#39;</span>]
+    b1, b2, b3 <span style='color: #666666'>=</span> network[<span style='color: #BA2121'>&#39;b1&#39;</span>], network[<span style='color: #BA2121'>&#39;b2&#39;</span>], network[<span style='color: #BA2121'>&#39;b3&#39;</span>]
+
+    a1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(x, W1) <span style='color: #666666'>+</span> b1
+    z1 <span style='color: #666666'>=</span> sigmoid(a1)
+    a2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(z1, W2) <span style='color: #666666'>+</span> b2
+    z2 <span style='color: #666666'>=</span> sigmoid(a2)
+    a3 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>dot(z2, W3) <span style='color: #666666'>+</span> b3
+    y <span style='color: #666666'>=</span> softmax(a3)
+
+    <span style='color: #008000; font-weight: bold'>return</span> y
+</pre>
+</div>
+<p><code class='tt'>init_network()</code>では、pickleファイルの<code class='tt'>sample_weight.pkl</code>に保存された学習済みの重みパラメータを読み込みます。このファイルには、重みとバイアスのパラメータがディクショナリ型の変数として保存されています。残り2つの関数は、これまで見てきた実装とほとんど同じですので、解説は不要でしょう。それでは、これら3つの関数を使って、ニューラルネットワークによる推論処理を行います。そして、認識精度——どれだけ正しく分類できるか——を評価したいと思います。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>x, t <span style='color: #666666'>=</span> get_data()
+network <span style='color: #666666'>=</span> init_network()
+
+accuracy_cnt <span style='color: #666666'>=</span> <span style='color: #666666'>0</span>
+<span style='color: #008000; font-weight: bold'>for</span> i <span style='color: #AA22FF; font-weight: bold'>in</span> <span style='color: #008000'>range</span>(<span style='color: #008000'>len</span>(x)):
+    y <span style='color: #666666'>=</span> predict(network, x[i])
+    p <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>argmax(y) <span style='color: #408080; font-style: italic'># 最も確率の高い要素のインデックスを取得</span>
+    <span style='color: #008000; font-weight: bold'>if</span> p <span style='color: #666666'>==</span> t[i]:
+        accuracy_cnt <span style='color: #666666'>+=</span> <span style='color: #666666'>1</span>
+
+<span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;Accuracy:&quot;</span> <span style='color: #666666'>+</span> <span style='color: #008000'>str</span>(<span style='color: #008000'>float</span>(accuracy_cnt) <span style='color: #666666'>/</span> <span style='color: #008000'>len</span>(x)))
+</pre>
+</div>
+<p>ここでは最初にMNISTデータセットを取得し、ネットワークを生成します。続いて、<code class='tt'>x</code>に格納された画像データを1枚ずつ<code class='tt'>for</code>文で取り出し、<code class='tt'>predict()</code>関数によって分類を行います。<code class='tt'>predict()</code>関数の結果は各ラベルの確率がNumPy配列として出力されます。たとえば、<code class='tt'>[0.1, 0.3, 0.2, …, 0.04]</code>のような配列が出力され、これは「0」の確率が0.1、「1」の確率が0.3 、…と解釈します。そして、この確率リストから最も大きな値のインデックス——何番目の要素が一番確率が高いか——を取り出し、それを予測結果とします。なお、配列中の最大値のインデックスを取得するには、<!-- IDX:np.argmax() --><code class='tt'>np.argmax(x)</code>を使います。<code class='tt'>np.argmax(x)</code>は、引数<code class='tt'>x</code>に与えられた配列で最大の値を持つ要素のインデックスを取得します。最後に、ニューラルネットワークが予測した答えと正解ラベルとを比較して、正解した割合を認識精度（accuracy）とします。</p>
+<p>以上のコードを実行すると、「Accuracy:0.9352」と表示されます。これは、93.52%正しく分類することができた、ということを表しています。ここでは学習済みのニューラルネットワークを動かすことが目標でしたので、認識精度についての議論は行いませんが、ひとつ述べるとすれば、これから先、ニューラルネットワークの構造や学習方法を工夫することで、この認識精度がさらに高くなっていくことを見ていきます。実際、99%を超える精度に行き着く予定です！</p>
+<p>なお、この例では、<code class='tt'>load_mnist</code>関数の引数である<code class='tt'>normalize</code>には<code class='tt'>True</code>を設定しました。<code class='tt'>normalize</code>を<code class='tt'>True</code>に設定すると、その関数の内部では画像の各ピクセルの値を255で除算し、データの値が0.0〜1.0の範囲に収まるように変換されます。このようなデータをある決まった範囲に変換する処理を<!-- IDX:正規化 --><b>正規化</b>（normalization）と言います。また、ニューラルネットワークの入力データに対して、何らかの決まった変換を行うことを<!-- IDX:前処理 --><b>前処理</b>（pre-processing）と言います。ここでは、入力画像データに前処理として正規化を行ったことになります。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>前処理はニューラルネットワーク（ディープラーニング）において、実践的によく用いられます。前処理の有効性は、識別性能の向上や学習の高速化など、多くの実験によって示されています。先ほどの例では、前処理として各ピクセルの値を255で割るだけの単純な正規化を行いました。実際には、データ全体の分布を考慮した前処理を行うことが多くあります。たとえば、データ全体の平均や標準偏差を利用して、データ全体が0を中心に分布するように移動させたり、データの広がりをある範囲に収めたりといった正規化を行います。それ以外にも、データ全体の分布の形状を均一にするといった方法——これを<!-- IDX:白色化 --><b>白色化</b>（whitening）と言います——などがあります。</p>
+</td></tr></table></div>
+
+<h3 id='h3-6-3'><span class='secno'>3.6.3　</span>バッチ処理</h3>
+<p>MNISTデータセットを扱ったニューラルネットワークの実装は以上になりますが、ここでは、入力データと重みパラメータの「形状」に注意して、先ほどの実装を再度見ていくことにします。</p>
+<p>それでは、Pythonインタプリタを使って、先のニューラルネットワークの各層の重みの形状を出力してみます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x, _ = get_data()</b>
+&gt;&gt;&gt; <b>network = init_network()</b>
+&gt;&gt;&gt; <b>W1, W2, W3 = network['W1'], network['W2'], network['W3']</b>
+&gt;&gt;&gt;
+&gt;&gt;&gt; <b>x.shape</b>
+(10000, 784)
+&gt;&gt;&gt; <b>x[0].shape</b>
+(784,)
+&gt;&gt;&gt; <b>W1.shape</b>
+(784, 50)
+&gt;&gt;&gt; <b>W2.shape</b>
+(50, 100)
+&gt;&gt;&gt; <b>W3.shape</b>
+(100, 10)
+</pre>
+</div>
+<p>上の結果から、対応する配列の次元数が一致していることを確認しましょう（バイアスは省略しています）。図で表すとすれば、<a href='./ch03.xhtml#fig03_26'>図3-26</a>のようになります。確かに、多次元配列の対応する次元数が一致していますね。また、最終的な結果として、要素数が10の1次元配列<code class='tt'>y</code>が出力される点も確認しましょう。</p>
+<div class='image' id='fig03_26'>
+<img alt='配列の形状の推移' src='images/ch03/fig03_26.png'/>
+<p class='caption'>
+図3-26　配列の形状の推移
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_26'>図3-26</a>は、全体を通して見れば、784の要素からなる1次元配列（元は28×28の2次元配列）が入力され、10次元の配列が出力されるという流れになっています。これは画像データを1枚だけ入力したときの処理の流れです。</p>
+<p>それでは、画像を複数枚まとめて入力する場合を考えましょう。たとえば、100枚の画像をまとめて、1回の<code class='tt'>predict()</code>関数で処理したいとします。そのためには、<code class='tt'>x</code>の形状を100×784として、100枚分のデータをまとめて入力データとすることができます。図で表すと<a href='./ch03.xhtml#fig03_27'>図3-27</a>のようになります。</p>
+<div class='image' id='fig03_27'>
+<img alt='バッチ処理における配列の形状の推移' src='images/ch03/fig03_27.png'/>
+<p class='caption'>
+図3-27　バッチ処理における配列の形状の推移
+</p>
+</div>
+<p><a href='./ch03.xhtml#fig03_27'>図3-27</a>に示すように、入力データの形状は100×784、出力データの形状は100×10になります。これは、100枚分の入力データの結果が一度に出力されることを表しています。たとえば、<code class='tt'>x[0]</code>と<code class='tt'>y[0]</code>には0番目の画像とその推論の結果、<code class='tt'>x[1]</code>と<code class='tt'>y[1]</code>には1番目の画像とその結果、…というように格納されています。</p>
+<p>なお、ここで説明したような、まとまりのある入力データを<!-- IDX:バッチ --><b>バッチ</b>（<!-- IDX:batch -->batch）と呼びます。バッチには「束」という意味があり、画像がお札のように束になっているイメージです。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>バッチ処理には、コンピュータで計算する上で大きな利点があります。それは、バッチ処理によって、1枚あたりの処理時間を大幅に短縮できるという利点です。なぜ処理時間を短縮できるかというと、数値計算を扱うライブラリの多くは、大きな配列の計算を効率良く処理できるような高度な最適化が行われているからです。また、ニューラルネットワークの計算において、<!-- IDX:データ転送 -->データ転送がボトルネックになる場合は、バッチ処理を行うことで、<!-- IDX:バス帯域 -->バス帯域の負荷を軽減することができます（正確には、データの読み込みに対して演算の割合を多くすることができます）。つまり、バッチ処理を行うことで大きな配列の計算を行うことになりますが、大きな配列を一度に計算するほうが、分割した小さい配列を少しずつ計算するよりも速く計算が完了するのです。</p>
+</td></tr></table></div>
+<p>それでは、バッチ処理による実装を行います。ここでは、前に実装したコードとの差異部分を太字で示します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'>x, t <span style='color: #666666'>=</span> get_data()
+network <span style='color: #666666'>=</span> init_network()
+
+<b>batch_size = 100</b> <span style='color: #408080; font-style: italic'># バッチの数</span>
+accuracy_cnt <span style='color: #666666'>=</span> <span style='color: #666666'>0</span>
+
+<b>for i in range(0, len(x), batch_size):</b>
+    <b>x_batch = x[i:i+batch_size]</b>
+    <b>y_batch = predict(network, x_batch)</b>
+    <b>p = np.argmax(y_batch, axis=1)</b>
+    <b>accuracy_cnt += np.sum(p == t[i:i+batch_size])</b>
+
+<span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;Accuracy:&quot;</span> <span style='color: #666666'>+</span> <span style='color: #008000'>str</span>(<span style='color: #008000'>float</span>(accuracy_cnt) <span style='color: #666666'>/</span> <span style='color: #008000'>len</span>(x)))
+</pre>
+</div>
+<p>太字の箇所をひとつずつ解説していきましょう。まずは、<code class='tt'>range()</code>関数からです。<!-- IDX:range() --><code class='tt'>range()</code>関数は、<code class='tt'>range(start, end)</code>のように指定すると、<code class='tt'>start</code>から<code class='tt'>end-1</code>までの整数からなるリストを作成します。また、<code class='tt'>range(start, end, step)</code>のように3つの整数を指定すると、リストの要素の次の値が<code class='tt'>step</code>で指定された値だけ増加するリストを作成します。ここでは、ひとつ例を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>list( range(0, 10) )</b>
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+&gt;&gt;&gt; <b>list( range(0, 10, 3) )</b>
+[0, 3, 6, 9]
+</pre>
+</div>
+<p>この<code class='tt'>range()</code>関数によって出力されるリストを元に、<code class='tt'>x[i:i+batch_size]</code>のように、入力データからバッチを抜き出します。<code class='tt'>x[i:i+batch_n]</code>は、入力データの<code class='tt'>i</code>番目から、<code class='tt'>i+batch_n</code>番目までのデータを取り出しますが、この例では、<code class='tt'>x[0:100]</code>、<code class='tt'>x[100:200]</code>、…といったように、先頭から100枚ずつバッチとして取り出すことになります。</p>
+<p>そして、<!-- IDX:argmax() --><code class='tt'>argmax()</code>で最大値のインデックスを取得します。ただし、ここでは、<code class='tt'>axis=1</code>という引数を与えていることに注意しましょう。これは、100×10の配列の中で1次元目の要素ごとに（1次元目を軸として）、最大値のインデックスを見つけることを指定しているのです（0次元目は最初の次元に対応します）。ここでもひとつ例を示します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array([[0.1, 0.8, 0.1], [0.3, 0.1, 0.6], </b>
+...     <b>[0.2, 0.5, 0.3], [0.8, 0.1, 0.1]])</b>
+&gt;&gt;&gt; <b>y = np.argmax(x, axis=1)</b>
+&gt;&gt;&gt; <b>print(y)</b>
+[1 2 1 0]
+</pre>
+</div>
+<p>最後に、バッチ単位で分類した結果と、実際の答えを比較します。そのために、NumPy配列どうしで比較演算子（<code class='tt'>==</code>）によって、<code class='tt'>True</code>/<code class='tt'>False</code>からなるブーリアン配列を作成し、<code class='tt'>True</code>の個数を算出します。これらの処理手順は、次の例で確認しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>y = np.array([1, 2, 1, 0])</b>
+&gt;&gt;&gt; <b>t = np.array([1, 2, 0, 0])</b>
+&gt;&gt;&gt; <b>print(y==t)</b>
+[True True False True]
+&gt;&gt;&gt; <b>np.sum(y==t)</b>
+3
+</pre>
+</div>
+<p>以上で、バッチ処理による実装の解説は終わりです。バッチ処理を行うことで、高速に効率良く処理することができました。また、次章でニューラルネットワークの学習を行う際にも、画像データをまとまりのあるバッチとして学習します。その際にも、ここで実装したバッチ処理と同様な実装を行うことになります。</p>
+
+<h2 id='h3-7'><span class='secno'>3.7　</span>まとめ</h2>
+<p>本章では、ニューラルネットワークの順方向の伝播（forward propagation）について解説しました。本章で説明したニューラルネットワークは、前章のパーセプトロンと、ニューロンの信号が階層的に伝わるという点で同じでした。しかし、次のニューロンへ信号を送信する際に、信号を変化させる活性化関数に大きな違いがありました。ニューラルネットワークでは活性化関数が滑らかに変化するシグモイド関数、パーセプトロンでは信号が急に変化するステップ関数を使用しました。この違いがニューラルネットワークの学習において重要になってきますが、これは次章で説明します。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>ニューラルネットワークでは、活性化関数としてシグモイド関数やReLU関数のような滑らかに変化する関数を利用する。</li>
+<li>NumPyの多次元配列をうまく使うことで、ニューラルネットワークを効率良く実装することができる。</li>
+<li>機械学習の問題は、回帰問題と分類問題に大別できる。</li>
+<li>出力層で使用する活性化関数は、回帰問題では恒等関数、分類問題ではソフトマックス関数を一般的に利用する。</li>
+<li>分類問題では、出力層のニューロンの数を分類するクラス数に設定する。</li>
+<li>入力データのまとまりをバッチと言い、バッチ単位で推論処理を行うことで、計算を高速に行うことができる。</li>
+</ul>
+</div>
+</body>
+</html>

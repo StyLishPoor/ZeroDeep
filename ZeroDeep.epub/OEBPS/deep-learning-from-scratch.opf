@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package version="3.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" xml:lang="ja">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:title id="title">ゼロから作るDeep Learning</dc:title>
+    <dc:language id="language">ja</dc:language>
+    <dc:date id="date">2016-10-25</dc:date>
+    <dc:rights id="rights-0">Copyright ©2016 Koki Saitoh, O&#39;Reilly Japan, Inc. All rights reserved. </dc:rights>
+    <meta property="dcterms:modified">2016-10-18T03:00:07Z</meta>
+    <dc:identifier id="BookId">9784873117584</dc:identifier>
+    <dc:creator id="aut-0">斎藤 康毅</dc:creator>
+    <meta refines="#aut-0" property="role" scheme="marc:relators">aut</meta>
+    <meta refines="#aut-0" property="file-as">サイトウコウキ</meta>
+    <dc:contributor id="bkp-0">株式会社トップスタジオ</dc:contributor>
+    <meta refines="#bkp-0" property="role" scheme="marc:relators">bkp</meta>
+    <dc:contributor id="pbl-0">株式会社オライリー・ジャパン</dc:contributor>
+    <meta refines="#pbl-0" property="role" scheme="marc:relators">pbl</meta>
+    <dc:publisher id="pub-pbl-0">株式会社オライリー・ジャパン</dc:publisher>
+    <meta refines="#pub-pbl-0" property="role" scheme="marc:relators">prt</meta>
+  </metadata>
+  <manifest>
+    <item properties="nav" id="deep-learning-from-scratch-toc.xhtml" href="deep-learning-from-scratch-toc.xhtml" media-type="application/xhtml+xml"/>
+    <item id="deep-learning-from-scratch" href="index.xhtml" media-type="application/xhtml+xml"/>
+    <item properties="cover-image" id="cover-images-1758_Deep_Learning_cvr-jpg" href="images/1758_Deep_Learning_cvr.jpg" media-type="image/jpeg"/>
+    <item id="oreilly-css" href="oreilly.css" media-type="text/css"/>
+    <item id="titlepage-xhtml" href="titlepage.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+    <item id="copy-xhtml" href="copy.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch00c-xhtml" href="ch00c.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch01-xhtml" href="ch01.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch02-xhtml" href="ch02.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch03-xhtml" href="ch03.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch04-xhtml" href="ch04.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch05-xhtml" href="ch05.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch06-xhtml" href="ch06.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch07-xhtml" href="ch07.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch08-xhtml" href="ch08.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch11a-xhtml" href="ch11a.xhtml" media-type="application/xhtml+xml"/>
+    <item id="ch18ref-xhtml" href="ch18ref.xhtml" media-type="application/xhtml+xml"/>
+    <item id="author-xhtml" href="author.xhtml" media-type="application/xhtml+xml"/>
+    <item id="colophon-xhtml" href="colophon.xhtml" media-type="application/xhtml+xml"/>
+    <item id="images-warning-png" href="images/warning.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_5-png" href="images/ch04/fig04_5.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_10-png" href="images/ch04/fig04_10.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_2-png" href="images/ch04/fig04_2.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_8-png" href="images/ch04/fig04_8.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_6-png" href="images/ch04/fig04_6.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_9-png" href="images/ch04/fig04_9.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_7-png" href="images/ch04/fig04_7.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_12-png" href="images/ch04/fig04_12.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_4-png" href="images/ch04/fig04_4.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_3-png" href="images/ch04/fig04_3.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_11-png" href="images/ch04/fig04_11.png" media-type="image/png"/>
+    <item id="images-ch04-fig04_1-png" href="images/ch04/fig04_1.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_4-png" href="images/ch03/fig03_4.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_19-png" href="images/ch03/fig03_19.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_20-png" href="images/ch03/fig03_20.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_1-png" href="images/ch03/fig03_1.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_9-png" href="images/ch03/fig03_9.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_13-png" href="images/ch03/fig03_13.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_8-png" href="images/ch03/fig03_8.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_5-png" href="images/ch03/fig03_5.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_24-png" href="images/ch03/fig03_24.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_23-png" href="images/ch03/fig03_23.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_3-png" href="images/ch03/fig03_3.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_21-png" href="images/ch03/fig03_21.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_7-png" href="images/ch03/fig03_7.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_22-png" href="images/ch03/fig03_22.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_2-png" href="images/ch03/fig03_2.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_15-png" href="images/ch03/fig03_15.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_26-png" href="images/ch03/fig03_26.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_6-png" href="images/ch03/fig03_6.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_10-png" href="images/ch03/fig03_10.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_17-png" href="images/ch03/fig03_17.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_14-png" href="images/ch03/fig03_14.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_25-png" href="images/ch03/fig03_25.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_12-png" href="images/ch03/fig03_12.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_16-png" href="images/ch03/fig03_16.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_27-png" href="images/ch03/fig03_27.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_11-png" href="images/ch03/fig03_11.png" media-type="image/png"/>
+    <item id="images-ch03-fig03_18-png" href="images/ch03/fig03_18.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_6-png" href="images/ch02/fig02_6.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_9-png" href="images/ch02/fig02_9.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_10-png" href="images/ch02/fig02_10.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_8-png" href="images/ch02/fig02_8.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_4-png" href="images/ch02/fig02_4.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_3-png" href="images/ch02/fig02_3.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_2-png" href="images/ch02/fig02_2.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_1-png" href="images/ch02/fig02_1.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_12-png" href="images/ch02/fig02_12.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_7-png" href="images/ch02/fig02_7.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_5-png" href="images/ch02/fig02_5.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_13-png" href="images/ch02/fig02_13.png" media-type="image/png"/>
+    <item id="images-ch02-fig02_11-png" href="images/ch02/fig02_11.png" media-type="image/png"/>
+    <item id="images-ch01-fig01_1-png" href="images/ch01/fig01_1.png" media-type="image/png"/>
+    <item id="images-ch01-fig01_3-png" href="images/ch01/fig01_3.png" media-type="image/png"/>
+    <item id="images-ch01-fig01_5-png" href="images/ch01/fig01_5.png" media-type="image/png"/>
+    <item id="images-ch01-fig01_4-png" href="images/ch01/fig01_4.png" media-type="image/png"/>
+    <item id="images-ch01-fig01_2-png" href="images/ch01/fig01_2.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_23-png" href="images/ch06/fig06_23.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_21-png" href="images/ch06/fig06_21.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_7-png" href="images/ch06/fig06_7.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_4-png" href="images/ch06/fig06_4.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_13-png" href="images/ch06/fig06_13.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_15-png" href="images/ch06/fig06_15.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_16-png" href="images/ch06/fig06_16.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_22-png" href="images/ch06/fig06_22.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_3-png" href="images/ch06/fig06_3.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_1-png" href="images/ch06/fig06_1.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_10-png" href="images/ch06/fig06_10.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_6-png" href="images/ch06/fig06_6.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_20-png" href="images/ch06/fig06_20.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_18-png" href="images/ch06/fig06_18.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_2-png" href="images/ch06/fig06_2.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_17-png" href="images/ch06/fig06_17.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_19-png" href="images/ch06/fig06_19.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_12-png" href="images/ch06/fig06_12.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_11-png" href="images/ch06/fig06_11.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_5-png" href="images/ch06/fig06_5.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_14-png" href="images/ch06/fig06_14.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_9-png" href="images/ch06/fig06_9.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_8-png" href="images/ch06/fig06_8.png" media-type="image/png"/>
+    <item id="images-ch06-fig06_24-png" href="images/ch06/fig06_24.png" media-type="image/png"/>
+    <item id="images-tip-png" href="images/tip.png" media-type="image/png"/>
+    <item id="images-oreilly-jp-svg" href="images/oreilly-jp.svg" media-type="image/svg+xml"/>
+    <item id="images-ch08-fig08_8-png" href="images/ch08/fig08_8.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_27-png" href="images/ch08/fig08_27.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_6-png" href="images/ch08/fig08_6.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_11-png" href="images/ch08/fig08_11.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_21-png" href="images/ch08/fig08_21.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_16-png" href="images/ch08/fig08_16.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_26-png" href="images/ch08/fig08_26.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_18-png" href="images/ch08/fig08_18.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_19-png" href="images/ch08/fig08_19.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_20-png" href="images/ch08/fig08_20.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_3-png" href="images/ch08/fig08_3.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_9-png" href="images/ch08/fig08_9.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_17-png" href="images/ch08/fig08_17.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_7-png" href="images/ch08/fig08_7.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_24-png" href="images/ch08/fig08_24.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_22-png" href="images/ch08/fig08_22.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_5-png" href="images/ch08/fig08_5.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_10-png" href="images/ch08/fig08_10.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_4-png" href="images/ch08/fig08_4.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_14-png" href="images/ch08/fig08_14.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_15-png" href="images/ch08/fig08_15.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_1-png" href="images/ch08/fig08_1.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_25-png" href="images/ch08/fig08_25.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_23-png" href="images/ch08/fig08_23.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_2-png" href="images/ch08/fig08_2.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_12-png" href="images/ch08/fig08_12.png" media-type="image/png"/>
+    <item id="images-ch08-fig08_13-png" href="images/ch08/fig08_13.png" media-type="image/png"/>
+    <item id="images-memo-png" href="images/memo.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4-png" href="images/ch11a/fig11a_4.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_2-png" href="images/ch11a/fig11a_4_2.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_1-png" href="images/ch11a/fig11a_1.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_6-png" href="images/ch11a/fig11a_4_6.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_5-png" href="images/ch11a/fig11a_5.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_3-png" href="images/ch11a/fig11a_3.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_4-png" href="images/ch11a/fig11a_4_4.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_1-png" href="images/ch11a/fig11a_4_1.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_3-png" href="images/ch11a/fig11a_4_3.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_4_5-png" href="images/ch11a/fig11a_4_5.png" media-type="image/png"/>
+    <item id="images-ch11a-fig11a_2-png" href="images/ch11a/fig11a_2.png" media-type="image/png"/>
+    <item id="images-note-png" href="images/note.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_3-png" href="images/ch07/fig07_3.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_19-png" href="images/ch07/fig07_19.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_10-png" href="images/ch07/fig07_10.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_15-png" href="images/ch07/fig07_15.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_5-png" href="images/ch07/fig07_5.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_4-png" href="images/ch07/fig07_4.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_7-png" href="images/ch07/fig07_7.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_11-png" href="images/ch07/fig07_11.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_17-png" href="images/ch07/fig07_17.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_1-png" href="images/ch07/fig07_1.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_18-png" href="images/ch07/fig07_18.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_25-png" href="images/ch07/fig07_25.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_26-png" href="images/ch07/fig07_26.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_9-png" href="images/ch07/fig07_9.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_6-png" href="images/ch07/fig07_6.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_27-png" href="images/ch07/fig07_27.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_14-png" href="images/ch07/fig07_14.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_28-png" href="images/ch07/fig07_28.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_24-png" href="images/ch07/fig07_24.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_13-png" href="images/ch07/fig07_13.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_16-png" href="images/ch07/fig07_16.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_21-png" href="images/ch07/fig07_21.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_8-png" href="images/ch07/fig07_8.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_20-png" href="images/ch07/fig07_20.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_22-png" href="images/ch07/fig07_22.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_2-png" href="images/ch07/fig07_2.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_12-png" href="images/ch07/fig07_12.png" media-type="image/png"/>
+    <item id="images-ch07-fig07_23-png" href="images/ch07/fig07_23.png" media-type="image/png"/>
+    <item id="images-oreilly-svg" href="images/oreilly.svg" media-type="image/svg+xml"/>
+    <item id="images-caution-png" href="images/caution.png" media-type="image/png"/>
+    <item id="images-math-373f7266a9cc642ef465cfbe18946676-png" href="images/math/373f7266a9cc642ef465cfbe18946676.png" media-type="image/png"/>
+    <item id="images-math-a483e7699bac1999475c203256bdcfba-png" href="images/math/a483e7699bac1999475c203256bdcfba.png" media-type="image/png"/>
+    <item id="images-math-5264fafdc40212566fa3893d35c8b0f4-png" href="images/math/5264fafdc40212566fa3893d35c8b0f4.png" media-type="image/png"/>
+    <item id="images-math-57e06c5cf42ae31c481cf1dea3cd7b55-png" href="images/math/57e06c5cf42ae31c481cf1dea3cd7b55.png" media-type="image/png"/>
+    <item id="images-math-7e80dd13d13e758b6fa3644e029003eb-png" href="images/math/7e80dd13d13e758b6fa3644e029003eb.png" media-type="image/png"/>
+    <item id="images-math-c15f5636a46f93f8f8880713320accbf-png" href="images/math/c15f5636a46f93f8f8880713320accbf.png" media-type="image/png"/>
+    <item id="images-math-db754d497a1c3ab5c8fc60cca94a209e-png" href="images/math/db754d497a1c3ab5c8fc60cca94a209e.png" media-type="image/png"/>
+    <item id="images-math-6fb8f257101923287dea61c92441d044-png" href="images/math/6fb8f257101923287dea61c92441d044.png" media-type="image/png"/>
+    <item id="images-math-6398fd71601401eda49327fe6ea56798-png" href="images/math/6398fd71601401eda49327fe6ea56798.png" media-type="image/png"/>
+    <item id="images-math-3cef42a43bbbd6cc8ccbea546f9b4cef-png" href="images/math/3cef42a43bbbd6cc8ccbea546f9b4cef.png" media-type="image/png"/>
+    <item id="images-math-f3861a415eb1c1b1662fd30eb37a737a-png" href="images/math/f3861a415eb1c1b1662fd30eb37a737a.png" media-type="image/png"/>
+    <item id="images-math-01d0954bd764598807ebdcf1540ca9c2-png" href="images/math/01d0954bd764598807ebdcf1540ca9c2.png" media-type="image/png"/>
+    <item id="images-math-4ccedf9e32416b471c3c0d9794868db5-png" href="images/math/4ccedf9e32416b471c3c0d9794868db5.png" media-type="image/png"/>
+    <item id="images-math-19044a3d61270d1cc82c07fa0d9b5c99-png" href="images/math/19044a3d61270d1cc82c07fa0d9b5c99.png" media-type="image/png"/>
+    <item id="images-math-6e3fa4166b7f8f13f8c4eab5a61d221d-png" href="images/math/6e3fa4166b7f8f13f8c4eab5a61d221d.png" media-type="image/png"/>
+    <item id="images-math-189968d31546e635cdfd9d10b9e726b3-png" href="images/math/189968d31546e635cdfd9d10b9e726b3.png" media-type="image/png"/>
+    <item id="images-math-c5fa757a8d20eed93250a849d777b1f9-png" href="images/math/c5fa757a8d20eed93250a849d777b1f9.png" media-type="image/png"/>
+    <item id="images-math-c0d7f8e66330cf67f926876cc241434c-png" href="images/math/c0d7f8e66330cf67f926876cc241434c.png" media-type="image/png"/>
+    <item id="images-math-1ba97aee1b8bca145be18a47e3011c53-png" href="images/math/1ba97aee1b8bca145be18a47e3011c53.png" media-type="image/png"/>
+    <item id="images-math-d09e5a2bee416b8c145898a3d63eb7a5-png" href="images/math/d09e5a2bee416b8c145898a3d63eb7a5.png" media-type="image/png"/>
+    <item id="images-math-dab65a23e13930cbe06c92ce0ace3770-png" href="images/math/dab65a23e13930cbe06c92ce0ace3770.png" media-type="image/png"/>
+    <item id="images-math-8d145d11f1437ae7c483520fc152bec8-png" href="images/math/8d145d11f1437ae7c483520fc152bec8.png" media-type="image/png"/>
+    <item id="images-math-54c58f50da8b240a5304bdc1d2f1a32e-png" href="images/math/54c58f50da8b240a5304bdc1d2f1a32e.png" media-type="image/png"/>
+    <item id="images-math-523cfdbc6a1bae5eb69482b88dc7b6b0-png" href="images/math/523cfdbc6a1bae5eb69482b88dc7b6b0.png" media-type="image/png"/>
+    <item id="images-math-60373a22abe81c70c24989c2dce670b6-png" href="images/math/60373a22abe81c70c24989c2dce670b6.png" media-type="image/png"/>
+    <item id="images-math-baa3d1ccc183dcd7d65143d0aa33c902-png" href="images/math/baa3d1ccc183dcd7d65143d0aa33c902.png" media-type="image/png"/>
+    <item id="images-math-653f3e9f243a17edc5d36df770572663-png" href="images/math/653f3e9f243a17edc5d36df770572663.png" media-type="image/png"/>
+    <item id="images-math-dd748dab17fd69ed59c6897639910de6-png" href="images/math/dd748dab17fd69ed59c6897639910de6.png" media-type="image/png"/>
+    <item id="images-math-471540de4bb19c2b89239f1a8d322789-png" href="images/math/471540de4bb19c2b89239f1a8d322789.png" media-type="image/png"/>
+    <item id="images-math-eee4398cb3ffba611a326bd7c3767df6-png" href="images/math/eee4398cb3ffba611a326bd7c3767df6.png" media-type="image/png"/>
+    <item id="images-math-cf267cd7d028cb73d5cbd01c936d91f1-png" href="images/math/cf267cd7d028cb73d5cbd01c936d91f1.png" media-type="image/png"/>
+    <item id="images-math-1934d9cbb196b8fead549a616a712a3c-png" href="images/math/1934d9cbb196b8fead549a616a712a3c.png" media-type="image/png"/>
+    <item id="images-math-055ec61312837e513cc388223213366c-png" href="images/math/055ec61312837e513cc388223213366c.png" media-type="image/png"/>
+    <item id="images-math-b39d3d51848c612995879fbacf43f408-png" href="images/math/b39d3d51848c612995879fbacf43f408.png" media-type="image/png"/>
+    <item id="images-math-253e24b41eb3d2a7169eae88cdd5bbda-png" href="images/math/253e24b41eb3d2a7169eae88cdd5bbda.png" media-type="image/png"/>
+    <item id="images-math-d5ceb634e82ff4d75b48b9f1146151b6-png" href="images/math/d5ceb634e82ff4d75b48b9f1146151b6.png" media-type="image/png"/>
+    <item id="images-math-2ee4c0d8895131cdfc815dfd0ec7bc98-png" href="images/math/2ee4c0d8895131cdfc815dfd0ec7bc98.png" media-type="image/png"/>
+    <item id="images-math-9871bc61fcf1ef1e4f184d6d4e5fbed0-png" href="images/math/9871bc61fcf1ef1e4f184d6d4e5fbed0.png" media-type="image/png"/>
+    <item id="images-math-87fd68c32ab13c489d8f39fc54ed0701-png" href="images/math/87fd68c32ab13c489d8f39fc54ed0701.png" media-type="image/png"/>
+    <item id="images-math-ada22274ac148f4590a2799981f58f7c-png" href="images/math/ada22274ac148f4590a2799981f58f7c.png" media-type="image/png"/>
+    <item id="images-math-f261c0242716bc13ba256cc83a1ca1a4-png" href="images/math/f261c0242716bc13ba256cc83a1ca1a4.png" media-type="image/png"/>
+    <item id="images-math-c0375e88d0a76bbdaac9812d054fbf9b-png" href="images/math/c0375e88d0a76bbdaac9812d054fbf9b.png" media-type="image/png"/>
+    <item id="images-math-b4f964934b251d740b58dd9201278654-png" href="images/math/b4f964934b251d740b58dd9201278654.png" media-type="image/png"/>
+    <item id="images-math-24e5895b57abe115afe4b3779cc5a9aa-png" href="images/math/24e5895b57abe115afe4b3779cc5a9aa.png" media-type="image/png"/>
+    <item id="images-math-d24a36347c44ab1a769bdf56172bcabc-png" href="images/math/d24a36347c44ab1a769bdf56172bcabc.png" media-type="image/png"/>
+    <item id="images-math-38c9d0478f640e20bf7005106f121e72-png" href="images/math/38c9d0478f640e20bf7005106f121e72.png" media-type="image/png"/>
+    <item id="images-math-9807fef2adedd4e26237b86a52312685-png" href="images/math/9807fef2adedd4e26237b86a52312685.png" media-type="image/png"/>
+    <item id="images-math-1feeeb00e9813d8fe745758fbd199c6d-png" href="images/math/1feeeb00e9813d8fe745758fbd199c6d.png" media-type="image/png"/>
+    <item id="images-math-7091688b38e8845a8c0f0e1c06d9aa2d-png" href="images/math/7091688b38e8845a8c0f0e1c06d9aa2d.png" media-type="image/png"/>
+    <item id="images-math-a98738f1a010d9fd8e054205af439280-png" href="images/math/a98738f1a010d9fd8e054205af439280.png" media-type="image/png"/>
+    <item id="images-math-98d9a041300da531d85f86ac249354dd-png" href="images/math/98d9a041300da531d85f86ac249354dd.png" media-type="image/png"/>
+    <item id="images-math-633485009ef62d207fa6ddbecb371d9f-png" href="images/math/633485009ef62d207fa6ddbecb371d9f.png" media-type="image/png"/>
+    <item id="images-math-18bc3dab1bb99f06eb761165454ab3a4-png" href="images/math/18bc3dab1bb99f06eb761165454ab3a4.png" media-type="image/png"/>
+    <item id="images-math-0e143a2032cb03e99e673af15317971f-png" href="images/math/0e143a2032cb03e99e673af15317971f.png" media-type="image/png"/>
+    <item id="images-math-a0ee1a37faae1abbf3cd71e8af5afa5b-png" href="images/math/a0ee1a37faae1abbf3cd71e8af5afa5b.png" media-type="image/png"/>
+    <item id="images-math-51d28a1ae2bccf1fc51acddcb0ac7d2e-png" href="images/math/51d28a1ae2bccf1fc51acddcb0ac7d2e.png" media-type="image/png"/>
+    <item id="images-math-cc28f4e72216843a0d41ebed38692412-png" href="images/math/cc28f4e72216843a0d41ebed38692412.png" media-type="image/png"/>
+    <item id="images-math-2495a467514dc21f48ada6e8ebf6d4d2-png" href="images/math/2495a467514dc21f48ada6e8ebf6d4d2.png" media-type="image/png"/>
+    <item id="images-math-3e3c84bca69f580972ac5fd0ed185241-png" href="images/math/3e3c84bca69f580972ac5fd0ed185241.png" media-type="image/png"/>
+    <item id="images-math-d340850f252d9d285ad9288577f800de-png" href="images/math/d340850f252d9d285ad9288577f800de.png" media-type="image/png"/>
+    <item id="images-math-60f0e79574f781791b7b152adf2a8085-png" href="images/math/60f0e79574f781791b7b152adf2a8085.png" media-type="image/png"/>
+    <item id="images-math-c542d18e40792063752a83118e1b1451-png" href="images/math/c542d18e40792063752a83118e1b1451.png" media-type="image/png"/>
+    <item id="images-math-923a6257033905972988e1a74c76bb64-png" href="images/math/923a6257033905972988e1a74c76bb64.png" media-type="image/png"/>
+    <item id="images-math-e2bef684b77839e66b580568c7f87a5c-png" href="images/math/e2bef684b77839e66b580568c7f87a5c.png" media-type="image/png"/>
+    <item id="images-math-87e41fea41b4fd4e8a7f3a020de7a101-png" href="images/math/87e41fea41b4fd4e8a7f3a020de7a101.png" media-type="image/png"/>
+    <item id="images-math-ee8bcfbbcb86d4e24a7ac0d0457e842b-png" href="images/math/ee8bcfbbcb86d4e24a7ac0d0457e842b.png" media-type="image/png"/>
+    <item id="images-math-32160448b249dc78957551b3e988cf64-png" href="images/math/32160448b249dc78957551b3e988cf64.png" media-type="image/png"/>
+    <item id="images-math-a0bdf965d0a844fca07b07e24f09dac1-png" href="images/math/a0bdf965d0a844fca07b07e24f09dac1.png" media-type="image/png"/>
+    <item id="images-math-4ee5d62468b3346295237d72f5758467-png" href="images/math/4ee5d62468b3346295237d72f5758467.png" media-type="image/png"/>
+    <item id="images-math-e1cdeb2f2ae54400874300d4bc67173b-png" href="images/math/e1cdeb2f2ae54400874300d4bc67173b.png" media-type="image/png"/>
+    <item id="images-math-f401088e99706dc447b08fdb84579b7d-png" href="images/math/f401088e99706dc447b08fdb84579b7d.png" media-type="image/png"/>
+    <item id="images-math-81e585adb12469d32cbc3c391f732881-png" href="images/math/81e585adb12469d32cbc3c391f732881.png" media-type="image/png"/>
+    <item id="images-math-13a68e25c683dfc32f7c508ff90575c7-png" href="images/math/13a68e25c683dfc32f7c508ff90575c7.png" media-type="image/png"/>
+    <item id="images-math-3581aed49ef666a0ad466acea438b59a-png" href="images/math/3581aed49ef666a0ad466acea438b59a.png" media-type="image/png"/>
+    <item id="images-math-12c7667b6fe66d9d910c6c02acb84b77-png" href="images/math/12c7667b6fe66d9d910c6c02acb84b77.png" media-type="image/png"/>
+    <item id="images-math-fc8676c2d39c450bfc065952c1aaef73-png" href="images/math/fc8676c2d39c450bfc065952c1aaef73.png" media-type="image/png"/>
+    <item id="images-math-a1ad4b15f6ded33b6dc3cfb56808c051-png" href="images/math/a1ad4b15f6ded33b6dc3cfb56808c051.png" media-type="image/png"/>
+    <item id="images-math-184d938086ebef3d1fd3a512d5f77eeb-png" href="images/math/184d938086ebef3d1fd3a512d5f77eeb.png" media-type="image/png"/>
+    <item id="images-math-03b23b4fae8e2aaa46d82918d1b27da5-png" href="images/math/03b23b4fae8e2aaa46d82918d1b27da5.png" media-type="image/png"/>
+    <item id="images-math-30289e03abaa55f20acd07f9bd83a1e6-png" href="images/math/30289e03abaa55f20acd07f9bd83a1e6.png" media-type="image/png"/>
+    <item id="images-math-2741e2e785c4d73a15bc580c066f8a1d-png" href="images/math/2741e2e785c4d73a15bc580c066f8a1d.png" media-type="image/png"/>
+    <item id="images-math-bdea34dcd00701ee5f0c72f36437c08a-png" href="images/math/bdea34dcd00701ee5f0c72f36437c08a.png" media-type="image/png"/>
+    <item id="images-math-3cee42f75385b0cda53013a802908d80-png" href="images/math/3cee42f75385b0cda53013a802908d80.png" media-type="image/png"/>
+    <item id="images-math-120cf5eda561cec774a02601cf23c7c9-png" href="images/math/120cf5eda561cec774a02601cf23c7c9.png" media-type="image/png"/>
+    <item id="images-math-f466f2d908a0b5dea6906487553d1dd6-png" href="images/math/f466f2d908a0b5dea6906487553d1dd6.png" media-type="image/png"/>
+    <item id="images-math-72cf4e451ea639d0557cac9c493659fa-png" href="images/math/72cf4e451ea639d0557cac9c493659fa.png" media-type="image/png"/>
+    <item id="images-math-fce8ba9e62b5adfddcf355878020db40-png" href="images/math/fce8ba9e62b5adfddcf355878020db40.png" media-type="image/png"/>
+    <item id="images-math-72d5cef7f17ec6e397f5b0c5c4a89e65-png" href="images/math/72d5cef7f17ec6e397f5b0c5c4a89e65.png" media-type="image/png"/>
+    <item id="images-math-15e9cbd9a72a83c6b8085ca5f9d67416-png" href="images/math/15e9cbd9a72a83c6b8085ca5f9d67416.png" media-type="image/png"/>
+    <item id="images-math-71a9c2393e897933dc70f83bcb6949fa-png" href="images/math/71a9c2393e897933dc70f83bcb6949fa.png" media-type="image/png"/>
+    <item id="images-math-58967cef4f8a23e646024a365a11098b-png" href="images/math/58967cef4f8a23e646024a365a11098b.png" media-type="image/png"/>
+    <item id="images-math-a175314ea5b6aca16a912811cb64017f-png" href="images/math/a175314ea5b6aca16a912811cb64017f.png" media-type="image/png"/>
+    <item id="images-math-6cc64f7666130b8ff96ccea644f4e6a3-png" href="images/math/6cc64f7666130b8ff96ccea644f4e6a3.png" media-type="image/png"/>
+    <item id="images-math-fbd6f8f323d737b12001120a5b9b47ee-png" href="images/math/fbd6f8f323d737b12001120a5b9b47ee.png" media-type="image/png"/>
+    <item id="images-math-3f4ccc451c4fcc7cfa373d24f78711a1-png" href="images/math/3f4ccc451c4fcc7cfa373d24f78711a1.png" media-type="image/png"/>
+    <item id="images-math-5aab445f522f8d8b271e35de2c28abb4-png" href="images/math/5aab445f522f8d8b271e35de2c28abb4.png" media-type="image/png"/>
+    <item id="images-math-0d6f03f2d98bf1c785de1fe14d8beb04-png" href="images/math/0d6f03f2d98bf1c785de1fe14d8beb04.png" media-type="image/png"/>
+    <item id="images-math-6b11c90adf51d0718009058f5afa9dfb-png" href="images/math/6b11c90adf51d0718009058f5afa9dfb.png" media-type="image/png"/>
+    <item id="images-math-f97a3f069fd714c72e7f08b08d6b1c40-png" href="images/math/f97a3f069fd714c72e7f08b08d6b1c40.png" media-type="image/png"/>
+    <item id="images-math-a8eb9faff0bb3afdca043ddaa729bb17-png" href="images/math/a8eb9faff0bb3afdca043ddaa729bb17.png" media-type="image/png"/>
+    <item id="images-math-abcad26fc1d70519340642814047352f-png" href="images/math/abcad26fc1d70519340642814047352f.png" media-type="image/png"/>
+    <item id="images-math-ae30ff863eb7eceedafb53297e4d8cd6-png" href="images/math/ae30ff863eb7eceedafb53297e4d8cd6.png" media-type="image/png"/>
+    <item id="images-math-88a91e84dff6feae9935ad3ea7333f55-png" href="images/math/88a91e84dff6feae9935ad3ea7333f55.png" media-type="image/png"/>
+    <item id="images-math-12fb537bbb3468bfc60f6456c1feefc7-png" href="images/math/12fb537bbb3468bfc60f6456c1feefc7.png" media-type="image/png"/>
+    <item id="images-math-99b812a1915734e967c90f14bff8ee76-png" href="images/math/99b812a1915734e967c90f14bff8ee76.png" media-type="image/png"/>
+    <item id="images-math-c89f4836b88d7a2bae772e9855452e12-png" href="images/math/c89f4836b88d7a2bae772e9855452e12.png" media-type="image/png"/>
+    <item id="images-math-3eb585978de5ca1a850394337d05a764-png" href="images/math/3eb585978de5ca1a850394337d05a764.png" media-type="image/png"/>
+    <item id="images-math-e993a49b2cba214576ba64fb00479b10-png" href="images/math/e993a49b2cba214576ba64fb00479b10.png" media-type="image/png"/>
+    <item id="images-math-fddb7355260edb1f360e3b9ddd145bcc-png" href="images/math/fddb7355260edb1f360e3b9ddd145bcc.png" media-type="image/png"/>
+    <item id="images-math-d9ca87417f6a64f61f38648492734964-png" href="images/math/d9ca87417f6a64f61f38648492734964.png" media-type="image/png"/>
+    <item id="images-math-ca8adf55790a5f55351fe8333a9ae161-png" href="images/math/ca8adf55790a5f55351fe8333a9ae161.png" media-type="image/png"/>
+    <item id="images-math-484216aaa4e741015f4fbe45135ddfe4-png" href="images/math/484216aaa4e741015f4fbe45135ddfe4.png" media-type="image/png"/>
+    <item id="images-math-66c39eaa893df53d07667d43656fd4be-png" href="images/math/66c39eaa893df53d07667d43656fd4be.png" media-type="image/png"/>
+    <item id="images-math-ed8a30d7323aa1def91d7898d456e307-png" href="images/math/ed8a30d7323aa1def91d7898d456e307.png" media-type="image/png"/>
+    <item id="images-math-3915613fd227f11ed8e6bb3d61c272fe-png" href="images/math/3915613fd227f11ed8e6bb3d61c272fe.png" media-type="image/png"/>
+    <item id="images-math-316627bea6336ebf0b4fe90fa2182f45-png" href="images/math/316627bea6336ebf0b4fe90fa2182f45.png" media-type="image/png"/>
+    <item id="images-math-b80f4f2ef4e9ac55f6ff8f601222fff2-png" href="images/math/b80f4f2ef4e9ac55f6ff8f601222fff2.png" media-type="image/png"/>
+    <item id="images-math-ea36de0de6d48c7e4e54905593314533-png" href="images/math/ea36de0de6d48c7e4e54905593314533.png" media-type="image/png"/>
+    <item id="images-math-a87e411437ab861ed40bf1fa6dbd47ed-png" href="images/math/a87e411437ab861ed40bf1fa6dbd47ed.png" media-type="image/png"/>
+    <item id="images-math-cb47f3865f512031d3ec7f66d4da9c72-png" href="images/math/cb47f3865f512031d3ec7f66d4da9c72.png" media-type="image/png"/>
+    <item id="images-math-d2e3b07f1da305e5872af6b7ff6cab4e-png" href="images/math/d2e3b07f1da305e5872af6b7ff6cab4e.png" media-type="image/png"/>
+    <item id="images-math-8b732e6037b1b14b24c3c3ef1ad0c0db-png" href="images/math/8b732e6037b1b14b24c3c3ef1ad0c0db.png" media-type="image/png"/>
+    <item id="images-math-0dfff98f7d4a8855e557bcc25238f9f9-png" href="images/math/0dfff98f7d4a8855e557bcc25238f9f9.png" media-type="image/png"/>
+    <item id="images-math-878b4a69db929933bd087b8a95e4229d-png" href="images/math/878b4a69db929933bd087b8a95e4229d.png" media-type="image/png"/>
+    <item id="images-math-40dde780afcb004414529a8f6d433037-png" href="images/math/40dde780afcb004414529a8f6d433037.png" media-type="image/png"/>
+    <item id="images-math-c6ba33270d52040872d6d27fa3eef920-png" href="images/math/c6ba33270d52040872d6d27fa3eef920.png" media-type="image/png"/>
+    <item id="images-math-8a152f7bc2b8805d319b11a754ce0c2d-png" href="images/math/8a152f7bc2b8805d319b11a754ce0c2d.png" media-type="image/png"/>
+    <item id="images-math-d203e239b7e241502f0aaee7ad2acac7-png" href="images/math/d203e239b7e241502f0aaee7ad2acac7.png" media-type="image/png"/>
+    <item id="images-math-38aa24d84225ada30452d65673958a06-png" href="images/math/38aa24d84225ada30452d65673958a06.png" media-type="image/png"/>
+    <item id="images-math-fc066178b19e996383cba6a43f90064a-png" href="images/math/fc066178b19e996383cba6a43f90064a.png" media-type="image/png"/>
+    <item id="images-math-97e015548aaf3e80af78a68861b1bc79-png" href="images/math/97e015548aaf3e80af78a68861b1bc79.png" media-type="image/png"/>
+    <item id="images-math-a1329174eaa4253c0543dfc7d6d6d550-png" href="images/math/a1329174eaa4253c0543dfc7d6d6d550.png" media-type="image/png"/>
+    <item id="images-math-08506673ebfd8ca460664e687f40c413-png" href="images/math/08506673ebfd8ca460664e687f40c413.png" media-type="image/png"/>
+    <item id="images-math-3459ff30d6f24d9db127a3b814c13b7b-png" href="images/math/3459ff30d6f24d9db127a3b814c13b7b.png" media-type="image/png"/>
+    <item id="images-math-e646df6940281f0199c9890eee268586-png" href="images/math/e646df6940281f0199c9890eee268586.png" media-type="image/png"/>
+    <item id="images-math-9d624d74fdd0f1129327b4f77965465c-png" href="images/math/9d624d74fdd0f1129327b4f77965465c.png" media-type="image/png"/>
+    <item id="images-math-f044154c0723f0305fd3803a9bbdee42-png" href="images/math/f044154c0723f0305fd3803a9bbdee42.png" media-type="image/png"/>
+    <item id="images-math-b51328bb81cd65e5af2fbe7352656bee-png" href="images/math/b51328bb81cd65e5af2fbe7352656bee.png" media-type="image/png"/>
+    <item id="images-math-2a3a2a243072e21edab07f7b28abf07c-png" href="images/math/2a3a2a243072e21edab07f7b28abf07c.png" media-type="image/png"/>
+    <item id="images-math-9a2483e464c8c9147a2ea77662bba519-png" href="images/math/9a2483e464c8c9147a2ea77662bba519.png" media-type="image/png"/>
+    <item id="images-math-af90c8345e502979fed8fdbb3b835942-png" href="images/math/af90c8345e502979fed8fdbb3b835942.png" media-type="image/png"/>
+    <item id="images-math-878c57983c0da7c44504a6d8fb00ee21-png" href="images/math/878c57983c0da7c44504a6d8fb00ee21.png" media-type="image/png"/>
+    <item id="images-math-476c9e5e1463eafaa638317f011ed65e-png" href="images/math/476c9e5e1463eafaa638317f011ed65e.png" media-type="image/png"/>
+    <item id="images-math-c5051a1fba37d0034af3cfd1604508fe-png" href="images/math/c5051a1fba37d0034af3cfd1604508fe.png" media-type="image/png"/>
+    <item id="images-math-4a270d56980fcdfa1e813841c4cc8954-png" href="images/math/4a270d56980fcdfa1e813841c4cc8954.png" media-type="image/png"/>
+    <item id="images-math-b2c7602fa6f9cd5ba0a72725a37e0680-png" href="images/math/b2c7602fa6f9cd5ba0a72725a37e0680.png" media-type="image/png"/>
+    <item id="images-math-bb9f620da12a0a94474441ea31c98887-png" href="images/math/bb9f620da12a0a94474441ea31c98887.png" media-type="image/png"/>
+    <item id="images-math-cbd7205c548a3a1d2109026e1ad26c53-png" href="images/math/cbd7205c548a3a1d2109026e1ad26c53.png" media-type="image/png"/>
+    <item id="images-math-c3196672f8a6fc5870b431a1e0ff7046-png" href="images/math/c3196672f8a6fc5870b431a1e0ff7046.png" media-type="image/png"/>
+    <item id="images-math-4172645aab9c2aeb31a42acb7369db49-png" href="images/math/4172645aab9c2aeb31a42acb7369db49.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_3-png" href="images/ch05/fig05_3.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_16-png" href="images/ch05/fig05_16.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_28-png" href="images/ch05/fig05_28.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_7-png" href="images/ch05/fig05_7.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_10-png" href="images/ch05/fig05_10.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_6-png" href="images/ch05/fig05_6.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_22-png" href="images/ch05/fig05_22.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_17-png" href="images/ch05/fig05_17.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_24-png" href="images/ch05/fig05_24.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_19_1-png" href="images/ch05/fig05_19_1.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_14-png" href="images/ch05/fig05_14.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_12-png" href="images/ch05/fig05_12.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_21-png" href="images/ch05/fig05_21.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_26-png" href="images/ch05/fig05_26.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_19-png" href="images/ch05/fig05_19.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_11-png" href="images/ch05/fig05_11.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_4-png" href="images/ch05/fig05_4.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_18-png" href="images/ch05/fig05_18.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_6_tmp-png" href="images/ch05/fig05_6_tmp.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_19_2-png" href="images/ch05/fig05_19_2.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_15-png" href="images/ch05/fig05_15.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_9-png" href="images/ch05/fig05_9.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_2-png" href="images/ch05/fig05_2.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_29-png" href="images/ch05/fig05_29.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_19_3-png" href="images/ch05/fig05_19_3.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_25-png" href="images/ch05/fig05_25.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_13-png" href="images/ch05/fig05_13.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_20-png" href="images/ch05/fig05_20.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_1-png" href="images/ch05/fig05_1.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_23-png" href="images/ch05/fig05_23.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_27-png" href="images/ch05/fig05_27.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_8-png" href="images/ch05/fig05_8.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_30-png" href="images/ch05/fig05_30.png" media-type="image/png"/>
+    <item id="images-ch05-fig05_5-png" href="images/ch05/fig05_5.png" media-type="image/png"/>
+  </manifest>
+  <spine page-progression-direction="ltr">
+    <itemref idref="deep-learning-from-scratch" linear="no"/>
+    <itemref idref="titlepage-xhtml"/>
+    <itemref idref="copy-xhtml"/>
+    <itemref idref="ch00c-xhtml"/>
+    <itemref idref="ch01-xhtml"/>
+    <itemref idref="ch02-xhtml"/>
+    <itemref idref="ch03-xhtml"/>
+    <itemref idref="ch04-xhtml"/>
+    <itemref idref="ch05-xhtml"/>
+    <itemref idref="ch06-xhtml"/>
+    <itemref idref="ch07-xhtml"/>
+    <itemref idref="ch08-xhtml"/>
+    <itemref idref="ch11a-xhtml"/>
+    <itemref idref="ch18ref-xhtml"/>
+    <itemref idref="author-xhtml"/>
+    <itemref idref="colophon-xhtml"/>
+  </spine>
+  <guide>
+    <reference type="cover" title="表紙" href="index.xhtml"/>
+    <reference type="title-page" title="大扉" href="titlepage.xhtml"/>
+    <reference type="toc" title="目次" href="deep-learning-from-scratch-toc.xhtml"/>
+    <reference type="colophon" title="奥付" href="colophon.xhtml"/>
+  </guide>
+</package>

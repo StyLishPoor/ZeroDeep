@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns:epub='http://www.idpf.org/2007/ops' xml:lang='ja' xmlns:ops='http://www.idpf.org/2007/ops' xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+  <meta charset='UTF-8'/>
+  <link href='oreilly.css' rel='stylesheet' type='text/css'/>
+  <meta content='Re:VIEW' name='generator'/>
+  <title>Python入門</title>
+</head>
+<body>
+<h1 id='h1'><span class='chapno'>1章</span><br/>Python入門</h1>
+<p>Pythonというプログラミング言語がこの世に登場して、すでに20年以上が経ちました。その間、Pythonは独自の進化を遂げながら、多くのユーザーを獲得しています。そして、現在では最も人気のある言語として、多くの人から愛用されるプログラミング言語になりました。</p>
+<p>これから、Pythonを使って、ディープラーニングによるシステムを実装していきます。それに先立ち本章では、Pythonについて簡単に紹介し、その使い方を見ていきたいと思います。なお、PythonやNumPy、Matplotlibについて知識のある方は、本章を読み飛ばして先に進んでも差し支えありません。</p>
+
+<h2 id='h1-1'><span class='secno'>1.1　</span>Pythonとは</h2>
+<p><!-- IDX:Python -->Pythonは、シンプルで読みやすく、覚えやすいプログラミング言語です。オープンソースであり、無料で自由に利用することができます。英語のような文法でプログラムを書くことができ、手間のかかるコンパイルはありません。そのため、Pythonは気軽に利用することができ、特にプログラミングが初めてという方に最適な言語です。事実、大学や専門学校などのコンピュータサイエンスの授業では、最初の言語として、Pythonを採用することが多くあります。</p>
+<p>また、Pythonを用いれば、可読性の高いコードを書くことができると同時に、パフォーマンスの高い（処理速度の速い）コードを書くこともできます。大量のデータの処理や高速なレスポンスが必要な場合、Pythonはそのような任務を着実に遂行してくれます。そのため、Pythonは初心者だけでなく、プロフェッショナルからも愛用されています。実際、GoogleやMicrosoft、FacebookなどのITの最先端で戦う企業では、Pythonが頻繁に使われています。</p>
+<p>そして、Pythonは、科学の分野、特に機械学習やデータサイエンスの分野でよく使われます。Pythonの高いパフォーマンス性に加えて、NumPyやSciPyといった数値計算や統計処理を行う優れたライブラリなどによって、Pythonはデータサイエンスの分野で確固としたポジションを占めているのです。さらに、ディープラーニングのフレームワークに関しても、Pythonを利用する場面は多くあります。たとえば、CaffeやTensorFlow、ChainerやTheanoといった有名なディープラーニングのフレームワークでは、Pythonから操作できるインタフェースが提供されています。そのため、Pythonを学べば、ディープラーニングのフレームワークを使う際にも必ず役に立つことでしょう。</p>
+<p>このように、Pythonは、データサイエンスの分野で特に最適なプログラミング言語です。そして、初心者からプロフェッショナルまで、幅広い層のユーザーに利用されるだけの優れた資質を備えています。そのため、本書の目標——ディープラーニングをゼロから作ること——を達成するには、Pythonは最適なプログラミング言語だと言えます。</p>
+
+<h2 id='h1-2'><span class='secno'>1.2　</span>Pythonのインストール</h2>
+<p>それでは、Pythonを手元の環境（PC）にインストールしましょう。ここでは、インストールに際して注意する点を説明します。</p>
+
+<h3 id='h1-2-1'><span class='secno'>1.2.1　</span>Pythonのバージョン</h3>
+<p>Pythonには、2系と3系の2つのバージョンが存在します。現在、Pythonの使われている状況を眺めると、最新の3系だけではなく、古株の2系も多く利用されています。そのため、Pythonのインストールに際しては、どちらのバージョンをインストールするか、慎重に選択する必要があります。というのは、その2つのバージョンには完全な互換性はないからです（正確には、「後方互換」がありません）。つまり、Python 3系で書いたプログラムがPython 2系では実行できないといったことが起こります。本書では、Python 3系を使用します。もし<!-- IDX:Python 2系 -->Python 2系だけをインストールしているという方は、別途、<!-- IDX:Python 3系 -->Python 3系のインストールをおすすめします。</p>
+
+<h3 id='h1-2-2'><span class='secno'>1.2.2　</span>使用する外部ライブラリ</h3>
+<p>本書の目標とすることは、ゼロからディープラーニングを実装することでした。そのため、外部のライブラリは極力使用しないというのが方針ですが、次の2つのライブラリは例外として用いることにします。ひとつはNumPy、もうひとつはMatplotlibというライブラリです。なお、これら2つのライブラリを用いる理由は、ディープラーニングの実装を効率良く進めることにあります。</p>
+<p>NumPyは数値計算のためのライブラリです。NumPyには、高度な数学アルゴリズムや配列（行列）を操作するための便利なメソッドが数多く用意されています。本書のディープラーニングの実装においては、それらの便利なメソッドを用いて、効率的に実装を進めていきます。</p>
+<p>Matplotlibはグラフ描画のためのライブラリです。Matplotlibを用いれば、実験結果の可視化や、また、ディープラーニングの実行途中のデータを視覚的に確認することができます。本書では、これらのライブラリを使用して、ディープラーニングを実装していきます。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td><p>本書では下記のプログラミング言語とライブラリを使用します。</p>
+<ul>
+<li>Python 3系（2016年8月時点の最新バージョンは3.5）</li>
+<li>NumPy</li>
+<li>Matplotlib</li>
+</ul>
+</td></tr></table></div><p>次は、これからPythonをインストールするという方を対象に、Pythonのインストール方法を説明します。すでに上記の要件を満たしている方は読み飛ばしてください。</p>
+
+<h3 id='h1-2-3'><span class='secno'>1.2.3　</span>Anacondaディストリビューション</h3>
+<p><!-- IDX:Anaconda -->Pythonのインストールについてはいくつか方法がありますが、本書ではAnacondaというディストリビューションの利用を推奨します。ちなみに、ディストリビューションとは、ユーザーが一括してインストールできるように、必要なライブラリなどがひとつにまとめ上げられたものです。Anacondaは、データ分析に重点を置いたディストリビューションです。先ほど説明したNumPyやMatplotlibといった、データ分析に有用なライブラリも含まれています。</p>
+<p>前に述べたとおり、本書ではバージョンが3系のPythonを使用します。そのため、Anacondaディストリビューションも3系をインストールします。それでは、下記リンクより、各自のOSに合ったディストリビューションをダウンロードし、インストールを行いましょう。</p>
+<blockquote><p><a class='link' href='https://www.continuum.io/downloads'>https://www.continuum.io/downloads</a></p></blockquote>
+
+<h2 id='h1-3'><span class='secno'>1.3　</span>Pythonインタプリタ</h2>
+<p><!-- IDX:インタプリタ -->Pythonをインストールしたら、Pythonのバージョンをまず初めに確認します。ターミナル（Windowsの場合はコマンドプロンプト）を開き、<!-- IDX:python &#45;&#45;version --><code class='tt'>python --version</code>というコマンドを入力してみましょう。このコマンドは、インストールされたPythonのバージョンを出力します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>$ <b>python --version</b>
+Python 3.4.1 :: Anaconda 2.1.0 (x86_64)
+</pre>
+</div>
+<p>上のように、Python 3.4.1（インストールしたバージョンによって数字は異なる）と表示されたら、Python 3系が正常にインストールされているということです。続いて、<code class='tt'>python</code>と入力し、Pythonインタプリタを起動します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>$ <b>python</b>
+Python 3.4.1 |Anaconda 2.1.0 (x86_64)| (default, Sep 10 2014, 17:24:09)
+[GCC 4.2.1 (Apple Inc. build 5577)] on darwin
+Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;license&quot; for more information.
+&gt;&gt;&gt;
+</pre>
+</div>
+<p>Pythonインタプリタは「対話モード」とも呼ばれ、ユーザーとPythonが対話的にプログラミングを行うことができます。対話的というのは、たとえば、ユーザーが「1+2は？」と尋ねれば、Pythonインタプリタが「3です」と答えるようなやりとりが行えることを意味します。それでは、実際に入力してみます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>1 + 2</b>
+3
+</pre>
+</div>
+<p>このように、Pythonインタプリタでは、対話的に（インタラクティブに）プログラミングを行うことができます。ここでは、この対話モードを使って、Pythonプログラミングの簡単な例を見ていくことにします。</p>
+
+<h3 id='h1-3-1'><span class='secno'>1.3.1　</span>算術計算</h3>
+<p><!-- IDX:算術計算 -->加算や乗算などの算術計算は、次のように行います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>1 - 2</b>
+-1
+&gt;&gt;&gt; <b>4 * 5</b>
+20
+&gt;&gt;&gt; <b>7 / 5</b>
+1.4
+&gt;&gt;&gt; <b>3 ** 2</b>
+9
+</pre>
+</div>
+<p><code class='tt'>*</code>は乗算、<code class='tt'>/</code>は除算、<code class='tt'>**</code>は累乗を意味します（<code class='tt'>3 ** 2</code>は3の2乗）。なお、Python 2系では、整数どうしの除算の結果は整数になります。たとえば、7÷5の結果は1です。一方、Python 3系では、整数の除算の結果は小数（浮動小数点数）になります。</p>
+
+<h3 id='h1-3-2'><span class='secno'>1.3.2　</span>データ型</h3>
+<p>プログラミングでは、<!-- IDX:データ型 --><b>データ型</b>（data type）というものがあります。データ型とは、データの性質を表すもので、たとえば、整数、小数、文字列といった型があります。Pythonには<code class='tt'>type()</code>という関数があり、この関数でデータの型を調べることができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>type(10)</b>
+&lt;class &#39;int&#39;&gt;
+&gt;&gt;&gt; <b>type(2.718)</b>
+&lt;class &#39;float&#39;&gt;
+&gt;&gt;&gt; <b>type(&quot;hello&quot;)</b>
+&lt;class &#39;str&#39;&gt;
+</pre>
+</div>
+<p>上の結果より、10は<!-- IDX:int --><code class='tt'>int</code>（整数型）、2.718は<!-- IDX:float --><code class='tt'>float</code>（浮動小数点型）、&quot;hello&quot;は<code class='tt'>str</code>（文字列型）という型であることが分かります。なお、「型」と「クラス」という言葉は同じ意味で使われる場合があります。ここで、<code class='tt'>&lt;class ‘int’&gt;</code>のように結果が出力されますが、これは「10は<code class='tt'>int</code>というクラス（型）です」と解釈できます。</p>
+
+<h3 id='h1-3-3'><span class='secno'>1.3.3　</span>変数</h3>
+<p><code class='tt'>x</code>や<code class='tt'>y</code>などのアルファベットを使って<!-- IDX:変数 --><b>変数</b>（variable）を定義することができます。また、変数を使って計算したり、変数に別の値を代入したりすることもできます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = 10</b>   # 初期化
+&gt;&gt;&gt; <b>print(x)</b> # xを出力する
+10
+&gt;&gt;&gt; <b>x = 100</b>  # 代入
+&gt;&gt;&gt; <b>print(x)</b>
+100
+&gt;&gt;&gt; <b>y = 3.14</b>
+&gt;&gt;&gt; <b>x * y</b>
+314.0
+&gt;&gt;&gt; <b>type(x * y)</b>
+&lt;class &#39;float&#39;&gt;
+</pre>
+</div>
+<p>Pythonは「動的型付き言語」に分類されるプログラミング言語です。動的というのは、変数の型が状況に応じて自動的に決定されるということです。上の例では、<code class='tt'>x</code>の型が<code class='tt'>int</code>（整数）であるということをユーザーが明示的に指定していません。10という整数で初期化するという状況から、<code class='tt'>x</code>の型は<code class='tt'>int</code>であることをPythonが判断しているのです。また、整数と小数の掛け算の結果は小数になっていることが分かります（型の自動変換）。なお、「<code class='tt'>#</code>」は<!-- IDX:コメントアウト -->コメントアウトと言い、それ以降の文字はPythonからは無視されます。</p>
+
+<h3 id='h1-3-4'><span class='secno'>1.3.4　</span>リスト</h3>
+<p><!-- IDX:リスト -->単一の数値だけでなく、リスト（配列）としてデータをまとめることができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>a = [1, 2, 3, 4, 5]</b> # リストの作成
+&gt;&gt;&gt; <b>print(a)</b>  # リストの中身を出力する
+[1, 2, 3, 4, 5]
+&gt;&gt;&gt; <b>len(a)</b>    # リストの長さを取得
+5
+&gt;&gt;&gt; <b>a[0]</b>      # 最初の要素にアクセス
+1
+&gt;&gt;&gt; <b>a[4]</b>
+5
+&gt;&gt;&gt; <b>a[4] = 99</b> # 値を代入
+&gt;&gt;&gt; <b>print(a)</b>
+[1, 2, 3, 4, 99]
+</pre>
+</div>
+<p>要素へのアクセスは<code class='tt'>a[0]</code>のように行います。この[ ] の中にある数を、インデックス（添字）と呼び、インデックスは0からスタートします（インデックスの0が最初の要素に対応します）。また、Pythonのリストには<!-- IDX:スライシング --><b>スライシング</b>（slicing）という便利な記法が用意されています。スライシングを用いれば、単一の値へのアクセスだけでなく、リストの<!-- IDX:サブリスト -->サブリスト（部分リスト）にアクセスすることができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>print(a)</b>
+[1, 2, 3, 4, 99]
+&gt;&gt;&gt; <b>a[0:2]</b> # インデックスの0番目から2番目（2番目は含まない！）まで取得
+[1, 2]
+&gt;&gt;&gt; <b>a[1:]</b>  # インデックスの1番目から最後まで取得
+[2, 3, 4, 99]
+&gt;&gt;&gt; <b>a[:3]</b>  # 最初からインデックスの3番目（3番目は含まない！）まで取得
+[1, 2, 3]
+&gt;&gt;&gt; <b>a[:-1]</b> # 最初から最後の要素のひとつ前まで取得
+[1, 2, 3, 4]
+&gt;&gt;&gt; <b>a[:-2]</b> # 最初から最後の要素の2つ前まで取得
+[1, 2, 3]
+</pre>
+</div>
+<p>リストのスライシングを行うには、<code class='tt'>a[0:2]</code>のように書きます。<code class='tt'>a[0:2]</code>により、インデックスの0番目から2番目のひとつ手前の要素までが取り出されます。なお、インデックス番号で<span class='equation mathnoimage'><i><span class='math-normal'>−1</span></i></span>は最後の要素、<span class='equation mathnoimage'><i><span class='math-normal'>−2</span></i></span>は最後からひとつ前の要素に対応します。</p>
+
+<h3 id='h1-3-5'><span class='secno'>1.3.5　</span>ディクショナリ</h3>
+<p><!-- IDX:ディクショナリ -->リストは0から始まるインデックス番号で、0、1、2、…という順に値が格納されました。ディクショナリは、キーと値をペアとしてデータを格納します。ディクショナリは、『広辞苑』のような辞書のように、単語と意味が対応づけられて格納されます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>me = {'height':180}</b> # ディクショナリを作成
+&gt;&gt;&gt; <b>me['height']</b>        # 要素にアクセス
+180
+&gt;&gt;&gt; <b>me['weight'] = 70</b>   # 新しい要素を追加
+&gt;&gt;&gt; <b>print(me)</b>
+{&#39;height&#39;: 180, &#39;weight&#39;: 70}
+</pre>
+</div>
+
+<h3 id='h1-3-6'><span class='secno'>1.3.6　</span>ブーリアン</h3>
+<p><!-- IDX:ブーリアン -->Pythonには、<code class='tt'>bool</code>という型があります。これは、<!-- IDX:True --><code class='tt'>True</code>と<!-- IDX:False --><code class='tt'>False</code>という2つの値のどちらかを取ります。また、<code class='tt'>bool</code>型に対する演算子として、<code class='tt'>and</code>や<code class='tt'>or</code>、<code class='tt'>not</code>があります（数値に対する演算子は、<code class='tt'>+</code>、<code class='tt'>-</code>、<code class='tt'>*</code>、<code class='tt'>/</code>などがあるように、型に応じて使用できる演算子が決まります）。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>hungry = True</b>     # お腹空いている？
+&gt;&gt;&gt; <b>sleepy = False</b>    # 眠い？
+&gt;&gt;&gt; <b>type(hungry)</b>
+&lt;class ‘bool’&gt;
+&gt;&gt;&gt; <b>not hungry</b>
+False
+&gt;&gt;&gt; <b>hungry and sleepy</b> # 空腹 かつ 眠い
+False
+&gt;&gt;&gt; <b>hungry or sleepy</b>  # 空腹 または 眠い
+True
+</pre>
+</div>
+
+<h3 id='h1-3-7'><span class='secno'>1.3.7　</span>if文</h3>
+<p>条件に応じて、処理を分岐するには<!-- IDX:if --><code class='tt'>if</code>/<!-- IDX:else --><code class='tt'>else</code>を用います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>hungry = True</b>
+&gt;&gt;&gt; <b>if hungry:</b>
+...     <b>print(&quot;I'm hungry&quot;)</b>
+...
+I&#39;m hungry
+&gt;&gt;&gt; <b>hungry = False</b>
+&gt;&gt;&gt; <b>if hungry:</b>
+...     <b>print(&quot;I'm hungry&quot;)</b> # 空白文字によるインデント
+... <b>else:</b>
+...     <b>print(&quot;I'm not hungry&quot;)</b>
+...     <b>print(&quot;I'm sleepy&quot;)</b>
+...
+I&#39;m not hungry
+I&#39;m sleepy
+</pre>
+</div>
+<p>Pythonでは、空白文字が重要な意味を持ちます。今回の<code class='tt'>if</code>文においても、<code class='tt'>if hungry:</code>の次の文は、頭に4つの空白文字があります。これはインデントを表し、先の条件（<code class='tt'>if hungry</code>）が満たされた際に実行されるコードを表します。このインデントはタブ文字を使って表現することもできますが、Pythonでは空白文字を使用することが推奨されています。</p>
+<div class='caution'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[警告]' class='warningicon' src='images/warning.png'/></td></tr><tr><td>
+<p>Pythonは、<!-- IDX:インデント -->インデントを表すために空白文字を使用します。インデントのレベルごとに4つの空白文字を使うのが一般的です。</p>
+</td></tr></table></div>
+
+<h3 id='h1-3-8'><span class='secno'>1.3.8　</span>for文</h3>
+<p>ループ処理を行うには、<!-- IDX:for --><code class='tt'>for</code>文を用います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>for i in [1, 2, 3]:</b>
+...     <b>print(i)</b>
+...
+1
+2
+3
+</pre>
+</div>
+<p>ここでは、<code class='tt'>[1, 2, 3]</code>というリストの中の要素を出力する例を示しています。<code class='tt'>for … in …:</code>という構文を用いると、リストなどのデータ集合の各要素に順にアクセスすることができます。</p>
+
+<h3 id='h1-3-9'><span class='secno'>1.3.9　</span>関数</h3>
+<p>まとまりのある処理を<!-- IDX:関数 --><b>関数</b>（function）として定義することができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>def hello():</b>
+...     <b>print(&quot;Hello World!&quot;)</b>
+...
+&gt;&gt;&gt; <b>hello()</b>
+Hello World!
+</pre>
+</div>
+<p>また、関数は引数を取ることができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>def hello(object):</b>
+...     <b>print(&quot;Hello &quot; + object + &quot;!&quot;)</b>
+...
+&gt;&gt;&gt; <b>hello(&quot;cat&quot;)</b>
+Hello cat!
+</pre>
+</div>
+<p>なお、文字列の連結は<code class='tt'>+</code>で行います。</p>
+<p>Pythonインタプリタを終了するには、LinuxやMac OS Xの場合、Ctrl-D（Ctrlキーを押しながらDキーを押す）を入力します。Windowsの場合、Ctrl-Zを入力し、Enterキーを押します。</p>
+
+<h2 id='h1-4'><span class='secno'>1.4　</span>Pythonスクリプトファイル</h2>
+<p><!-- IDX:スクリプトファイル -->これまで、Pythonインタプリタによる例を見てきました。Pythonインタプリタは、対話的にPythonを実行できるモードで、簡単な実験を行うにはとても便利です。しかし、まとまった処理を行おうとすると、毎回プログラムを入力する必要があるので少し不便です。そのような場合は、Pythonプログラムをファイルとして保存し、そのファイルを（まとめて）実行します。ここでは、そのようなPythonスクリプトファイルによる例を見ていきます。</p>
+
+<h3 id='h1-4-1'><span class='secno'>1.4.1　</span>ファイルに保存</h3>
+<p>それでは、テキストエディタを開き、<code class='tt'>hungry.py</code>というファイルを作成します。<code class='tt'>hungry.py</code>は、次の1行だけからなるファイルです。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;I&#39;m hungry!&quot;</span>)
+</pre>
+</div>
+<p>続いて、ターミナル（Windowsはコマンドプロンプト）を開き、先の<code class='tt'>hungry.py</code>が作成された場所に移動します。そして、<code class='tt'>hungry.py</code>というファイル名を引数として、<code class='tt'>python</code>コマンドを実行します。ここでは、<code class='tt'>~/deep-learning-from-scratch/ch01</code>というディレクトリに<code class='tt'>hungry.py</code>があるものと仮定します（本書が提供するソースコードでは、<code class='tt'>ch01</code>ディレクトリ下に<code class='tt'>hungry.py</code>があります）。</p>
+<div class='emlist-code'>
+<pre class='emlist'>$ <b>cd ~/deep-learning-from-scratch/ch01</b>  # ディレクトリの移動
+$ <b>python hungry.py</b>
+I&#39;m hungry!
+</pre>
+</div>
+<p>このように、<code class='tt'>python hungry.py</code>というコマンドから、Pythonプログラムを実行することができます。</p>
+
+<h3 id='h1-4-2'><span class='secno'>1.4.2　</span>クラス</h3>
+<p><!-- IDX:クラス -->これまで、<code class='tt'>int</code>や<code class='tt'>str</code>などのデータ型を見てきました（<code class='tt'>type()</code>という関数でオブジェクトの型を調べることができました）。それらのデータ型は、「組み込み」のデータ型と言って、初めからPythonに組み込まれたデータ型です。ここでは、新しいクラスを定義します。ユーザーが自分でクラスを定義すれば、独自にデータ型を作成することができます。また、オリジナルのメソッド（クラス用の関数）や属性を定義することも可能です。</p>
+<p>Pythonでは<!-- IDX:class --><code class='tt'>class</code>というキーワードを使って、クラスを定義します。クラスは次のようなフォーマット（ひな形）に従います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>class クラス名：
+    def __init__(self, 引数, …):   # コンストラクタ
+       ...
+    def メソッド名1(self, 引数, …): # メソッド1
+       ...
+    def メソッド名2(self, 引数, …): # メソッド2
+       ...
+</pre>
+</div>
+<p>ここで、<!-- IDX:__init__ --><code class='tt'>__init__</code>という特別なメソッドがありますが、これは初期化を行うメソッドです。この初期化用メソッドは<!-- IDX:コンストラクタ --><b>コンストラクタ</b>（constructor）とも呼ばれ、クラスのインスタンスが作成される際に一度だけ呼ばれます。また、Pythonでは、メソッドの第一引数に自分自身（自身のインスタンス）を表す<!-- IDX:self --><code class='tt'>self</code>を明示的に書くのが特徴です（他の言語から移ってきた人からすると、このように<code class='tt'>self</code>を書く作法は奇妙に感じるかもしれません）。</p>
+<p>それでは、簡単な例として、クラスをひとつ作成してみます。ここでは、次のプログラムを<code class='tt'>man.py</code>として保存します。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>class</span> <span style='color: #0000FF; font-weight: bold'>Man</span>:
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>__init__</span>(<span style='color: #008000'>self</span>, name):
+        <span style='color: #008000'>self</span><span style='color: #666666'>.</span>name <span style='color: #666666'>=</span> name
+        <span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;Initialized!&quot;</span>)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>hello</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;Hello &quot;</span> <span style='color: #666666'>+</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>name <span style='color: #666666'>+</span> <span style='color: #BA2121'>&quot;!&quot;</span>)
+
+    <span style='color: #008000; font-weight: bold'>def</span> <span style='color: #0000FF'>goodbye</span>(<span style='color: #008000'>self</span>):
+        <span style='color: #008000; font-weight: bold'>print</span>(<span style='color: #BA2121'>&quot;Good-bye &quot;</span> <span style='color: #666666'>+</span> <span style='color: #008000'>self</span><span style='color: #666666'>.</span>name <span style='color: #666666'>+</span> <span style='color: #BA2121'>&quot;!&quot;</span>)
+
+m <span style='color: #666666'>=</span> Man(<span style='color: #BA2121'>&quot;David&quot;</span>)
+m<span style='color: #666666'>.</span>hello()
+m<span style='color: #666666'>.</span>goodbye()
+</pre>
+</div>
+<p>ターミナルから<code class='tt'>man.py</code>を実行します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>$ <b>python man.py</b>
+Initialized!
+Hello David!
+Good-bye David!
+</pre>
+</div>
+<p>ここでは、<code class='tt'>Man</code>という新しいクラスを定義しています。上の例では、この<code class='tt'>Man</code>というクラスから、<code class='tt'>m</code>というインスタンス（オブジェクト）を生成します。</p>
+<p><code class='tt'>Man</code>クラスのコンストラクタ（初期化メソッド）は、<code class='tt'>name</code>という引数を取り、その引数でインスタンス変数である<code class='tt'>self.name</code>を初期化します。<!-- IDX:インスタンス変数 --><b>インスタンス変数</b>とは、個々のインスタンスに格納される変数のことです。Pythonでは、<code class='tt'>self.name</code>のように、<code class='tt'>self</code>の後に属性名を書くことでインスタンス変数の作成およびアクセスができます。</p>
+
+<h2 id='h1-5'><span class='secno'>1.5　</span>NumPy</h2>
+<p><!-- IDX:NumPy -->ディープラーニングの実装では、配列や行列の計算が多く登場します。NumPyの配列クラス（<code class='tt'>numpy.array</code>）には便利なメソッドが多く用意されており、ディープラーニングの実装においても、それらのメソッドを利用します。ここでは、これから先使用していくNumPyについて簡単に説明します。</p>
+
+<h3 id='h1-5-1'><span class='secno'>1.5.1　</span>NumPyのインポート</h3>
+<p>NumPyは外部ライブラリです。ここで言う「外部」とは、標準のPythonには含まれないということです。そのため、まず初めにNumPyライブラリを読み込む（インポートする）作業を行います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>import numpy as np</b>
+</pre>
+</div>
+<p>Pythonでは、ライブラリを読み込むために<code class='tt'>import</code>という文を用います。ここでは、<code class='tt'>import numpy as np</code>と書いていますが、これは直訳するならば、「numpyをnpとして読み込む」ということになります。そのように書くことで、これ以降NumPyに関するメソッドは<code class='tt'>np</code>として参照することができます。</p>
+
+<h3 id='h1-5-2'><span class='secno'>1.5.2　</span>NumPy配列の生成</h3>
+<p>NumPyの配列を作成するために、<!-- IDX:np.array --><code class='tt'>np.array()</code>というメソッドを用います。<code class='tt'>np.array()</code>は、Pythonのリストを引数に取り、NumPy用の配列（<code class='tt'>numpy.ndarray</code>）を作成します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array([1.0, 2.0, 3.0])</b>
+&gt;&gt;&gt; <b>print(x)</b>
+[ 1.  2.  3.]
+&gt;&gt;&gt; <b>type(x)</b>
+&lt;class &#39;numpy.ndarray&#39;&gt;
+</pre>
+</div>
+
+<h3 id='h1-5-3'><span class='secno'>1.5.3　</span>NumPyの算術計算</h3>
+<p>NumPy配列の算術計算の例を示します。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array([1.0, 2.0, 3.0])</b>
+&gt;&gt;&gt; <b>y = np.array([2.0, 4.0, 6.0])</b>
+&gt;&gt;&gt; <b>x + y</b>  # 要素ごとの足し算
+array([ 3.,  6., 9.])
+&gt;&gt;&gt; <b>x - y</b>
+array([ -1.,  -2., -3.])
+&gt;&gt;&gt; <b>x * y</b>  # element-wise product
+array([  2.,   8.,  18.])
+&gt;&gt;&gt; <b>x / y</b>
+array([ 0.5,  0.5,  0.5])
+</pre>
+</div>
+<p>ここで注意すべき点は、配列の<code class='tt'>x</code>と<code class='tt'>y</code>の要素数が同じであるという点です（両者とも要素数が3の1次元配列）。<code class='tt'>x</code>と<code class='tt'>y</code>の要素数が同じ場合、算術計算は各要素に対して行われます。要素数が違う場合はエラーになるので、要素数を合わせることは大切なことです。ちなみに、「要素ごと」という言葉は、英語で<!-- IDX:element&#45;wise -->element-wiseと言います。たとえば、「要素ごとの積」はelement-wise productと言います。</p>
+<p>NumPy配列はelement-wiseな計算だけではなく、NumPy配列と単一の数値（スカラ値）の組み合わせで算術計算を行うこともできます。その場合、NumPy配列の各要素とスカラ値の間で計算が行われます。この機能はブロードキャストと言います（詳細は後ほど説明します）。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>x = np.array([1.0, 2.0, 3.0])</b>
+&gt;&gt;&gt; <b>x / 2.0</b>
+array([ 0.5,  1. ,  1.5])
+</pre>
+</div>
+
+<h3 id='h1-5-4'><span class='secno'>1.5.4　</span>NumPyのN次元配列</h3>
+<p><!-- IDX:N次元配列 -->NumPyは、1次元の配列（1列に並んだ配列）だけではなく、多次元の配列も作成することができます。たとえば、2次元配列（行列）は次のように作成できます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>A = np.array([[1, 2], [3, 4]])</b>
+&gt;&gt;&gt; <b>print(A)</b>
+[[1 2]
+ [3 4]]
+&gt;&gt;&gt; <b>A.shape</b>
+(2, 2)
+&gt;&gt;&gt; <b>A.dtype</b>
+dtype(&#39;int64&#39;)
+</pre>
+</div>
+<p>ここでは、2×2の<code class='tt'>A</code>という行列を作成しました。なお、行列<code class='tt'>A</code>の形状は<!-- IDX:shape --><code class='tt'>shape</code>で、行列<code class='tt'>A</code>の要素のデータ型は<!-- IDX:dtype --><code class='tt'>dtype</code>で参照することができます。それでは続いて、行列の算術計算を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>B = np.array([[3, 0],[0, 6]])</b>
+&gt;&gt;&gt; <b>A + B</b>
+array([[ 4,  2],
+       [ 3, 10]])
+&gt;&gt;&gt; <b>A * B</b>
+array([[ 3,  0],
+       [ 0, 24]])
+</pre>
+</div>
+<p>配列の場合と同様に、行列の算術計算も同じ形状の行列どうしであれば、要素ごとに計算が行われます。また、行列に対して<!-- IDX:スカラ値 -->スカラ値（単一の数値）で算術計算を行うことも可能です。これもブロードキャストによる機能です。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>print(A)</b>
+[[1 2]
+ [3 4]]
+&gt;&gt;&gt; <b>A * 10</b>
+array([[ 10, 20],
+       [ 30, 40]])
+</pre>
+</div>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>NumPyの配列（<code class='tt'>np.array</code>）は、N次元の配列を作成することができます。N次元配列とは、1次元配列、2次元配列、3次元配列、…と好きな次元数の配列を作れることを意味します。数学では、1次元配列は<!-- IDX:ベクトル --><b>ベクトル</b>、2次元配列は<!-- IDX:行列 --><b>行列</b>と呼びます。また、ベクトルや行列を一般化したものを<!-- IDX:テンソル --><b>テンソル</b>と呼びます。本書では基本的に、2次元配列を「行列」、3次元以上の配列を「テンソル」または「多次元配列」と呼びます。</p>
+</td></tr></table></div>
+
+<h3 id='broadcast'><a id='h1-5-5'/><span class='secno'>1.5.5　</span>ブロードキャスト</h3>
+<p><!-- IDX:ブロードキャスト -->NumPyでは形状の異なる配列の演算も可能です。先ほどの例では、<code class='tt'>A</code>という2×2の行列に対して、<code class='tt'>10</code>という<!-- IDX:スカラ -->スカラ値の掛け算を行いました。その際どのようなことが行われているかというと、<a href='./ch01.xhtml#fig01_1'>図1-1</a>で示すように、<code class='tt'>10</code>というスカラ値が2×2の要素に拡大されて演算が行われているのです。この賢い機能は、<b>ブロードキャスト</b>（broadcast）と言います。</p>
+<div class='image' id='fig01_1'>
+<img alt='ブロードキャストの例：スカラ値である10が2×2の行列として扱われる' src='images/ch01/fig01_1.png'/>
+<p class='caption'>
+図1-1　ブロードキャストの例：スカラ値である10が2×2の行列として扱われる
+</p>
+</div>
+<p>ブロードキャストの別の例として、次の計算を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>A = np.array([[1, 2], [3, 4]])</b>
+&gt;&gt;&gt; <b>B = np.array([10, 20])</b>
+&gt;&gt;&gt; <b>A * B</b>
+array([[ 10, 40],
+       [ 30, 80]])
+</pre>
+</div>
+<p>ここでは、<a href='./ch01.xhtml#fig01_2'>図1-2</a>のように、1次元配列である<code class='tt'>B</code>が2次元配列<code class='tt'>A</code>と同じ形状になるように“賢く”変形されて、要素ごとの演算が行われます。</p>
+<div class='image' id='fig01_2'>
+<img alt='ブロードキャストの例2' src='images/ch01/fig01_2.png'/>
+<p class='caption'>
+図1-2　ブロードキャストの例2
+</p>
+</div>
+<p>このようにNumPyでは、ブロードキャストという機能があるため、形状の異なる配列どうしの演算をスマートに行うことができます。</p>
+
+<h3 id='h1-5-6'><span class='secno'>1.5.6　</span>要素へのアクセス</h3>
+<p>要素のインデックスは、（いつものとおり）0から始まります。各要素へのアクセスは次のように行います。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X = np.array([[51, 55], [14, 19], [0, 4]])</b>
+&gt;&gt;&gt; <b>print(X)</b>
+[[51 55]
+ [14 19]
+ [ 0  4]]
+&gt;&gt;&gt; <b>X[0]</b>    # 0行目
+array([51, 55])
+&gt;&gt;&gt; <b>X[0][1]</b> # (0,1)の要素
+55
+</pre>
+</div>
+<p><code class='tt'>for</code>文を使って各要素にアクセスすることもできます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>for row in X:</b>
+...     <b>print(row)</b>
+...
+[51 55]
+[14 19]
+[0 4]
+</pre>
+</div>
+<p>NumPyは、これまで見てきたインデックス操作に加えて、配列によって各要素にアクセスすることも可能です。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X = X.flatten()</b>        # Xを1次元の配列へ変換<!-- IDX:flatten() -->
+&gt;&gt;&gt; <b>print(X)</b>
+[51 55 14 19  0  4]
+&gt;&gt;&gt; <b>X[np.array([0, 2, 4])]</b> # インデックスが0、2、4番目の要素を取得
+array([51, 14,  0])
+</pre>
+</div>
+<p>この記法を応用すれば、ある条件を満たす要素だけを取得することができます。たとえば、<code class='tt'>X</code>から15以上の値だけを抜き出すには次のように書くことができます。</p>
+<div class='emlist-code'>
+<pre class='emlist'>&gt;&gt;&gt; <b>X &gt; 15</b>
+array([ True,  True, False,  True, False, False], dtype=bool)
+&gt;&gt;&gt; <b>X[X&gt;15]</b>
+array([51, 55, 19])
+</pre>
+</div>
+<p>NumPyの配列に対して不等号などの演算子を使うと（上記の例では<code class='tt'>X &gt; 15</code>）、結果はブーリアンの配列になります。ここでは、このブーリアン配列を使って、配列の各要素を取り出しています（<code class='tt'>True</code>に対応する要素を取り出す）。</p>
+<div class='note'><table class='note'><tr><td class='center top' rowspan='2'><img alt='[注記]' class='noteicon' src='images/note.png'/></td></tr><tr><td>
+<p>Pythonなどの動的言語は、CやC++などの静的言語（コンパイル型言語）に比べて処理が遅いと言われます。実際、重たい処理を対象とすれば、C/C++でプログラムを書いたほうがよいでしょう。そこで、Pythonでパフォーマンスが要求される場合は、処理の中身をC/C++で実装するといったことが行われます。その場合、Pythonは、C/C++で書かれたプログラムを呼び出す、いわば「仲介人」のような役割を担います。NumPyについても、主な処理はCやC++で実装されています。そのため、パフォーマンスを損なうことなく、Pythonの便利なシンタックスを使うことができるのです。</p>
+</td></tr></table></div>
+
+<h2 id='h1-6'><span class='secno'>1.6　</span>Matplotlib</h2>
+<p><!-- IDX:Matplotlib -->ディープラーニングの実験においては、グラフの描画やデータの可視化が重要になってきます。Matplotlibはグラフ描画のためのライブラリです。Matplotlibを使えば、グラフの描画やデータの可視化が簡単に行えます。ここでは、グラフの描画方法と画像の表示方法について説明します。</p>
+
+<h3 id='h1-6-1'><span class='secno'>1.6.1　</span>単純なグラフの描画</h3>
+<p>グラフを描画するためには、<code class='tt'>matplotlib</code>の<code class='tt'>pyplot</code>というモジュールを利用します。早速、sin関数を描画する例を見てみましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pyplot</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+
+<span style='color: #408080; font-style: italic'># データの作成</span>
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>arange(<span style='color: #666666'>0</span>, <span style='color: #666666'>6</span>, <span style='color: #666666'>0.1</span>) <span style='color: #408080; font-style: italic'># 0から6まで0.1刻みで生成<!-- IDX:np.arange() --></span>
+y <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sin(x)
+
+<span style='color: #408080; font-style: italic'># グラフの描画</span>
+plt<span style='color: #666666'>.</span>plot(x, y)<!-- IDX:plt.plot() -->
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p>ここでは、NumPyの<code class='tt'>arange</code>メソッドによって、<code class='tt'>[0, 0.1, 0.2, …, 5.8, 5.9]</code>というデータを生成し、これを<code class='tt'>x</code>としています。この<code class='tt'>x</code>の各要素を対象に、NumPyのsin関数——<code class='tt'>np.sin()</code>——を適用し、<code class='tt'>x</code>、<code class='tt'>y</code>のデータ列を<code class='tt'>plt.plot</code>メソッドに与え、グラフを描画します。最後に、<!-- IDX:plt.show() --><code class='tt'>plt.show()</code>でグラフを表示して終了です。上のコードを実行すると、<a href='./ch01.xhtml#fig01_3'>図1-3</a>の画像が表示されます。</p>
+<div class='image' id='fig01_3'>
+<img alt='sin関数のグラフ' src='images/ch01/fig01_3.png'/>
+<p class='caption'>
+図1-3　sin関数のグラフ
+</p>
+</div>
+
+<h3 id='h1-6-2'><span class='secno'>1.6.2　</span>pyplotの機能</h3>
+<p><!-- IDX:pyplot -->先のsin関数に加えて、cos関数も追加して描画してみます。さらに、タイトルや<span class='equation mathnoimage'><i>x</i></span>軸ラベル名の描画など、<code class='tt'>pyplot</code>の他の機能も利用してみます。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>numpy</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>np</span>
+<span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pyplot</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+
+<span style='color: #408080; font-style: italic'># データの作成</span>
+x <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>arange(<span style='color: #666666'>0</span>, <span style='color: #666666'>6</span>, <span style='color: #666666'>0.1</span>) <span style='color: #408080; font-style: italic'># 0から6まで0.1刻みで生成</span>
+y1 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>sin(x)
+y2 <span style='color: #666666'>=</span> np<span style='color: #666666'>.</span>cos(x)
+
+<span style='color: #408080; font-style: italic'># グラフの描画</span>
+plt<span style='color: #666666'>.</span>plot(x, y1, label<span style='color: #666666'>=</span><span style='color: #BA2121'>&quot;sin&quot;</span>)
+plt<span style='color: #666666'>.</span>plot(x, y2, linestyle <span style='color: #666666'>=</span> <span style='color: #BA2121'>&quot;--&quot;</span>, label<span style='color: #666666'>=</span><span style='color: #BA2121'>&quot;cos&quot;</span>) <span style='color: #408080; font-style: italic'># 破線で描画</span>
+plt<span style='color: #666666'>.</span>xlabel(<span style='color: #BA2121'>&quot;x&quot;</span>) <span style='color: #408080; font-style: italic'># x軸のラベル<!-- IDX:plt.xlabel() --></span>
+plt<span style='color: #666666'>.</span>ylabel(<span style='color: #BA2121'>&quot;y&quot;</span>) <span style='color: #408080; font-style: italic'># y軸のラベル<!-- IDX:plt.ylabel() --></span>
+plt<span style='color: #666666'>.</span>title(<span style='color: #BA2121'>&#39;sin &amp; cos&#39;</span>) <span style='color: #408080; font-style: italic'># タイトル<!-- IDX:plt.title() --></span>
+plt<span style='color: #666666'>.</span>legend()
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p>結果は<a href='./ch01.xhtml#fig01_4'>図1-4</a>のグラフになります。図のタイトルや軸のラベル名が記載されていることが分かります。</p>
+<div class='image' id='fig01_4'>
+<img alt='sin関数とcos関数のグラフ' src='images/ch01/fig01_4.png'/>
+<p class='caption'>
+図1-4　sin関数とcos関数のグラフ
+</p>
+</div>
+
+<h3 id='h1-6-3'><span class='secno'>1.6.3　</span>画像の表示</h3>
+<p><code class='tt'>pyplot</code>には、画像表示のためのメソッド<!-- IDX:imshow() --><code class='tt'>imshow()</code>も用意されています。また、画像の読み込みは、<!-- IDX:matplotlib.image --><code class='tt'>matplotlib.image</code>モジュールの<!-- IDX:imread() --><code class='tt'>imread()</code>を利用することができます。それでは、例をひとつ示しましょう。</p>
+<div class='emlist-code'>
+<pre class='emlist language-py'><span style='color: #008000; font-weight: bold'>import</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.pyplot</span> <span style='color: #008000; font-weight: bold'>as</span> <span style='color: #0000FF; font-weight: bold'>plt</span>
+<span style='color: #008000; font-weight: bold'>from</span> <span style='color: #0000FF; font-weight: bold'>matplotlib.image</span> <span style='color: #008000; font-weight: bold'>import</span> imread
+
+img <span style='color: #666666'>=</span> imread(<span style='color: #BA2121'>&#39;lena.png&#39;</span>) <span style='color: #408080; font-style: italic'># 画像の読み込み（適切なパスを設定する！）</span>
+plt<span style='color: #666666'>.</span>imshow(img)
+
+plt<span style='color: #666666'>.</span>show()
+</pre>
+</div>
+<p>このコードを実行すると、<a href='./ch01.xhtml#fig01_5'>図1-5</a>の画像が表示されます。</p>
+<div class='image' id='fig01_5'>
+<img alt='画像の表示' src='images/ch01/fig01_5.png'/>
+<p class='caption'>
+図1-5　画像の表示
+</p>
+</div>
+<p>ここでは、<code class='tt'>lena.png</code>という画像がカレントディレクトリにあると想定しています。読者の環境においては、適宜、ファイル名やファイルのパスを変更する必要があるでしょう。なお、本書が提供するソースコードでは、<code class='tt'>dataset</code>ディレクトリにサンプル画像として<code class='tt'>lena.png</code>があります。たとえば、Pythonインタプリタで、<code class='tt'>ch01</code>ディレクトリから上のコードを実行する場合は、画像のパスである<code class='tt'>'lena.png'</code>を<code class='tt'>'../dataset/lena.png'</code>に変更すれば正しく動作します。</p>
+
+<h2 id='h1-7'><span class='secno'>1.7　</span>まとめ</h2>
+<p>本章は、ディープラーニングの下準備のページです。とりわけ、ディープラーニング（ニューラルネットワーク）の実装に向けて必要なプログラミングの解説が中心となりました。次章から、Pythonを使って実際に動くコードを示しながら、ディープラーニングの世界に踏み込んでいきます。</p>
+<p>本章では、Pythonについて必要最低限の説明にとどめましたが、さらに知識を深めたい方は、次に紹介する書籍などが参考になるでしょう。Pythonについては『入門 Python 3』<u>［1］</u>がおすすめです。Pythonプログラミングを基礎から応用まで丁寧に解説する実践的な入門書です。NumPyについては『Pythonによるデータ分析入門』<u>［2］</u>が分かりやすくまとまっています。書籍以外では、「Scipy Lecture Notes」<u>［3］</u>というタイトルのWebサイトに、科学技術の計算をテーマとしたNumPyやMatplotlibの丁寧な説明があります。興味のある方は参考にしてください。</p>
+<p>それでは、本章のまとめとして、ここで学んだことを以下に列挙します。</p>
+<div class='column'>
+
+<h5 id='column-1'>本章で学んだこと</h5>
+<ul>
+<li>Pythonはシンプルで覚えやすいプログラミング言語である。</li>
+<li>Pythonはオープンソースで自由に使うことができる。</li>
+<li>本書のディープラーニングの実装ではPython 3系を利用する。</li>
+<li>外部ライブラリとしてNumPyとMatplotlibを利用する。</li>
+<li>Pythonの実行モードには「インタプリタ」と「スクリプトファイル」の2つのモードがある。</li>
+<li>Pythonでは関数やクラスといったモジュールとして実装をまとめることができる。</li>
+<li>NumPyには多次元配列を操作するための便利なメソッドが数多くある。</li>
+</ul>
+</div>
+</body>
+</html>
